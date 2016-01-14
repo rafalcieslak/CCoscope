@@ -31,7 +31,7 @@ set(MAPHOON_IDEEX ${SOURCE_DIR}/idee.x)
 set(MAPHOONGEN token.cpp parser.cpp)
 prepend(MAPHOONGEN ${MAPHOON_WORKDIR}/ ${MAPHOONGEN})
 
-set(MAPHOON_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/calculator.m)
+set(MAPHOON_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/grammar.m)
 
 add_custom_command(
   OUTPUT ${MAPHOONGEN}
