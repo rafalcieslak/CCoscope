@@ -13,6 +13,8 @@ add_definitions(
   -Werror
   -std=c++14
   -Wno-unused-function # Stupid flex.
+  -Wno-unused-parameter # Maphoon's fault
+  -Wno-sign-compare     # Maphoon's fault
   )
 
 find_package(FLEX REQUIRED)
