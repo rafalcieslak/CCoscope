@@ -1,0 +1,50 @@
+// Sierpinski Carpet example
+fun draw_frac(max : int, cur_y : int, cur_x : int, depth : int) : bool {
+    var start_x : int;
+    var start_y : int;
+    var b1x : int;
+    var b2x : int;
+    var b1y : int;
+    var b2y : int;
+    var width : int;
+    var max_x : int;
+    var max_y : int;
+    max_x := max;
+    max_y := max;
+    start_x := 0;
+    start_y := 0;
+    while(depth > 0){
+        width := (max - start_x) / 3;
+        b1x := start_x + width;
+        b2x := max_x - width;
+        b1y := start_y + width;
+        b2y := max_y - width;
+        if(curr_x < b1x){
+            max_x := b1x;
+        }else{
+            start_x := b1x;
+        }
+        if(curr_x > b2x){
+            start_x := b2x;
+        }else{
+            max_x := b2x;
+        }
+        if(curr_y < b1y){
+            max_y := b1y;
+        }else{
+            start_y := b1y;
+        }
+        if(curr_y > b2y){
+            start_y := b2y;
+        }else{
+            max_y := b2y;
+        }
+
+        if(start_x = b1x && start_y = b1y && max_x = b2x && max_y = b2y){
+            return false;
+        }else{
+            depth := depth - 1;
+        }
+    }
+    return true;
+}

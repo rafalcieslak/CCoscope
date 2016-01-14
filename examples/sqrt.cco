@@ -1,0 +1,24 @@
+// The square root example
+extern fun abs(double) : double;
+extern fun pow(double,double) : double;
+fun sqrt(num : double) : double{
+    var prec : double;
+    var start : double;
+    var end : double;
+    var cur : double;
+    num := abs(num);
+    prec := 1e-5;
+    start := 0.;
+    end := num;
+    cur := num;
+    // while(end - start > prec){
+    while(abs(pow(cur,2.) - num) > prec){
+        cur := (end - start)/2.;
+        if(pow(cur,2.) > num){
+            end := cur;
+        }else{
+            start := cur;
+        }
+    }
+    return cur;
+}

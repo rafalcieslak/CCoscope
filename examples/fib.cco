@@ -1,0 +1,7 @@
+// Recursion example (fibonacci sequence)
+fun fib(n : int) : int {
+    if (n >= 0)
+        return fib(n - 2) + fib(n - 1);
+    else
+        return 0;
+}
