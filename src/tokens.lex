@@ -61,7 +61,7 @@ comment		{ol_comment}|{bl_comment}
 .		printf("token: unknown %s\n", yytext);
 %%
 
-int lexme()
+void lexme()
 {
   yylex();
 }
