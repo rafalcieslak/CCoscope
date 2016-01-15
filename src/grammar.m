@@ -20,6 +20,7 @@
 %token VarList VarDef
 %token If While
 %token Return
+%token Expression Expr10 Expr20 Expr30 Expr40 Expr50 Expr100
 
 %startsymbol Start EOF
 
@@ -109,13 +110,41 @@
 % While : KEYWORD_WHILE LPAR Expression RPAR Block
 %       ;
 
-
-% While : KEYWORD_WHILE LPAR Expression RPAR Block
-%       ;
-
 % Return : KEYWORD_RETURN Expression SEMICOLON
 %        ;
 
-% Expression : LITERAL_INT
+
+% Expression  : Expr20
+%             ;
+
+% Expr20     : Expr20 AND Expr30
+%            | Expr20 OR  Expr30
+%            | Expr30
+%            ;
+
+/* Note that both sides of operator == and similar are of the same LOWER precedence.
+ * This forbids " x == y == z " or " a < b < c " which would be very confusing. */
+% Expr30     : Expr40 EQUAL     Expr40
+%            | Expr40 NEQUAL    Expr40
+%            | Expr40 LESS      Expr40
+%            | Expr40 GREATER   Expr40
+%            | Expr40 LESSEQ    Expr40
+%            | Expr40 GREATEREQ Expr40
+%            | Expr40
+%            ;
+
+% Expr40     : Expr40 ADD Expr50
+%            | Expr40 SUB Expr50
+%            | Expr50
+%            ;
+
+% Expr50     : Expr50 MULT Expr100
+%            | Expr50 DIV  Expr100
+%            | Expr50 MOD  Expr100
+%            | Expr100
+%            ;
+
+% Expr100    : LITERAL_INT
 %            | IDENTIFIER
+%            | LPAR Expression RPAR
 %            ;
