@@ -1,7 +1,8 @@
 // This Greatest Common Divisor example was modified
 // to make it closer to Kaleidoscope language
 fun gcd (a : int, b : int, c : int) : int {
-    for (c = 0; a != 0; ) {
+    c := 0;
+    while ( != 0 ) {
         c := a;
         a := b % a;
         b := c;
