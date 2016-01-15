@@ -1,5 +1,5 @@
 fun simple2() : int{
     var x : int;
     x := 42;
-    return x;
+    return 23;
 }

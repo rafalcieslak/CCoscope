@@ -1,0 +1,1 @@
+extern fun externfunc(arg1 : int, arg2 : int) : int;

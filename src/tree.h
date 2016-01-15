@@ -6,6 +6,14 @@
 #include <vector>
 #include <cassert>
 #include <list>
+#include <iostream>
+
+enum datatype{
+    DATATYPE_int,
+    DATATYPE_float,
+    DATATYPE_bool,
+    DATATYPE_void, // Not available for variables, but can be returned by a function
+};
 
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
@@ -49,29 +57,35 @@ public:
         : Expr(std::move(expr)) {}
 };
 
-/// StatementListAST - Represents a list of statements executed in order
-class StatementListAST : public ExprAST {
+/// BlockAST - Represents a list of variable definitions and a list of
+/// statements executed in a particular order
+class BlockAST : public ExprAST {
     std::list<std::shared_ptr<ExprAST>> Statements;
 
 public:
-    StatementListAST(){}
-    void Prepend(std::shared_ptr<ExprAST> t){
-        Statements.push_front(t);
-    }
+    BlockAST(const std::list<std::shared_ptr<ExprAST>>& s) : Statements(s) {}
 };
 
-
+/// AssignmentAST - Represents an assignment operations
+class AssignmentAST : public ExprAST {
+    std::string Name;
+    std::shared_ptr<ExprAST> Expr;
+public:
+    AssignmentAST(const std::string& Name, std::shared_ptr<ExprAST> Expr) :
+        Name(Name), Expr(Expr) {}
+};
 
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes).
 class PrototypeAST {
     std::string Name;
-    std::vector<std::string> Args;
+    std::vector<std::pair<std::string, datatype>> Args;
+    datatype ReturnType;
 
- public:
- PrototypeAST(const std::string &Name, std::vector<std::string> Args)
-     : Name(Name), Args(std::move(Args)) {}
+public:
+    PrototypeAST(const std::string &Name, std::vector<std::pair<std::string, datatype>> Args, datatype ReturnType)
+        : Name(Name), Args(std::move(Args)), ReturnType(ReturnType) {}
     //Function *codegen();
     const std::string &getName() const { return Name; }
 };
@@ -87,5 +101,21 @@ class FunctionAST {
      : Proto(std::move(Proto)), Body(std::move(Body)) {}
     //Function *codegen();
 };
+
+
+
+// I really hate having to add this operator, but maphoon insists on printing all token arguments...
+inline std::ostream& operator<<(std::ostream& s, const std::list<std::shared_ptr<ExprAST>>& l){
+    s << "A list of " << l.size() << " statements." << std::endl;
+    return s;
+}
+inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std::string,datatype>>& l){
+    s << "A list of " << l.size() << " function arguments." << std::endl;
+    return s;
+}
+inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,datatype>& l){
+    s << "Identifier " << l.first << "and its type." << std::endl;
+    return s;
+}
 
 #endif // __TREE_H__

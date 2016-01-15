@@ -28,6 +28,13 @@
 %attribute value_int     int
 %attribute id            std::string
 %attribute reason        std::string
+ /* This is an aux used by StatementList and Block */
+%attribute statement_list std::list<std::shared_ptr<ExprAST>>
+ /* This is an aux used by FuncArgs and FuncArgsHead */
+%attribute arglist std::vector<std::pair<std::string,datatype>>
+ /* This is an aux used by TypedIdentifier */
+%attribute typedident std::pair<std::string,datatype>
+%attribute returntype       datatype
 
 %attribute tree          std::shared_ptr<ExprAST>
 
@@ -46,6 +53,13 @@
 %constraint Expression tree 1 2
 %constraint Return tree 1 2
 %constraint Statement tree 1 2
+%constraint StatementList statement_list 1 2
+%constraint Block tree 1 2
+%constraint Assignment tree 1 2
+%constraint FuncArgs     arglist 1 2
+%constraint FuncArgsHead arglist 1 2
+%constraint TypedIdentifier typedident 1 2
+%constraint ReturnType returntype 1 2
 
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
@@ -68,58 +82,127 @@
 
 % FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType SEMICOLON
 {
+    auto Prototype = std::make_shared<PrototypeAST>(
+         IDENTIFIER3->id.front(),
+         FuncArgs5->arglist.front(),
+         ReturnType7->returntype.front()
+         );
+
     std::cout << "Function declaration found!" << std::endl;
+
+    // TODO: Do something useful with the prototype. Store it in a
+    // global list to be accessed later?
 }
 %          ;
 
 
 % FuncDef : KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType Block
+{
+    auto Prototype = std::make_shared<PrototypeAST>(
+         IDENTIFIER2->id.front(),
+         FuncArgs4->arglist.front(),
+         ReturnType6->returntype.front()
+         );
+    auto Function = std::make_shared<FunctionAST>(
+         Prototype,
+         Block7->tree.front()
+         );
+
     std::cout << "Complete function definition found!" << std::endl;
+
+    // TODO: Do something useful with the prototype and the function
+    // definition.. Store them in a global list to be accessed later?
+}
 %         ;
 
 
+/* WARNING
+ * WARNING
+ * Currently all types are assumed to be ints.
+ * WARNING
+ * WARNING
+ */
 % ReturnType : COLON TYPE
+{   token t(tkn_ReturnType);
+    t.returntype.push_back(DATATYPE_int);
+    return t;
+}
 %            |
+{   token t(tkn_ReturnType);
+    t.returntype.push_back(DATATYPE_void);
+    return t;
+}
 %            ;
 
-% FuncArgs : TypedIdentifier FuncArgsRest
-%          | IDENTIFIER      FuncArgsRest
+% FuncArgs :  FuncArgsHead TypedIdentifier
+{   FuncArgsHead1->type = tkn_FuncArgs;
+    FuncArgsHead1->arglist.front().push_back( TypedIdentifier2->typedident.front() );
+    return FuncArgsHead1;
+}
 %          |
+{   token t(tkn_FuncArgs);
+    t.arglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    return t;
+}
 %          ;
 
-% FuncArgsRest : COMMA TypedIdentifier FuncArgsRest
-%              | COMMA IDENTIFIER      FuncArgsRest
+% FuncArgsHead : FuncArgsHead TypedIdentifier COMMA
+{   FuncArgsHead1->arglist.front().push_back( TypedIdentifier2->typedident.front() );
+    return FuncArgsHead1;
+}
 %              |
+{   token t(tkn_FuncArgsHead);
+    t.arglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    return t;
+}
 %              ;
 
+/* WARNING
+ * WARNING
+ * Currently all types are assumed to be ints.
+ * WARNING
+ * WARNING
+ */
 % TypedIdentifier : IDENTIFIER COLON TYPE
+{  token t(tkn_TypedIdentifier);
+   t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(), DATATYPE_int));
+   return t;
+}
 %                 ;
 
+/* The var list is temporarily ignored. */
 % Block : LBRACKET VarList StatementList RBRACKET
+{   token t(tkn_Block);
+    t.tree.push_back( std::make_shared<BlockAST>(StatementList3->statement_list.front()) );
+    return t;
+}
 %           ;
 
 % VarList : VarDef VarList
 %         |
 %         ;
 
-% VarDef : KEYWORD_VAR IDENTIFIER COLON TYPE SEMICOLON
+% VarDef : KEYWORD_VAR TypedIdentifier SEMICOLON
 %        ;
 
 
 % StatementList : Statement StatementList
-{   auto statementlistAST = std::dynamic_pointer_cast<StatementListAST>( StatementList2->tree.front() );
-    statementlistAST->Prepend(Statement1->tree.front());
+{
+    StatementList2->statement_list.front().push_front( Statement1->tree.front() );
     return StatementList2;
 }
 %               |
 {   token t(tkn_StatementList);
-    t.tree.push_back(std::make_shared<StatementListAST>());
+    t.statement_list.push_back( std::list<std::shared_ptr<ExprAST>>() );
     return t;
 }
 %               ;
 
 
 % Statement : Assignment
+{   Assignment1->type = tkn_Statement;
+    return Assignment1;
+}
 %           | If
 %           | While
 %           | For
@@ -132,6 +215,13 @@
 
 
 % Assignment : IDENTIFIER ASSIGN Expression SEMICOLON
+{   token t(tkn_Assignment);
+    t.tree.push_back( std::make_shared<AssignmentAST>(
+         IDENTIFIER1->id.front(),
+         Expression3->tree.front()
+        ) );
+    return t;
+}
 %            ;
 
 % If : KEYWORD_IF LPAR Expression RPAR Block
