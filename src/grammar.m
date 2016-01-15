@@ -8,17 +8,22 @@
 %token LBRACKET RBRACKET
 %token IDENTIFIER
 %token ASSIGN
-%token ADD SUB MULT DIV
+%token ADD SUB MULT DIV MOD
 %token EQUAL NEQUAL LESS LESSEQ GREATER GREATEREQ
+%token LITERAL_INT LITERAL_FLOAT
 
 // Non-terminal symbols:
 %token E F G H LISTARGS
-%token Session Command
-%token Start FuncDecl FuncDef ReturnType FuncArgs FuncBlock
+%token Module Command
+%token Start FuncDecl FuncDef ReturnType FuncArgs
+%token Block Statement StatementList
+%token VarList VarDef
+%token If While
+%token Return
 
 %startsymbol Start EOF
 
-%attribute value_double  double
+%attribute value_float  float
 %attribute value_int     int
 %attribute id            std::string
 %attribute reason        std::string
@@ -26,27 +31,34 @@
 %constraint IDENTIFIER  id 1 2
 %constraint TYPE        id 1 2
 
+%constraint LITERAL_INT value_int 1 2
+%constraint LITERAL_FLOAT value_float 1 2
+
 #include <cassert>
 #define ASSERT( X ) { assert( ( X ) ); }
 #include <cstdio>
-void parseparse(){
-    printf("I did not do any parse!");
-}
 
-
-% Start : Session
+% Start : Module
 %       ;
 
-% Session : Session FuncDef
-%         | Session FuncDecl
+
+% Module : FuncDef Module
+%         | FuncDecl Module
 %         |
 %         ;
 
+
 % FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType SEMICOLON
+{
+    std::cout << "Function declaration found!" << std::endl;
+}
 %          ;
 
-% FuncDef : KEYWORD_FUN IDENTIFIER LBRACKET FuncArgs RBRACKET ReturnType FuncBlock
+
+% FuncDef : KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType Block
+    std::cout << "Complete function definition found!" << std::endl;
 %         ;
+
 
 % ReturnType : COLON TYPE
 %            |
@@ -65,5 +77,45 @@ void parseparse(){
 % TypedIdentifier : IDENTIFIER COLON TYPE
 %                 ;
 
-% FuncBlock : LBRACKET RBRACKET
+% Block : LBRACKET VarList StatementList RBRACKET
 %           ;
+
+% VarList : VarDef VarList
+%         |
+%         ;
+
+% VarDef : KEYWORD_VAR IDENTIFIER COLON TYPE SEMICOLON
+%        ;
+
+% StatementList : Statement StatementList
+%               |
+%               ;
+
+% Statement : Assignment
+%           | If
+%           | While
+%           | For
+%           | Return
+%           | Block
+%           ;
+
+% Assignment : IDENTIFIER ASSIGN Expression SEMICOLON
+%            ;
+
+% If : KEYWORD_IF LPAR Expression RPAR Block
+%    | KEYWORD_IF LPAR Expression RPAR Block KEYWORD_ELSE Block
+%    ;
+
+% While : KEYWORD_WHILE LPAR Expression RPAR Block
+%       ;
+
+
+% While : KEYWORD_WHILE LPAR Expression RPAR Block
+%       ;
+
+% Return : KEYWORD_RETURN Expression SEMICOLON
+%        ;
+
+% Expression : LITERAL_INT
+%            | IDENTIFIER
+%            ;
