@@ -15,6 +15,7 @@ add_definitions(
   -Wno-unused-function # Stupid flex.
   -Wno-unused-parameter # Maphoon's fault
   -Wno-sign-compare     # Maphoon's fault
+  -g
   )
 
 find_package(FLEX REQUIRED)

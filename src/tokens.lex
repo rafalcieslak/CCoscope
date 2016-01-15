@@ -1,12 +1,11 @@
+    #include "token.h"
+    #define YY_DECL int custom_yylex(std::list<token> &target)
 
-/* NOTE:
- * The rules in this file IN NO WAY correspond to the desired language specs.
- * I just imported it as an example to prepare build scripts, and will edit it * later on.
-*/
+digit    [0-9]
+alpha    [a-zA-z]
+alphanum {digit}|{alpha}
 
-digit	[0-9]
-alpha	[a-zA-Z]
-alphanum	{digit}|{alpha}
+basetype int|bool|double
 
 /* Floats */
 exponent	[eE]-?{digit}+
@@ -18,28 +17,14 @@ int	    -?{digit}+
 
 literalend  [^0-9a-zA-Z.]
 
-/* Strings */
-string	   \"([^"]*)\"
-
-/* Reserved words */
-reserved    if|while|do|struct|class|int|double|else
+/* Operators */
+operator_sc  "+"|"-"|">"|"<"|"/"|"*"|","|";"|":"
+operator_mc  ":="|"=="|"<="|">="|"&&"|"||"
+operator     {operator_sc}|{operator_mc}
 
 /* Identifiers */
 identifier_char	{alphanum}|"_"
 identifier	{alpha}({identifier_char})*
-
-/* Operators */
-operator_sc  "+"|"-"|">"|"<"|"/"|"*"|"="|"%"|"&"|"^"|"|"|","|";"
-operator_dc  "=="|"++"|"--"|"<="|">="|"+="|"-="|"*="|"/="|"%="|"&&"|"||"|"^="|"&="|">>"|"<<"
-operator     {operator_sc}|{operator_dc}
-
-/* Brackets */
-bracket	    [\{\}]
-parent	    [\(\)]
-
-/* Whitespaces */
-whitechar [ \n\t]
-whitespace {whitechar}+
 
 /* Comments */
 ol_comment	"//"[^\n]*"\n"
@@ -48,20 +33,21 @@ comment		{ol_comment}|{bl_comment}
 
 
 %%
-{comment}	printf("token: comment %s\n", yytext);
-{parent}	printf("token: parent %s\n", yytext);
-{bracket}	printf("token: bracket %s\n", yytext);
-{float}/{literalend}	printf("token: float %s\n", yytext);
-{int}/{literalend}	printf("token: int %s\n", yytext);
-{string}	printf("token: string %s\n", yytext);
-{reserved}	printf("token: reserved %s\n", yytext);
-{identifier}	printf("token: identifier %s\n", yytext);
-{operator}	printf("token: operator %s\n", yytext);
-{whitespace}	{}
-.		printf("token: unknown %s\n", yytext);
+{basetype}      target.push_back(tkn_TYPE); target.back().id.push_back(yytext);
+extern          target.push_back(tkn_KEYWORD_EXTERN);
+fun             target.push_back(tkn_KEYWORD_FUN);
+:               target.push_back(tkn_COLON);
+;               target.push_back(tkn_SEMICOLON);
+\(              target.push_back(tkn_LPAR);
+\)              target.push_back(tkn_RPAR);
+\{              target.push_back(tkn_LBRACKET);
+\}              target.push_back(tkn_RBRACKET);
+
+{identifier}    target.push_back(tkn_IDENTIFIER); target.back().id.push_back(yytext);
+
 %%
 
-void lexme()
+void lexme(std::list<token> &target_list)
 {
-  yylex();
+  custom_yylex(target_list);
 }

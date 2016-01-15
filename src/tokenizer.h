@@ -11,13 +11,23 @@
 
 struct tokenizer
 {
-   std::list< token > lookahead;
+    // The lookahead buffer.
+    // Required by maphoon.
+    std::list< token > lookahead;
 
-   void scan( );
-      // Gets a token from somewhere and appends it to lookahead.
+    // The list of tokens, egerly evaluated.
+    std::list< token > tokenlist;
 
-   void syntaxerror( );
-      // Report syntax error to the user.
+    // Parses entire input into tokens.
+    void prepare();
+
+    // Moves a single token from tokenlist to lookaheead.
+    // Required by maphoon.
+    void scan( );
+
+    // Report syntax error to the user.
+    // Required by maphoon.
+    void syntaxerror( );
 
 };
 

@@ -1,38 +1,30 @@
-
-// NOTE: This grammar is currenly unrelated to the desired language specs.
-// I just copied it from a previous example as an example maphoon input file to test build scripts.
-
 // Terminal symbols:
-
 %token EOF SCANERROR
-%token SEMICOLON BECOMES COMMA
-%token IDENTIFIER NUMBER
-%token PLUS TIMES MINUS DIVIDES
-%token FACTORIAL
+%token SEMICOLON COLON COMMA
+%token KEYWORD_EXTERN KEYWORD_FUN KEYWORD_VAR KEYWORD_RETURN
+%token TYPE
+%token KEYWORD_IF KEYWORD_ELSE KEYWORD_WHILE KEYWORD_FOR
 %token LPAR RPAR
+%token LBRACKET RBRACKET
+%token IDENTIFIER
+%token ASSIGN
+%token ADD SUB MULT DIV
+%token EQUAL NEQUAL LESS LESSEQ GREATER GREATEREQ
 
 // Non-terminal symbols:
-
 %token E F G H LISTARGS
 %token Session Command
-%token Start
+%token Start FuncDecl FuncDef ReturnType FuncArgs FuncBlock
 
-%startsymbol Session EOF
+%startsymbol Start EOF
 
-%attribute value         double
- // Temporarily
-%attribute t             int
+%attribute value_double  double
+%attribute value_int     int
 %attribute id            std::string
 %attribute reason        std::string
 
 %constraint IDENTIFIER  id 1 2
-%constraint E t 1 2
-%constraint F t 1 2
-%constraint G t 1 2
-%constraint H t 1 2
-%constraint LISTARGS t 0
-%constraint SCANERROR id 1 2
-%constraint NUMBER value 1 2
+%constraint TYPE        id 1 2
 
 #include <cassert>
 #define ASSERT( X ) { assert( ( X ) ); }
@@ -41,44 +33,37 @@ void parseparse(){
     printf("I did not do any parse!");
 }
 
-% Start : Session EOF
-%   ;
 
-% Session : Session Command
+% Start : Session
+%       ;
+
+% Session : Session FuncDef
+%         | Session FuncDecl
 %         |
 %         ;
 
+% FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType SEMICOLON
+%          ;
 
-% Command : E SEMICOLON
-%         | IDENTIFIER BECOMES E SEMICOLON
-%         | _recover SEMICOLON
+% FuncDef : KEYWORD_FUN IDENTIFIER LBRACKET FuncArgs RBRACKET ReturnType FuncBlock
 %         ;
 
-% E   : E PLUS F
-%     | E MINUS F
-%     | F
-%     ;
+% ReturnType : COLON TYPE
+%            |
+%            ;
 
-% F   : F TIMES G
-%     | F DIVIDES G
-%     | G
-%     ;
-
-
-%  G : MINUS G
-%    | PLUS G
-%    | H
-%    ;
-
-
-% H   : H FACTORIAL
-%     | LPAR E RPAR
-%     | IDENTIFIER
-%     | NUMBER
-%     | IDENTIFIER LPAR LISTARGS RPAR
-%     ;
-
-
-% LISTARGS : E
-%          | LISTARGS COMMA E
+% FuncArgs : TypedIdentifier FuncArgsRest
+%          | IDENTIFIER      FuncArgsRest
+%          |
 %          ;
+
+% FuncArgsRest : COMMA TypedIdentifier FuncArgsRest
+%              | COMMA IDENTIFIER      FuncArgsRest
+%              |
+%              ;
+
+% TypedIdentifier : IDENTIFIER COLON TYPE
+%                 ;
+
+% FuncBlock : LBRACKET RBRACKET
+%           ;
