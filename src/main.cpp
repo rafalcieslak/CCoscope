@@ -55,6 +55,12 @@ int main(){
 
     for(const auto& protoAST : prototypes){
         Function* func = protoAST->codegen(ctx);
+        if(!func) return -1;
+        func->dump();
+    }
+    for(const auto& functionAST : definitions){
+        Function* func = functionAST->codegen(ctx);
+        if(!func) return -1;
         func->dump();
     }
 
