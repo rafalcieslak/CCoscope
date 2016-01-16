@@ -70,6 +70,9 @@
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
 
+%global prototypes  std::list<std::shared_ptr<PrototypeAST>>
+%global definitions std::list<std::shared_ptr<FunctionAST>>
+
 #include <cassert>
 #define ASSERT( X ) { assert( ( X ) ); }
 #include <cstdio>
@@ -94,10 +97,7 @@
          ReturnType7->returntype.front()
          );
 
-    std::cout << "Function declaration found!" << std::endl;
-
-    // TODO: Do something useful with the prototype. Store it in a
-    // global list to be accessed later?
+    prototypes.push_back(Prototype);
 }
 %          ;
 
@@ -114,10 +114,7 @@
          Block7->tree.front()
          );
 
-    std::cout << "Complete function definition found!" << std::endl;
-
-    // TODO: Do something useful with the prototype and the function
-    // definition.. Store them in a global list to be accessed later?
+    definitions.push_back(Function);
 }
 %         ;
 
