@@ -19,6 +19,7 @@ public:
 
     std::shared_ptr<Module> TheModule;
     IRBuilder<> Builder;
+    std::map<std::string, Value*> CurrentFuncArgs;
 };
 
 #endif // __CODEGEN_CONTEXT_H__

@@ -8,11 +8,20 @@
         return nullptr; \
     }
 
-CODEGEN_STUB(VariableExprAST);
 CODEGEN_STUB(AssignmentAST);
 CODEGEN_STUB(CallExprAST);
 CODEGEN_STUB(IfExprAST);
 CODEGEN_STUB(WhileExprAST);
+
+Value* VariableExprAST::codegen(CodegenContext& ctx) const {
+    // Assuming that everything is an int.
+    Value* V = ctx.CurrentFuncArgs[Name];
+    if(!V){
+        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
+        return nullptr;
+    }
+    return V;
+}
 
 Value* NumberExprAST::codegen(CodegenContext& ctx) const {
     // Again, assuming that everything is an int.
@@ -134,12 +143,14 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
   BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
   ctx.Builder.SetInsertPoint(BB);
 
-  /*
+  // Clear the scope.
+  ctx.CurrentFuncArgs.clear();
+
+
   // Record the function arguments in the NamedValues map.
-  NamedValues.clear();
   for (auto &Arg : TheFunction->args())
-    NamedValues[Arg.getName()] = &Arg;
-  */
+    ctx.CurrentFuncArgs[Arg.getName()] = &Arg;
+
 
   // Insert function body into the function insertion point.
   Value* val = Body->codegen(ctx);
