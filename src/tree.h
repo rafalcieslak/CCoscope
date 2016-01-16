@@ -1,6 +1,8 @@
 #ifndef __TREE_H__
 #define __TREE_H__
 
+#include "codegencontext.h"
+
 #include <string>
 #include <memory>
 #include <vector>
@@ -19,14 +21,16 @@ enum datatype{
 class ExprAST {
  public:
     virtual ~ExprAST() {}
+    virtual Value* codegen(CodegenContext& ctx) = 0;
 };
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST : public ExprAST {
     double Val;
 
- public:
- NumberExprAST(double Val) : Val(Val) {}
+public:
+    NumberExprAST(double Val) : Val(Val) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -35,6 +39,7 @@ class VariableExprAST : public ExprAST {
 
 public:
     VariableExprAST(const std::string &Name) : Name(Name) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -46,6 +51,7 @@ public:
     BinaryExprAST(std::string Op, std::shared_ptr<ExprAST> LHS,
                   std::shared_ptr<ExprAST> RHS)
         : Opcode(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// ReturnExprAST - Represents a value return expression
@@ -55,6 +61,7 @@ class ReturnExprAST : public ExprAST {
 public:
     ReturnExprAST(std::shared_ptr<ExprAST> expr)
         : Expr(std::move(expr)) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// BlockAST - Represents a list of variable definitions and a list of
@@ -64,6 +71,7 @@ class BlockAST : public ExprAST {
 
 public:
     BlockAST(const std::list<std::shared_ptr<ExprAST>>& s) : Statements(s) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// AssignmentAST - Represents an assignment operations
@@ -73,41 +81,44 @@ class AssignmentAST : public ExprAST {
 public:
     AssignmentAST(const std::string& Name, std::shared_ptr<ExprAST> Expr) :
         Name(Name), Expr(Expr) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
-  std::string Callee;
-  std::vector<std::shared_ptr<ExprAST>> Args;
+    std::string Callee;
+    std::vector<std::shared_ptr<ExprAST>> Args;
 
 public:
-  CallExprAST(const std::string &Callee,
-              std::vector<std::shared_ptr<ExprAST>> Args)
-      : Callee(Callee), Args(std::move(Args)) {}
-  //Value *codegen() override;
+    CallExprAST(const std::string &Callee,
+                std::vector<std::shared_ptr<ExprAST>> Args)
+        : Callee(Callee), Args(std::move(Args)) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
-  std::shared_ptr<ExprAST> Cond, Then, Else;
+    std::shared_ptr<ExprAST> Cond, Then, Else;
 
 public:
-  IfExprAST(std::shared_ptr<ExprAST> Cond, std::shared_ptr<ExprAST> Then,
-            std::shared_ptr<ExprAST> Else)
-      : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
-  //Value *codegen() override;
+    IfExprAST(std::shared_ptr<ExprAST> Cond, std::shared_ptr<ExprAST> Then,
+              std::shared_ptr<ExprAST> Else)
+        : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
 
 /// WhileExprAST - Expression class for while.
 class WhileExprAST : public ExprAST {
-  std::shared_ptr<ExprAST> Cond, Body;
+    std::shared_ptr<ExprAST> Cond, Body;
 
 public:
-  WhileExprAST(std::shared_ptr<ExprAST> Cond,
-               std::shared_ptr<ExprAST> Body)
-      : Cond(std::move(Cond)), Body(std::move(Body)) {}
-  //Value *codegen() override;
+    WhileExprAST(std::shared_ptr<ExprAST> Cond,
+                 std::shared_ptr<ExprAST> Body)
+        : Cond(std::move(Cond)), Body(std::move(Body)) {}
+    Value* codegen(CodegenContext& ctx) override;
 };
+
+// --------------------------------------------------------------------------------
 
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
@@ -120,8 +131,8 @@ class PrototypeAST {
 public:
     PrototypeAST(const std::string &Name, std::vector<std::pair<std::string, datatype>> Args, datatype ReturnType)
         : Name(Name), Args(std::move(Args)), ReturnType(ReturnType) {}
-    //Function *codegen();
     const std::string &getName() const { return Name; }
+    Function* codegen(CodegenContext& ctx);
 };
 
 /// FunctionAST - This class represents a function definition itself.
@@ -129,11 +140,11 @@ class FunctionAST {
     std::shared_ptr<PrototypeAST> Proto;
     std::shared_ptr<ExprAST> Body;
 
- public:
- FunctionAST(std::shared_ptr<PrototypeAST> Proto,
-             std::shared_ptr<ExprAST> Body)
-     : Proto(std::move(Proto)), Body(std::move(Body)) {}
-    //Function *codegen();
+public:
+    FunctionAST(std::shared_ptr<PrototypeAST> Proto,
+                std::shared_ptr<ExprAST> Body)
+        : Proto(std::move(Proto)), Body(std::move(Body)) {}
+    Function* codegen(CodegenContext& ctx);
 };
 
 

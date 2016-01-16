@@ -19,5 +19,6 @@ add_definitions(
   )
 
 find_package(FLEX REQUIRED)
+find_package(LLVM REQUIRED)
 
 add_subdirectory(src)

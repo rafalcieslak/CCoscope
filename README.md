@@ -9,6 +9,8 @@ cmake ..
 make
 ```
 
+Note: On debian-like systems, compilation may fail due to missing `-ledit`. This should be detected and reported by cmake's LLVM detection package, but for some reason it it's not, or maybe the debian package for `llvm-dev` is missing a dependency. Either way installing `libedit-dev` solves the issue.
+
 ### Running
 
 ```
