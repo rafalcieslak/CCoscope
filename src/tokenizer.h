@@ -1,7 +1,6 @@
-
-
-#ifndef TOKENIZER_INCLUDED
-#define TOKENIZER_INCLUDED    1
+// -*- mode: c++; fill-column: 80 -*-
+#ifndef __TOKENIZER_H__
+#define __TOKENIZER_H__
 
 
 #include <list>
@@ -53,4 +52,4 @@ struct tokenizer
 
 
 
-#endif
+#endif // __TOKENIZER_H__

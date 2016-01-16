@@ -1,3 +1,4 @@
+// -*- mode: c++; fill-column: 80 -*-
 #ifndef __CODEGEN_CONTEXT_H__
 #define __CODEGEN_CONTEXT_H__
 
