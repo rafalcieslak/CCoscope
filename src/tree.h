@@ -75,6 +75,40 @@ public:
         Name(Name), Expr(Expr) {}
 };
 
+/// CallExprAST - Expression class for function calls.
+class CallExprAST : public ExprAST {
+  std::string Callee;
+  std::vector<std::shared_ptr<ExprAST>> Args;
+
+public:
+  CallExprAST(const std::string &Callee,
+              std::vector<std::shared_ptr<ExprAST>> Args)
+      : Callee(Callee), Args(std::move(Args)) {}
+  //Value *codegen() override;
+};
+
+/// IfExprAST - Expression class for if/then/else.
+class IfExprAST : public ExprAST {
+  std::shared_ptr<ExprAST> Cond, Then, Else;
+
+public:
+  IfExprAST(std::shared_ptr<ExprAST> Cond, std::shared_ptr<ExprAST> Then,
+            std::shared_ptr<ExprAST> Else)
+      : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
+  //Value *codegen() override;
+};
+
+/// WhileExprAST - Expression class for while.
+class WhileExprAST : public ExprAST {
+  std::shared_ptr<ExprAST> Cond, Body;
+
+public:
+  WhileExprAST(std::shared_ptr<ExprAST> Cond,
+               std::shared_ptr<ExprAST> Body)
+      : Cond(std::move(Cond)), Body(std::move(Body)) {}
+  //Value *codegen() override;
+};
+
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes).
@@ -115,6 +149,10 @@ inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std
 }
 inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,datatype>& l){
     s << "Identifier " << l.first << "and its type." << std::endl;
+    return s;
+}
+inline std::ostream& operator<<(std::ostream& s, const std::vector<std::shared_ptr<ExprAST>>& l){
+    s << "List of  " << l.size() << " arguments for a function call." << std::endl;
     return s;
 }
 

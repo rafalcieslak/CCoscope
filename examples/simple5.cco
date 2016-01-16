@@ -1,0 +1,7 @@
+fun iftest(x : int) : bool{
+    if(x < 42){
+         return false;
+    }else{
+        return true;
+    }
+}

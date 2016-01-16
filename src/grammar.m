@@ -15,7 +15,7 @@
 // Non-terminal symbols:
 %token E F G H LISTARGS
 %token Module Command
-%token Start FuncDecl FuncDef ReturnType FuncArgs
+%token Start FuncDecl FuncDef ReturnType ProtoArgList
 %token Block Statement StatementList
 %token VarList VarDef
 %token If While
@@ -30,8 +30,9 @@
 %attribute reason        std::string
  /* This is an aux used by StatementList and Block */
 %attribute statement_list std::list<std::shared_ptr<ExprAST>>
- /* This is an aux used by FuncArgs and FuncArgsHead */
-%attribute arglist std::vector<std::pair<std::string,datatype>>
+ /* This is an aux used by ProtoArgList and ProtoArgListL */
+%attribute protoarglist std::vector<std::pair<std::string,datatype>>
+%attribute arglist std::vector<std::shared_ptr<ExprAST>>
  /* This is an aux used by TypedIdentifier */
 %attribute typedident std::pair<std::string,datatype>
 %attribute returntype       datatype
@@ -52,12 +53,17 @@
 %constraint Expr100 tree 1 2
 %constraint Expression tree 1 2
 %constraint Return tree 1 2
+%constraint If tree 1 2
+%constraint While tree 1 2
+%constraint For tree 1 2
 %constraint Statement tree 1 2
 %constraint StatementList statement_list 1 2
 %constraint Block tree 1 2
 %constraint Assignment tree 1 2
-%constraint FuncArgs     arglist 1 2
-%constraint FuncArgsHead arglist 1 2
+%constraint ProtoArgList  protoarglist 1 2
+%constraint ProtoArgListL protoarglist 1 2
+%constraint ArgList  arglist 1 2
+%constraint ArgListL arglist 1 2
 %constraint TypedIdentifier typedident 1 2
 %constraint ReturnType returntype 1 2
 
@@ -73,18 +79,18 @@
 % Start : Module
 %       ;
 
-
+// Entire input file
 % Module : FuncDef Module
 %         | FuncDecl Module
 %         |
 %         ;
 
-
-% FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType SEMICOLON
+// Function declaration
+% FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType SEMICOLON
 {
     auto Prototype = std::make_shared<PrototypeAST>(
          IDENTIFIER3->id.front(),
-         FuncArgs5->arglist.front(),
+         ProtoArgList5->protoarglist.front(),
          ReturnType7->returntype.front()
          );
 
@@ -95,12 +101,12 @@
 }
 %          ;
 
-
-% FuncDef : KEYWORD_FUN IDENTIFIER LPAR FuncArgs RPAR ReturnType Block
+// Function definition
+% FuncDef : KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType Block
 {
     auto Prototype = std::make_shared<PrototypeAST>(
          IDENTIFIER2->id.front(),
-         FuncArgs4->arglist.front(),
+         ProtoArgList4->protoarglist.front(),
          ReturnType6->returntype.front()
          );
     auto Function = std::make_shared<FunctionAST>(
@@ -116,6 +122,7 @@
 %         ;
 
 
+// The return type of a function
 /* WARNING
  * WARNING
  * Currently all types are assumed to be ints.
@@ -134,29 +141,7 @@
 }
 %            ;
 
-% FuncArgs :  FuncArgsHead TypedIdentifier
-{   FuncArgsHead1->type = tkn_FuncArgs;
-    FuncArgsHead1->arglist.front().push_back( TypedIdentifier2->typedident.front() );
-    return FuncArgsHead1;
-}
-%          |
-{   token t(tkn_FuncArgs);
-    t.arglist.push_back( std::vector<std::pair<std::string,datatype>>() );
-    return t;
-}
-%          ;
-
-% FuncArgsHead : FuncArgsHead TypedIdentifier COMMA
-{   FuncArgsHead1->arglist.front().push_back( TypedIdentifier2->typedident.front() );
-    return FuncArgsHead1;
-}
-%              |
-{   token t(tkn_FuncArgsHead);
-    t.arglist.push_back( std::vector<std::pair<std::string,datatype>>() );
-    return t;
-}
-%              ;
-
+// An identifier with type, eg.    x : int
 /* WARNING
  * WARNING
  * Currently all types are assumed to be ints.
@@ -178,6 +163,7 @@
 }
 %           ;
 
+// List of variable definitions (at the start of a function body)
 % VarList : VarDef VarList
 %         |
 %         ;
@@ -186,6 +172,7 @@
 %        ;
 
 
+// A list of statements, like in a function body.
 % StatementList : Statement StatementList
 {
     StatementList2->statement_list.front().push_front( Statement1->tree.front() );
@@ -199,21 +186,35 @@
 %               ;
 
 
+// All kinds of statements
 % Statement : Assignment
 {   Assignment1->type = tkn_Statement;
     return Assignment1;
 }
 %           | If
+{   If1->type = tkn_Statement;
+    return If1;
+}
 %           | While
+{   While1->type = tkn_Statement;
+    return While1;
+}
 %           | For
+{   For1->type = tkn_Statement;
+    return For1;
+}
 %           | Return
 {   Return1->type = tkn_Statement;
     return Return1;
 }
 %           | Block
+{   Block1->type = tkn_Statement;
+    return Block1;
+}
 %           ;
 
 
+// Assignment statement
 % Assignment : IDENTIFIER ASSIGN Expression SEMICOLON
 {   token t(tkn_Assignment);
     t.tree.push_back( std::make_shared<AssignmentAST>(
@@ -224,14 +225,39 @@
 }
 %            ;
 
+// IF statement
 % If : KEYWORD_IF LPAR Expression RPAR Block
+{   token t(tkn_If);
+    t.tree.push_back( std::make_shared<IfExprAST>(
+      Expression3->tree.front(),
+      Block5->tree.front(),
+      nullptr
+     ) );
+    return t;
+}
 %    | KEYWORD_IF LPAR Expression RPAR Block KEYWORD_ELSE Block
+{   token t(tkn_If);
+    t.tree.push_back( std::make_shared<IfExprAST>(
+      Expression3->tree.front(),
+      Block5->tree.front(),
+      Block7->tree.front()
+     ) );
+    return t;
+}
 %    ;
 
 % While : KEYWORD_WHILE LPAR Expression RPAR Block
+{   token t(tkn_While);
+    t.tree.push_back( std::make_shared<WhileExprAST>(
+      Expression3->tree.front(),
+      Block5->tree.front()
+     ) );
+    return t;
+}
 %       ;
 
 
+// Return from function statement
 % Return : KEYWORD_RETURN Expression SEMICOLON
 {   token t(tkn_Return);
     t.tree.push_back(std::make_shared<ReturnExprAST>(Expression2->tree.front()));
@@ -240,6 +266,7 @@
 %        ;
 
 
+// Base expression
 % Expression  : Expr20
 {   Expr201->type = tkn_Expression;
     return Expr201;
@@ -247,6 +274,7 @@
 %             ;
 
 
+// Lowest priority operators
 % Expr20     : Expr20 AND Expr30
 {   token t(tkn_Expr20);
     t.tree.push_back(std::make_shared<BinaryExprAST>("LOGICAL_AND",
@@ -337,6 +365,7 @@
 }
 %            ;
 
+// Medium priority operators
 % Expr50     : Expr50 MULT Expr100
 {   token t(tkn_Expr50);
     t.tree.push_back(std::make_shared<BinaryExprAST>("MULT",
@@ -364,7 +393,7 @@
 }
 %            ;
 
-
+// Highest priority operators / expressions
 % Expr100    : LITERAL_INT
 {   token t(tkn_Expr100);
     t.tree.push_back(std::make_shared<NumberExprAST>(LITERAL_INT1->value_int.front()));
@@ -379,4 +408,62 @@
 {   Expression2->type = tkn_Expr100;
     return Expression2;
 }
+%            | IDENTIFIER LPAR ArgList RPAR
+{   token t(tkn_Expr100);
+    t.tree.push_back(std::make_shared<CallExprAST>(
+                                                   IDENTIFIER1->id.front(),
+                                                   ArgList3->arglist.front()
+    ));
+    return t;
+}
 %            ;
+
+
+
+// Arguments list for prototypes, eg.      x : int, y : bool
+% ProtoArgList :  ProtoArgListL TypedIdentifier
+{   ProtoArgListL1->type = tkn_ProtoArgList;
+    ProtoArgListL1->protoarglist.front().push_back( TypedIdentifier2->typedident.front() );
+    return ProtoArgListL1;
+}
+%          |
+{   token t(tkn_ProtoArgList);
+    t.protoarglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    return t;
+}
+%          ;
+
+% ProtoArgListL : ProtoArgListL TypedIdentifier COMMA
+{   ProtoArgListL1->protoarglist.front().push_back( TypedIdentifier2->typedident.front() );
+    return ProtoArgListL1;
+}
+%              |
+{   token t(tkn_ProtoArgListL);
+    t.protoarglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    return t;
+}
+%              ;
+
+// Argument list for function calls, eg.      x,y,z,2*w
+% ArgList :  ArgListL Expression
+{   ArgListL1->type = tkn_ArgList;
+    ArgListL1->arglist.front().push_back( Expression2->tree.front() );
+    return ArgListL1;
+}
+%          |
+{   token t(tkn_ArgList);
+    t.arglist.push_back( std::vector<std::shared_ptr<ExprAST>>() );
+    return t;
+}
+%          ;
+
+% ArgListL : ArgListL Expression COMMA
+{   ArgListL1->arglist.front().push_back( Expression2->tree.front() );
+    return ArgListL1;
+}
+%              |
+{   token t(tkn_ArgListL);
+    t.arglist.push_back( std::vector<std::shared_ptr<ExprAST>>() );
+    return t;
+}
+%              ;
