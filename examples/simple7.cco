@@ -1,0 +1,4 @@
+fun storetest(x : int, y : int) : int{
+    x := x + 2;
+    return x;
+}

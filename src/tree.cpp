@@ -2,25 +2,48 @@
 
 #include "llvm/IR/Verifier.h"
 
+/// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
+/// the function.  This is used for mutable variables etc.
+static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
+                                          const std::string &VarName) {
+  IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+                 TheFunction->getEntryBlock().begin());
+  return TmpB.CreateAlloca(Type::getInt32Ty(getGlobalContext()), 0,
+                           VarName.c_str());
+}
+
+
 #define CODEGEN_STUB(class) \
     Value* class::codegen(CodegenContext& ctx) const { \
         std::cout << "Codegen for " #class " is unimplemented!" << std::endl; \
         return nullptr; \
     }
-
-CODEGEN_STUB(AssignmentAST);
 CODEGEN_STUB(CallExprAST);
 
 Value* VariableExprAST::codegen(CodegenContext& ctx) const {
     // Assuming that everything is an int.
-    Value* V = ctx.CurrentFuncArgs[Name];
-    if(!V){
+    if(ctx.VarsInScope.count(Name) < 1){
         std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
         return nullptr;
     }
+    AllocaInst* alloca = ctx.VarsInScope[Name];
+    Value* V = ctx.Builder.CreateLoad(alloca, Name.c_str());
     return V;
 }
 
+Value* AssignmentAST::codegen(CodegenContext& ctx) const {
+    Value* Val = Expr->codegen(ctx);
+    if(!Val) return nullptr;
+
+    // Look up the target var name.
+    if (ctx.VarsInScope.count(Name) < 1){
+        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
+        return nullptr;
+    }
+    AllocaInst* alloca = ctx.VarsInScope[Name];
+    ctx.Builder.CreateStore(Val, alloca);
+    return Val;
+}
 
 Value* IfExprAST::codegen(CodegenContext& ctx) const {
     Value* cond = Cond->codegen(ctx);
@@ -231,12 +254,15 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
   ctx.Builder.SetInsertPoint(BB);
 
   // Clear the scope.
-  ctx.CurrentFuncArgs.clear();
+  ctx.VarsInScope.clear();
 
 
-  // Record the function arguments in the NamedValues map.
-  for (auto &Arg : TheFunction->args())
-    ctx.CurrentFuncArgs[Arg.getName()] = &Arg;
+  // Record the function arguments in the VarsInScope map.
+  for (auto &Arg : TheFunction->args()){
+      AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName());
+      ctx.Builder.CreateStore(&Arg,Alloca);
+      ctx.VarsInScope[Arg.getName()] = Alloca;
+  }
 
 
   // Insert function body into the function insertion point.

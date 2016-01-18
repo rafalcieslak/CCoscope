@@ -19,8 +19,9 @@ public:
 
     std::shared_ptr<Module> TheModule;
     IRBuilder<> Builder;
-    std::map<std::string, Value*> CurrentFuncArgs;
+    // std::map<std::string, Value*> CurrentFuncArgs; // Moved to VarsInScope
     Function* CurrentFunc;
+    std::map<std::string, AllocaInst*> VarsInScope;
 };
 
 #endif // __CODEGEN_CONTEXT_H__
