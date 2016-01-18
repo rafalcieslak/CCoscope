@@ -27,10 +27,10 @@ class ExprAST {
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST : public ExprAST {
-    double Val;
+    int Val;
 
 public:
-    NumberExprAST(double Val) : Val(Val) {}
+    NumberExprAST(int v) : Val(v) {}
     Value* codegen(CodegenContext& ctx) const override;
 };
 

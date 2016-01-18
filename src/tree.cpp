@@ -10,7 +10,6 @@
 
 CODEGEN_STUB(AssignmentAST);
 CODEGEN_STUB(CallExprAST);
-CODEGEN_STUB(IfExprAST);
 CODEGEN_STUB(WhileExprAST);
 
 Value* VariableExprAST::codegen(CodegenContext& ctx) const {
@@ -22,6 +21,59 @@ Value* VariableExprAST::codegen(CodegenContext& ctx) const {
     }
     return V;
 }
+
+
+Value* IfExprAST::codegen(CodegenContext& ctx) const {
+    Value* cond = Cond->codegen(ctx);
+    if(!cond) return nullptr;
+
+    Value* cmp = ctx.Builder.CreateICmpNE(cond, ConstantInt::get(getGlobalContext(), APInt(1, 0, 1)), "ifcond");
+
+    Function* parent = ctx.CurrentFunc;
+
+    BasicBlock *ThenBB  = BasicBlock::Create(getGlobalContext(), "then");
+    BasicBlock *MergeBB = BasicBlock::Create(getGlobalContext(), "ifcont");
+
+    BasicBlock *ElseBB;
+    if(Else){
+        // There is an else-block for this if. Create BB for else.
+        ElseBB  = BasicBlock::Create(getGlobalContext(), "else");
+    }else{
+        // There is no else-block for this if. Do not create a block. Make sure that failing the condition will jump to merge.
+        ElseBB = MergeBB;
+    }
+
+    ctx.Builder.CreateCondBr(cmp, ThenBB, ElseBB);
+
+    // THEN
+    ctx.Builder.SetInsertPoint(ThenBB);
+    Value *ThenV = Then->codegen(ctx);
+    if (!ThenV) return nullptr;
+    ctx.Builder.CreateBr(MergeBB);
+    // Codegen of 'Then' can change the current block, update ThenBB.
+    ThenBB = ctx.Builder.GetInsertBlock();
+
+    if(Else){
+        // ELSE
+        ctx.Builder.SetInsertPoint(ElseBB);
+        Value *ElseV = Else->codegen(ctx);
+        if (!ElseV) return nullptr;
+        ctx.Builder.CreateBr(MergeBB);
+        // Codegen of 'Else' can change the current block, update ElseBB.
+        ElseBB = ctx.Builder.GetInsertBlock();
+    }
+
+    // Place the blocks into parent function. The order shall be natural.
+    parent->getBasicBlockList().push_back(ThenBB);
+    if(Else) parent->getBasicBlockList().push_back(ElseBB);
+    parent->getBasicBlockList().push_back(MergeBB);
+
+    // Further instructions are to be placed at merge block
+    ctx.Builder.SetInsertPoint(MergeBB);
+
+    return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+}
+
 
 Value* NumberExprAST::codegen(CodegenContext& ctx) const {
     // Again, assuming that everything is an int.
@@ -138,6 +190,9 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
   if (!TheFunction){
     TheFunction = Proto->codegen(ctx);
   }
+
+  // Set current function
+  ctx.CurrentFunc = TheFunction;
 
   // Create a new basic block to start insertion into.
   BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);

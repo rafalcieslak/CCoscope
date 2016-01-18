@@ -1,7 +1,16 @@
 fun iftest(x : int) : bool{
+
+    // 2-branch if
     if(x < 42){
-         return false;
+        return 0;
     }else{
-        return true;
+        return 1;
     }
+
+    // 1-branch if
+    if(x >= 42){
+         return 2;
+    }
+
+    return 3;
 }
