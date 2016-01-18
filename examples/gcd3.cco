@@ -1,0 +1,18 @@
+// This example can be passed to lli to
+// be executed. Check exit code, it should
+// be 20!
+
+fun main () : int {
+    var a : int;
+    var b : int;
+    var c : int;
+    a := 160;
+    b := 180;
+    c := 0;
+    while ( a != 0 ) {
+        c := a;
+        a := b % a;
+        b := c;
+    }
+    return b;
+}

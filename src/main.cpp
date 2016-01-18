@@ -4,6 +4,9 @@
 #include "tree.h"
 
 #include "llvm/IR/Module.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Analysis/Passes.h"
+#include "llvm/Transforms/Scalar.h"
 
 #include <iostream>
 
@@ -53,6 +56,22 @@ int main(){
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
     CodegenContext ctx(module);
 
+    // Create a new pass manager attached to it.
+    auto TheFPM = std::make_shared<legacy::FunctionPassManager>(ctx.TheModule.get());
+    // mem2reg
+    TheFPM->add(createPromoteMemoryToRegisterPass());
+    // Do simple "peephole" optimizations and bit-twiddling optzns.
+    TheFPM->add(createInstructionCombiningPass());
+    // Reassociate expressions.
+    TheFPM->add(createReassociatePass());
+    // Eliminate Common SubExpressions.
+    TheFPM->add(createGVNPass());
+    // Simplify the control flow graph (deleting unreachable blocks, etc).
+    TheFPM->add(createCFGSimplificationPass());
+
+    TheFPM->doInitialization();
+
+
     for(const auto& protoAST : prototypes){
         Function* func = protoAST->codegen(ctx);
         if(!func) return -1;
@@ -61,6 +80,7 @@ int main(){
     for(const auto& functionAST : definitions){
         Function* func = functionAST->codegen(ctx);
         if(!func) return -1;
+        TheFPM->run(*func);
         func->dump();
     }
 
