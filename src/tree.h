@@ -68,10 +68,12 @@ public:
 /// BlockAST - Represents a list of variable definitions and a list of
 /// statements executed in a particular order
 class BlockAST : public ExprAST {
+    std::vector<std::pair<std::string,datatype>> Vars;
     std::list<std::shared_ptr<ExprAST>> Statements;
 
 public:
-    BlockAST(const std::list<std::shared_ptr<ExprAST>>& s) : Statements(s) {}
+    BlockAST(const std::vector<std::pair<std::string,datatype>> &vars, const std::list<std::shared_ptr<ExprAST>>& s)
+        : Vars(vars), Statements(s) {}
     Value* codegen(CodegenContext& ctx) const override;
 };
 

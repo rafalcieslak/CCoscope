@@ -9,7 +9,7 @@ static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
   IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
                  TheFunction->getEntryBlock().begin());
   return TmpB.CreateAlloca(Type::getInt32Ty(getGlobalContext()), 0,
-                           VarName.c_str());
+                           (VarName + "_addr").c_str());
 }
 
 
@@ -143,11 +143,34 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
         // value and return it.
         return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
     }else{
+
+        // Create new stack vars.
+        Function* parent = ctx.CurrentFunc;
+        for(auto& var : Vars){
+            if(ctx.VarsInScope.count(var.first) > 0){
+                std::cout << "Variable shadowing is not allowed" << std::endl;
+                return nullptr;
+            }
+            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first);
+            // Initialize the var to 0.
+            Value* zero = ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));;
+            ctx.Builder.CreateStore(zero,Alloca);
+            ctx.VarsInScope[var.first] = Alloca;
+        }
+
+        // Generate statements inside the block
         Value* last = nullptr;
         for(const auto& stat : Statements){
             last = stat->codegen(ctx);
             if(!last) return nullptr;
         }
+
+        // Remove stack vars
+        for(auto& var : Vars){
+            auto it = ctx.VarsInScope.find(var.first);
+            ctx.VarsInScope.erase(it);
+        }
+
         return last;
     }
 }
@@ -180,6 +203,8 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
         return ctx.Builder.CreateMul(valL, valR, "multmp");
     }else if(Opcode == "DIV"){
         return ctx.Builder.CreateSDiv(valL, valR, "divtmp");
+    }else if(Opcode == "MOD"){
+        return ctx.Builder.CreateSRem(valL, valR, "modtmp");
 
     }else if(Opcode == "EQUAL"){
         return ctx.Builder.CreateICmpEQ(valL, valR, "cmptmp");

@@ -62,9 +62,11 @@
 %constraint Assignment tree 1 2
 %constraint ProtoArgList  protoarglist 1 2
 %constraint ProtoArgListL protoarglist 1 2
+%constraint VarList  protoarglist 1 2
 %constraint ArgList  arglist 1 2
 %constraint ArgListL arglist 1 2
 %constraint TypedIdentifier typedident 1 2
+%constraint VarDef typedident 1 2
 %constraint ReturnType returntype 1 2
 
 %intokenheader #include <memory>
@@ -152,20 +154,32 @@
 }
 %                 ;
 
-/* The var list is temporarily ignored. */
 % Block : LBRACKET VarList StatementList RBRACKET
 {   token t(tkn_Block);
-    t.tree.push_back( std::make_shared<BlockAST>(StatementList3->statement_list.front()) );
+    t.tree.push_back( std::make_shared<BlockAST>(
+       VarList2->protoarglist.front(),
+       StatementList3->statement_list.front())
+    );
     return t;
 }
 %           ;
 
 // List of variable definitions (at the start of a function body)
-% VarList : VarDef VarList
+% VarList : VarList VarDef
+{   VarList1->protoarglist.front().push_back( VarDef2->typedident.front() );
+    return VarList1;
+}
 %         |
+{   token t(tkn_VarList);
+    t.protoarglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    return t;
+}
 %         ;
 
 % VarDef : KEYWORD_VAR TypedIdentifier SEMICOLON
+{   TypedIdentifier2->type = tkn_VarDef;
+    return TypedIdentifier2;
+}
 %        ;
 
 
