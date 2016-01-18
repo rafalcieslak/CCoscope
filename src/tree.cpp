@@ -10,7 +10,6 @@
 
 CODEGEN_STUB(AssignmentAST);
 CODEGEN_STUB(CallExprAST);
-CODEGEN_STUB(WhileExprAST);
 
 Value* VariableExprAST::codegen(CodegenContext& ctx) const {
     // Assuming that everything is an int.
@@ -46,6 +45,9 @@ Value* IfExprAST::codegen(CodegenContext& ctx) const {
     ctx.Builder.CreateCondBr(cmp, ThenBB, ElseBB);
 
     // THEN
+    // Add to parent
+    parent->getBasicBlockList().push_back(ThenBB);
+    // Codegen recursivelly
     ctx.Builder.SetInsertPoint(ThenBB);
     Value *ThenV = Then->codegen(ctx);
     if (!ThenV) return nullptr;
@@ -55,6 +57,9 @@ Value* IfExprAST::codegen(CodegenContext& ctx) const {
 
     if(Else){
         // ELSE
+        // Add to parent
+        parent->getBasicBlockList().push_back(ElseBB);
+        // Codegen recursivelly
         ctx.Builder.SetInsertPoint(ElseBB);
         Value *ElseV = Else->codegen(ctx);
         if (!ElseV) return nullptr;
@@ -63,17 +68,44 @@ Value* IfExprAST::codegen(CodegenContext& ctx) const {
         ElseBB = ctx.Builder.GetInsertBlock();
     }
 
-    // Place the blocks into parent function. The order shall be natural.
-    parent->getBasicBlockList().push_back(ThenBB);
-    if(Else) parent->getBasicBlockList().push_back(ElseBB);
-    parent->getBasicBlockList().push_back(MergeBB);
-
     // Further instructions are to be placed at merge block
+    parent->getBasicBlockList().push_back(MergeBB);
     ctx.Builder.SetInsertPoint(MergeBB);
 
     return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
 }
 
+Value* WhileExprAST::codegen(CodegenContext& ctx) const {
+
+    Function* parent = ctx.CurrentFunc;
+
+    BasicBlock* HeaderBB = BasicBlock::Create(getGlobalContext(), "header");
+    BasicBlock* BodyBB   = BasicBlock::Create(getGlobalContext(), "body");
+    BasicBlock* PostBB   = BasicBlock::Create(getGlobalContext(), "postwhile");
+
+    ctx.Builder.CreateBr(HeaderBB);
+
+    // HEADER
+    parent->getBasicBlockList().push_back(HeaderBB);
+    ctx.Builder.SetInsertPoint(HeaderBB);
+    Value* cond = Cond->codegen(ctx);
+    if(!cond) return nullptr;
+    Value* cmp = ctx.Builder.CreateICmpNE(cond, ConstantInt::get(getGlobalContext(), APInt(1, 0, 1)), "whilecond");
+    ctx.Builder.CreateCondBr(cmp, BodyBB, PostBB);
+
+    // BODY
+    parent->getBasicBlockList().push_back(BodyBB);
+    ctx.Builder.SetInsertPoint(BodyBB);
+    Value* BodyV = Body->codegen(ctx);
+    if(!BodyV) return nullptr;
+    ctx.Builder.CreateBr(HeaderBB);
+
+    // POSTWHILE
+    parent->getBasicBlockList().push_back(PostBB);
+    ctx.Builder.SetInsertPoint(PostBB);
+
+    return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+}
 
 Value* NumberExprAST::codegen(CodegenContext& ctx) const {
     // Again, assuming that everything is an int.

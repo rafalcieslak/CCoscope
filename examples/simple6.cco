@@ -1,0 +1,15 @@
+fun whiletest(x : int) : int {
+    while( x > 10){
+        return 42;
+    }
+}
+
+fun whiletest2(x : int) : int{
+    while( x > 10){
+        if(x == 50){
+            return 1;
+        }else{
+            return 2;
+        }
+    }
+}
