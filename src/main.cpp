@@ -5,6 +5,7 @@
 
 #include "llvm/IR/Module.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/TypeBuilder.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Transforms/Scalar.h"
 
@@ -76,6 +77,17 @@ std::string find_llvm_executable(std::string name){
     return "";
 }
 
+void DeclareCFunctions(CodegenContext& ctx){
+    std::vector<Type *> putchar_args = {Type::getInt32Ty(getGlobalContext())};
+    FunctionType *putchar_type = FunctionType::get(Type::getInt32Ty(getGlobalContext()), putchar_args, false);
+    Function::Create(putchar_type, Function::ExternalLinkage, "putchar", ctx.TheModule.get());
+
+
+    FunctionType *printf_type = llvm::TypeBuilder<int(char *, ...), false>::get(getGlobalContext());
+    Function *f = Function::Create(printf_type, Function::ExternalLinkage, "printf", ctx.TheModule.get());
+    ctx.func_printf = f;
+}
+
 int main(){
 
     tokenizer tok;
@@ -117,6 +129,7 @@ int main(){
 
     TheFPM->doInitialization();
 
+    DeclareCFunctions(ctx);
 
     for(const auto& protoAST : prototypes){
         Function* func = protoAST->codegen(ctx);
@@ -126,7 +139,7 @@ int main(){
     for(const auto& functionAST : definitions){
         Function* func = functionAST->codegen(ctx);
         if(!func) return -1;
-        TheFPM->run(*func);
+        // TheFPM->run(*func);
         func->dump();
     }
 

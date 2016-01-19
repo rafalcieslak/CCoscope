@@ -60,6 +60,7 @@
 %constraint StatementList statement_list 1 2
 %constraint Block tree 1 2
 %constraint Assignment tree 1 2
+%constraint FuncCall tree 1 2
 %constraint ProtoArgList  protoarglist 1 2
 %constraint ProtoArgListL protoarglist 1 2
 %constraint VarList  protoarglist 1 2
@@ -221,6 +222,10 @@
 %           | Block
 {   Block1->type = tkn_Statement;
     return Block1;
+}
+%           | FuncCall SEMICOLON
+{   FuncCall1->type = tkn_Statement;
+    return FuncCall1;
 }
 %           ;
 
@@ -419,17 +424,21 @@
 {   Expression2->type = tkn_Expr100;
     return Expression2;
 }
-%            | IDENTIFIER LPAR ArgList RPAR
-{   token t(tkn_Expr100);
+%            | FuncCall
+{   FuncCall1->type = tkn_Expr100;
+    return FuncCall1;
+}
+%            ;
+
+% FuncCall  : IDENTIFIER LPAR ArgList RPAR
+{   token t(tkn_FuncCall);
     t.tree.push_back(std::make_shared<CallExprAST>(
                                                    IDENTIFIER1->id.front(),
                                                    ArgList3->arglist.front()
     ));
     return t;
 }
-%            ;
-
-
+%           ;
 
 // Arguments list for prototypes, eg.      x : int, y : bool
 % ProtoArgList :  ProtoArgListL TypedIdentifier

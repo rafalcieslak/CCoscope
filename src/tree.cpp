@@ -12,27 +12,52 @@ static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
                            (VarName + "_addr").c_str());
 }
 
+// Creates a global i8 string. Useful for printing values.
+Constant* CreateI8String(Module* M, char const* str, Twine const& name) {
+  Constant* strConstant = ConstantDataArray::getString(getGlobalContext(), str);
+  GlobalVariable* GVStr =
+      new GlobalVariable(*M, strConstant->getType(), true,
+                         GlobalValue::InternalLinkage, strConstant, name);
+  Constant* zero = Constant::getNullValue(IntegerType::getInt32Ty(getGlobalContext()));
+  Constant* indices[] = {zero, zero};
+  Constant* strVal = ConstantExpr::getGetElementPtr(GVStr, indices, true);
+  return strVal;
+}
+
 
 Value* CallExprAST::codegen(CodegenContext& ctx) const {
-  // Look up the name in the global module table.
-  Function *CalleeF = ctx.TheModule->getFunction(Callee);
-  if (!CalleeF){
-      std::cout << "Function " << Callee << " was not declared" << std::endl;
-      return nullptr;
-  }
+    // Special case for print
+    if(Callee == "print"){
+        // Translate the call into a call to cstdlibs' printf.
+        if(Args.size() != 1){
+            std::cout << "Function print takes 1 argument, " << Args.size() << " given." << std::endl;
+            return nullptr;
+        }
+        std::vector<Value*> ArgsV;
+        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), "%d\n", "printf_number") );
+        ArgsV.push_back( Args[0]->codegen(ctx) );
+        return ctx.Builder.CreateCall(ctx.func_printf, ArgsV, "calltmp");
+    }
 
-  // If argument mismatch error.
-  if (CalleeF->arg_size() != Args.size()){
-      std::cout << "Function " << Callee << " takes " << CalleeF->arg_size() << " arguments, " << Args.size() << " given." << std::endl;
-      return nullptr;
-  }
+    // Look up the name in the global module table.
+    Function *CalleeF = ctx.TheModule->getFunction(Callee);
+    if (!CalleeF){
+        std::cout << "Function " << Callee << " was not declared" << std::endl;
+        return nullptr;
+    }
 
-  std::vector<Value *> ArgsV;
-  for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-    ArgsV.push_back(Args[i]->codegen(ctx));
-    if (!ArgsV.back())
-      return nullptr;
-  }
+    // If argument mismatch error.
+    if (CalleeF->arg_size() != Args.size()){
+        std::cout << "Function " << Callee << " takes " << CalleeF->arg_size() << " arguments, " << Args.size() << " given." << std::endl;
+        return nullptr;
+    }
+
+    std::vector<Value *> ArgsV;
+    for (unsigned i = 0, e = Args.size(); i != e; ++i) {
+        ArgsV.push_back(Args[i]->codegen(ctx));
+        if (!ArgsV.back())
+            return nullptr;
+    }
 
   return ctx.Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
@@ -309,6 +334,10 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
 
   // Insert function body into the function insertion point.
   Value* val = Body->codegen(ctx);
+
+  // Before terminating the function, create a default return value, in case the function body does not contain one.
+  // TODO: Default return type.
+  ctx.Builder.CreateRet( ConstantInt::get(getGlobalContext(), APInt(32, 0, 1)) );
 
   if(val){
     // Validate the generated code, checking for consistency.

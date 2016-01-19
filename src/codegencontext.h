@@ -22,6 +22,9 @@ public:
     // std::map<std::string, Value*> CurrentFuncArgs; // Moved to VarsInScope
     Function* CurrentFunc;
     std::map<std::string, AllocaInst*> VarsInScope;
+
+    // Special function handles
+    Function* func_printf;
 };
 
 #endif // __CODEGEN_CONTEXT_H__

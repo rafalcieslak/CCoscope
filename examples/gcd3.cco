@@ -14,5 +14,7 @@ fun gcd (a : int, b : int) : int {
 }
 
 fun main() : int{
-     return gcd(160,180);
+    print(gcd(160,200));
+    print(gcd(160,250));
+    print(gcd(100,295));
 }
