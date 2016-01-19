@@ -13,12 +13,29 @@ static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
 }
 
 
-#define CODEGEN_STUB(class) \
-    Value* class::codegen(CodegenContext& ctx) const { \
-        std::cout << "Codegen for " #class " is unimplemented!" << std::endl; \
-        return nullptr; \
-    }
-CODEGEN_STUB(CallExprAST);
+Value* CallExprAST::codegen(CodegenContext& ctx) const {
+  // Look up the name in the global module table.
+  Function *CalleeF = ctx.TheModule->getFunction(Callee);
+  if (!CalleeF){
+      std::cout << "Function " << Callee << " was not declared" << std::endl;
+      return nullptr;
+  }
+
+  // If argument mismatch error.
+  if (CalleeF->arg_size() != Args.size()){
+      std::cout << "Function " << Callee << " takes " << CalleeF->arg_size() << " arguments, " << Args.size() << " given." << std::endl;
+      return nullptr;
+  }
+
+  std::vector<Value *> ArgsV;
+  for (unsigned i = 0, e = Args.size(); i != e; ++i) {
+    ArgsV.push_back(Args[i]->codegen(ctx));
+    if (!ArgsV.back())
+      return nullptr;
+  }
+
+  return ctx.Builder.CreateCall(CalleeF, ArgsV, "calltmp");
+}
 
 Value* VariableExprAST::codegen(CodegenContext& ctx) const {
     // Assuming that everything is an int.

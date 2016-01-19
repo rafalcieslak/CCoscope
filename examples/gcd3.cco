@@ -2,12 +2,8 @@
 // be executed. Check exit code, it should
 // be 20!
 
-fun main () : int {
-    var a : int;
-    var b : int;
+fun gcd (a : int, b : int) : int {
     var c : int;
-    a := 160;
-    b := 180;
     c := 0;
     while ( a != 0 ) {
         c := a;
@@ -15,4 +11,8 @@ fun main () : int {
         b := c;
     }
     return b;
+}
+
+fun main() : int{
+     return gcd(160,180);
 }
