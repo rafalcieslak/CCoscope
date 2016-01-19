@@ -139,7 +139,8 @@ int main(){
     for(const auto& functionAST : definitions){
         Function* func = functionAST->codegen(ctx);
         if(!func) return -1;
-        // TheFPM->run(*func);
+        // Optimize the function
+        TheFPM->run(*func);
         func->dump();
     }
 

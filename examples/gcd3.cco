@@ -1,7 +1,3 @@
-// This example can be passed to lli to
-// be executed. Check exit code, it should
-// be 20!
-
 fun gcd (a : int, b : int) : int {
     var c : int;
     c := 0;
