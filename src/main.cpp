@@ -19,7 +19,7 @@
 
 using namespace llvm;
 
-bool was_parser_successful(tokenizer& tok){\
+bool WasParserSuccessful(tokenizer& tok){\
 
     // The logic for determining parsing success is not
     // straight-forward. The fact that the lookahaead buffer is an
@@ -37,7 +37,7 @@ bool was_parser_successful(tokenizer& tok){\
     }
 }
 
-bool get_file_exists(std::string name)
+bool FileExists(std::string name)
 {
   // For compilers that support C++14 experimental TS:
   // std::experimental::filesystem::exists(name);
@@ -69,7 +69,7 @@ std::string JoinString(std::vector<std::string> str, std::string c){
 	return buf;
 }
 
-std::string find_llvm_executable(std::string name){
+std::string FindLLVMExecutable(std::string name){
     std::vector<std::string> suffixes = {"-3.7", "-3.6", "-3.5", ""};
     const char* c = getenv("PATH");
     if(!c) return "";
@@ -78,7 +78,7 @@ std::string find_llvm_executable(std::string name){
     for(const std::string& p : paths){
         for(const std::string& s : suffixes){
             std::string file = p + "/" + name + s;
-            if(get_file_exists(file)){
+            if(FileExists(file)){
                 std::cout << "Found " << name << " at " << file << std::endl;
                 return file;
             }
@@ -118,10 +118,10 @@ std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m){
     return TheFPM;
 }
 
-int Compile(std::string input_filename, std::string output_filename){
+int Compile(std::string infile, std::string outfile){
 
     tokenizer tok;
-    tok.prepare(input_filename);
+    tok.prepare(infile);
 
     std::cout << "Parsing..." << std::endl;
 
@@ -133,7 +133,7 @@ int Compile(std::string input_filename, std::string output_filename){
     // Instead of returning an exit status, the parser returns
     // nothing, and we need to determine if parsing was successful by
     // examining the lookahead buffer.
-    if( !was_parser_successful(tok) ){
+    if( !WasParserSuccessful(tok) ){
         std::cout << "The parser failed to parse input. " << std::endl;
         return -1;
     }
@@ -161,9 +161,9 @@ int Compile(std::string input_filename, std::string output_filename){
     }
 
     // Write the resulting llvm ir to some output file
-    std::cout << "Writing out IR to " << output_filename << std::endl;
+    std::cout << "Writing out IR to " << outfile << std::endl;
 
-    std::ofstream lloutfile(output_filename);
+    std::ofstream lloutfile(outfile);
     raw_os_ostream raw_lloutfile(lloutfile);
     ctx.TheModule->print(raw_lloutfile, nullptr);
     lloutfile.close();
@@ -171,13 +171,13 @@ int Compile(std::string input_filename, std::string output_filename){
     return 0;
 }
 
-int AssembleIR(std::string input_file, std::string output_file){
+int AssembleIR(std::string input_file, std::string outfile){
 
     // Compile the ir file to assembly
-    std::string llc_path = find_llvm_executable("llc");
+    std::string llc_path = FindLLVMExecutable("llc");
     if(llc_path.empty()) return -1;
 
-    std::string command = llc_path + " " + input_file + " -o " + output_file;
+    std::string command = llc_path + " " + input_file + " -o " + outfile;
     std::cout << "Executing: '" << command << "'..." << std::endl;
 
     int n = system(command.c_str());
@@ -189,7 +189,7 @@ int AssembleIR(std::string input_file, std::string output_file){
 int AssembleAS(std::string infile, std::string outfile){
 
     // Assemble the file into an object file
-    std::string clang_path = find_llvm_executable("clang");
+    std::string clang_path = FindLLVMExecutable("clang");
     if(clang_path.empty()) return -1;
 
     std::string command = clang_path + " -c " + infile + " -o " + outfile;
@@ -201,16 +201,15 @@ int AssembleAS(std::string infile, std::string outfile){
     return 0;
 }
 
-int Link(std::vector<std::string> input_files, std::string output_file){
+int Link(std::vector<std::string> input_files, std::string outfile){
 
-    // Compile and link assembly to an executable file
+    // Link object file(s) to an executable file
 
-    // The hard way would be to manually call as (which is simple),
-    // and then manually call ld. But this gets very tricky, because
-    // in order to correctly locate which extra libs need to be linked
-    // on that particular system (dynamic linker loader, crtX), which
-    // architecture is present, etc. a lot of information about the
-    // system would need to be collected.
+    // The hard way would be to manually call ld. But this gets very
+    // tricky, because in order to correctly locate which extra libs
+    // need to be linked on that particular system (dynamic linker
+    // loader, crtX), which architecture is present, etc. a lot of
+    // information about the system would need to be collected.
 
     // The easy way would be to ask GCC to link everything for us the
     // way it normally does. From my understanding, this is what the
@@ -219,10 +218,10 @@ int Link(std::vector<std::string> input_files, std::string output_file){
     // us. This may seem like cheating, but doing so avoids creating
     // new dependencies, as clang is a llvm tool.
 
-    std::string clang_path = find_llvm_executable("clang");
+    std::string clang_path = FindLLVMExecutable("clang");
     if(clang_path.empty()) return -1;
 
-    std::string command = clang_path + " " + JoinString(input_files, " ") + " -o " + output_file;
+    std::string command = clang_path + " " + JoinString(input_files, " ") + " -o " + outfile;
     std::cout << "Executing: '" << command << "'..." << std::endl;
 
     // TODO: Use some wiser mechanism than system()
@@ -231,14 +230,6 @@ int Link(std::vector<std::string> input_files, std::string output_file){
 
     return 0;
 }
-
-enum class FileType{
-    Unknown,
-    CCO,
-    LL,
-    AS,
-    OBJ,
-};
 
 inline bool ends_with(std::string const & value, std::string const & ending)
 {
@@ -261,17 +252,25 @@ std::string SubstFileExt(std::string filename, std::string ext){
 
 void CopyFile(std::string src, std::string dest){
     std::cout << "Copying file " << src << " to " << dest << std::endl;
-     std::ifstream  s(src , std::ios::binary);
-     std::ofstream  d(dest, std::ios::binary);
-     d << s.rdbuf();
+    std::ifstream  s(src , std::ios::binary);
+    std::ofstream  d(dest, std::ios::binary);
+    d << s.rdbuf();
 }
+
+enum class FileType{
+    Unknown,
+    CCO,
+    LL,
+    AS,
+    OBJ,
+};
 
 FileType GuessFileType(std::string filename){
     if(ends_with(filename, ".cco")) return FileType::CCO;
-    if(ends_with(filename, ".ll")) return FileType::LL;
-    if(ends_with(filename, ".s")) return FileType::AS;
+    if(ends_with(filename, ".ll"))  return FileType::LL;
+    if(ends_with(filename, ".s"))   return FileType::AS;
     if(ends_with(filename, ".obj")) return FileType::OBJ;
-    if(ends_with(filename, ".o")) return FileType::OBJ;
+    if(ends_with(filename, ".o"))   return FileType::OBJ;
     return FileType::Unknown;
 }
 
@@ -292,9 +291,7 @@ void usage(const char* prog){
     std::cout << " -h, --help         Prints out this message.\n";
     std::cout << " -c, --no-link      Compiles and assembles files without linking them.\n";
     std::cout << " -S, --no-assemble  Compiles files to LLVM IR, without assembling or linking them.\n";
-    std::cout << "                                              \n";
-    std::cout << "                                              \n";
-    std::cout << "                                              \n";
+    std::cout << "\n";
     exit(0);
 }
 
@@ -304,9 +301,10 @@ enum OperationMode{
     CompileAssembleAndLink,
 };
 
-enum OperationMode opmode = OperationMode::CompileAssembleAndLink;
 
 int main(int argc, char** argv){
+
+    enum OperationMode opmode = OperationMode::CompileAssembleAndLink;
 
     std::string config_outfile;
     std::vector<std::string> config_infiles;
