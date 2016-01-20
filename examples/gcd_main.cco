@@ -1,0 +1,7 @@
+extern fun gcd(a : int, b : int) : int;
+
+fun main() : int{
+    print(gcd(160,200));
+    print(gcd(160,250));
+    print(gcd(100,295));
+}
