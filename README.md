@@ -33,7 +33,8 @@ fun main() : int{
     print(gcd(160,200));
     print(gcd(160,250));
     print(gcd(100,295));
-}./build$ <b>./CCoscope ../examples/gcd_main.cco ../examples/gcd.cco -o gcd </b>
+}
+./build$ <b>./CCoscope ../examples/gcd_main.cco ../examples/gcd.cco -o gcd </b>
 Parsing ../examples/gcd_main.cco
 Found 1 prototypes and 1 function definitions.
 Writing out IR for module ../examples/gcd_main.cco to /tmp/fileEQzyoS.ll
