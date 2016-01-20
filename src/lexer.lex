@@ -91,7 +91,8 @@ for             PUTTOK(tkn_KEYWORD_FOR);
 %%
 
 
-void lexer(std::list<std::pair<token,fileloc>> &target){
+void lexer(FILE* input,std::list<std::pair<token,fileloc>> &target){
+    yyin = input;
     column = line = curr_column = curr_line = 1;
     custom_yylex(target);
 }

@@ -38,7 +38,7 @@ struct tokenizer
     std::list<fileloc> previous;
 
     // Parses entire input into tokens.
-    void prepare();
+    void prepare(std::string filename);
 
     // Moves a single token from tokenlist to lookaheead.
     // Required by maphoon.
