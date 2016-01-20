@@ -79,7 +79,7 @@ std::string FindLLVMExecutable(std::string name){
         for(const std::string& s : suffixes){
             std::string file = p + "/" + name + s;
             if(FileExists(file)){
-                std::cout << "Found " << name << " at " << file << std::endl;
+                // std::cout << "Found " << name << " at " << file << std::endl;
                 return file;
             }
         }
@@ -120,10 +120,15 @@ std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m){
 
 int Compile(std::string infile, std::string outfile){
 
+    if(!FileExists(infile)){
+        std::cout << "File " << infile << " does not exist." << std::endl;
+        return -1;
+    }
+
     tokenizer tok;
     tok.prepare(infile);
 
-    std::cout << "Parsing..." << std::endl;
+    std::cout << "Parsing " << infile << std::endl;
 
     std::list<std::shared_ptr<PrototypeAST>> prototypes;
     std::list<std::shared_ptr<FunctionAST>> definitions;
@@ -150,18 +155,18 @@ int Compile(std::string infile, std::string outfile){
     for(const auto& protoAST : prototypes){
         Function* func = protoAST->codegen(ctx);
         if(!func) return -1;
-        func->dump();
+        // func->dump();
     }
     for(const auto& functionAST : definitions){
         Function* func = functionAST->codegen(ctx);
         if(!func) return -1;
         // Optimize the function
         TheFPM->run(*func);
-        func->dump();
+        // func->dump();
     }
 
     // Write the resulting llvm ir to some output file
-    std::cout << "Writing out IR to " << outfile << std::endl;
+    std::cout << "Writing out IR for module " << infile << " to " << outfile << std::endl;
 
     std::ofstream lloutfile(outfile);
     raw_os_ostream raw_lloutfile(lloutfile);

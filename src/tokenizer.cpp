@@ -22,10 +22,12 @@ void tokenizer::prepare(std::string filename){
     fclose(fhandle);
 
     // Print list of tokens for debugging purposes.
+    /*
     for(auto &tkn : tokenlist){
         std::cout << tkn.first << " ";
     }
     std::cout << std::endl;
+    */
 }
 
 void tokenizer::syntaxerror(){
