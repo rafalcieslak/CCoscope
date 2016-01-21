@@ -36,7 +36,8 @@ int AssembleAS(std::string infile, std::string outfile){
     return 0;
 }
 
-int Link(std::vector<std::string> input_files, std::string outfile){
+int Link(std::vector<std::string> input_files, std::string outfile,
+         std::vector<std::string> linkerlibs, std::vector<std::string> linkerdirs){
 
     // Link object file(s) to an executable file
 
@@ -56,7 +57,13 @@ int Link(std::vector<std::string> input_files, std::string outfile){
     std::string clang_path = FindLLVMExecutable("clang");
     if(clang_path.empty()) return -1;
 
-    std::string command = clang_path + " " + JoinString(input_files, " ") + " -o " + outfile;
+    std::string dirs, libs;
+    for(auto dir : linkerdirs)
+        dirs += "-L" + dir;
+    for(auto lib : linkerlibs)
+        libs += "-l" + lib;
+
+    std::string command = clang_path + " " + JoinString(input_files, " ") + " " + dirs + " " + libs + " -o " + outfile;
     std::cout << "Executing: '" << command << "'..." << std::endl;
 
     // TODO: Use some wiser mechanism than system()
@@ -100,6 +107,8 @@ void usage(const char* prog){
     std::cout << " -h, --help         Prints out this message.\n";
     std::cout << " -c, --no-link      Compiles and assembles files without linking them.\n";
     std::cout << " -S, --no-assemble  Compiles files to LLVM IR, without assembling or linking them.\n";
+    std::cout << " -l                 Passes additional flags to linker.\n";
+    std::cout << " -L                 Passes additional flags to linker.\n";
     std::cout << "\n";
     exit(0);
 }
@@ -118,6 +127,9 @@ int main(int argc, char** argv){
     std::string config_outfile;
     std::vector<std::string> config_infiles;
 
+    std::vector<std::string> config_linkerlibs;
+    std::vector<std::string> config_linkerdirs;
+
     // Command-line argument recognition
     int c;
     int opt_index = 0;
@@ -134,6 +146,12 @@ int main(int argc, char** argv){
             break;
         case 'S':
             opmode = OperationMode::CompileOnly;
+            break;
+        case 'l':
+            config_linkerlibs.push_back(optarg);
+            break;
+        case 'L':
+            config_linkerdirs.push_back(optarg);
             break;
         default:
             std::cout << "Unrecognized option " << (char)c << std::endl;
@@ -214,7 +232,7 @@ int main(int argc, char** argv){
 
     if( opmode == CompileAssembleAndLink ){
         // Link o files together
-        res = Link(files_to_be_linked, config_outfile);
+        res = Link(files_to_be_linked, config_outfile, config_linkerlibs, config_linkerdirs);
         if(res < 0) return -1;
     }else if( opmode == CompileAndAssemble ){
         // Only one file was processed and it's output name is stored in tmpfile.
