@@ -20,7 +20,12 @@ Constant* CreateI8String(Module* M, char const* str, Twine const& name) {
                          GlobalValue::InternalLinkage, strConstant, name);
   Constant* zero = Constant::getNullValue(IntegerType::getInt32Ty(getGlobalContext()));
   Constant* indices[] = {zero, zero};
-  Constant* strVal = ConstantExpr::getGetElementPtr(GVStr, indices, true);
+  
+  
+  Type* I8P = Type::getInt8PtrTy(getGlobalContext());
+  
+  
+  Constant* strVal = ConstantExpr::getGetElementPtr(I8P, GVStr, indices);
   return strVal;
 }
 
