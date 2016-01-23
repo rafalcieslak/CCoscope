@@ -121,6 +121,20 @@ public:
     Value* codegen(CodegenContext& ctx) const override;
 };
 
+/// WhileExprAST - Expression class for while.
+class ForExprAST : public ExprAST {
+    std::shared_ptr<ExprAST> Init, Cond, Step, Body;
+
+public:
+    ForExprAST(std::shared_ptr<ExprAST> Init,
+                 std::shared_ptr<ExprAST> Cond,
+                 std::shared_ptr<ExprAST> Step,
+                 std::shared_ptr<ExprAST> Body)
+        : Init(std::move(Init)), Cond(std::move(Cond)),
+          Step(std::move(Step)), Body(std::move(Body)) {}
+    Value* codegen(CodegenContext& ctx) const override;
+};
+
 // --------------------------------------------------------------------------------
 
 /// PrototypeAST - This class represents the "prototype" for a function,
