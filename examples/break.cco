@@ -1,0 +1,11 @@
+fun gcd (a : int, b : int) : int {
+    var c : int;
+    c := 0;
+    while ( a != 0 ) {
+        c := a;
+        a := b % a;
+        break;
+        b := c;
+    }
+    return b;
+}

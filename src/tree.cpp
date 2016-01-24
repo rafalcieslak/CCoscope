@@ -269,6 +269,9 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
     Value* cmp = ctx.Builder.CreateICmpNE(cond, ConstantInt::get(getGlobalContext(), APInt(1, 0, 1)), "whilecond");
     ctx.Builder.CreateCondBr(cmp, BodyBB, PostBB);
 
+    // Update of codegening context -- we are in a loop from now on
+    ctx.LoopsBBHeaderPost.push_back({HeaderBB, PostBB});
+
     // BODY
     parent->getBasicBlockList().push_back(BodyBB);
     ctx.Builder.SetInsertPoint(BodyBB);
@@ -279,6 +282,9 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
     // POSTWHILE
     parent->getBasicBlockList().push_back(PostBB);
     ctx.Builder.SetInsertPoint(PostBB);
+    
+    // Update of codegening context -- we've just got out of the loop
+    ctx.LoopsBBHeaderPost.pop_back();
 
     return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
 }
@@ -309,6 +315,35 @@ Value* ForExprAST::codegen(CodegenContext& ctx) const {
     auto block = std::make_shared<BlockAST>(init->Vars, outerStatements);
     
     return block->codegen(ctx);
+}
+
+Value* KeywordAST::codegen(CodegenContext& ctx) const {
+    switch(which) {
+        case KEYWORD_break:
+            if (ctx.LoopsBBHeaderPost.empty()) {
+                // TODO: inform the user at which line (and column)
+                // they wrote `break;` outside any loop
+                return nullptr;
+            } else {
+                auto postBB = ctx.LoopsBBHeaderPost.back().second;
+                ctx.Builder.CreateBr(postBB);
+                return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+            }
+            break;
+        case KEYWORD_continue:
+            if (ctx.LoopsBBHeaderPost.empty()) {
+                // TODO: inform the user at which line (and column)
+                // they wrote `break;` outside any loop
+                return nullptr;
+            } else {
+                auto headerBB = ctx.LoopsBBHeaderPost.back().first;
+                ctx.Builder.CreateBr(headerBB);
+                return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+            }
+            break;
+    }
+    
+    return nullptr;
 }
 
 //------------------------------------------

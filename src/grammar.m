@@ -3,7 +3,7 @@
 %token SEMICOLON COLON COMMA PIPE
 %token KEYWORD_EXTERN KEYWORD_FUN KEYWORD_VAR KEYWORD_RETURN
 %token TYPE
-%token KEYWORD_IF KEYWORD_ELSE KEYWORD_WHILE KEYWORD_FOR
+%token KEYWORD_IF KEYWORD_ELSE KEYWORD_WHILE KEYWORD_FOR KEYWORD_BREAK KEYWORD_CONTINUE
 %token LPAR RPAR
 %token LBRACKET RBRACKET
 %token IDENTIFIER
@@ -69,6 +69,7 @@
 %constraint TypedIdentifier typedident 1 2
 %constraint VarDef typedident 1 2
 %constraint ReturnType returntype 1 2
+/* %constraint KeywordType keywordtype 1 2 */
 
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
@@ -226,6 +227,20 @@
 %           | FuncCall SEMICOLON
 {   FuncCall1->type = tkn_Statement;
     return FuncCall1;
+}
+%           | KEYWORD_BREAK SEMICOLON
+{   token t(tkn_Statement);
+    t.tree.push_back(std::make_shared<KeywordAST>(
+          KEYWORD_break
+          ));
+    return t;
+}
+%           | KEYWORD_CONTINUE SEMICOLON
+{   token t(tkn_Statement);
+    t.tree.push_back(std::make_shared<KeywordAST>(
+          KEYWORD_continue
+          ));
+    return t;
 }
 %           ;
 

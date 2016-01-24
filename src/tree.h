@@ -18,6 +18,11 @@ enum datatype{
     DATATYPE_void, // Not available for variables, but can be returned by a function
 };
 
+enum keyword {
+    KEYWORD_break,
+    KEYWORD_continue
+};
+
 // Forward declaration for BlockAST <-> ForExprAST dependency
 class ForExprAST;
 
@@ -143,6 +148,14 @@ public:
     Value* codegen(CodegenContext& ctx) const override;
 };
 
+class KeywordAST : public ExprAST {
+    keyword which;
+    
+public:
+    KeywordAST(keyword which) : which(which) {}
+    Value* codegen(CodegenContext& ctx) const override;
+};
+
 // --------------------------------------------------------------------------------
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -171,7 +184,6 @@ public:
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
     Function* codegen(CodegenContext& ctx) const;
 };
-
 
 
 // I really hate having to add this operator, but maphoon insists on printing all token arguments...
