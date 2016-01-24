@@ -85,6 +85,7 @@ for             PUTTOK(tkn_KEYWORD_FOR);
 \)              PUTTOK(tkn_RPAR);
 \{              PUTTOK(tkn_LBRACKET);
 \}              PUTTOK(tkn_RBRACKET);
+\|              PUTTOK(tkn_PIPE);
 
 {identifier}    PUTTOK(tkn_IDENTIFIER); TOKADD(id, yytext);
 {whitespace}    {}

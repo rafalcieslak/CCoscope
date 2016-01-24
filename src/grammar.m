@@ -1,6 +1,6 @@
 // Terminal symbols:
 %token EOF SCANERROR
-%token SEMICOLON COLON COMMA
+%token SEMICOLON COLON COMMA PIPE
 %token KEYWORD_EXTERN KEYWORD_FUN KEYWORD_VAR KEYWORD_RETURN
 %token TYPE
 %token KEYWORD_IF KEYWORD_ELSE KEYWORD_WHILE KEYWORD_FOR
@@ -18,7 +18,7 @@
 %token Start FuncDecl FuncDef ReturnType ProtoArgList
 %token Block Statement StatementList
 %token VarList VarDef
-%token If While
+%token If While For
 %token Return
 %token Expression Expr10 Expr20 Expr30 Expr40 Expr50 Expr100
 
@@ -267,6 +267,20 @@
     t.tree.push_back( std::make_shared<WhileExprAST>(
       Expression3->tree.front(),
       Block5->tree.front()
+     ) );
+    return t;
+}
+%       ;
+
+% For : KEYWORD_FOR LPAR VarList StatementList PIPE Expression PIPE StatementList RPAR Block
+{   token t(tkn_For);
+    t.tree.push_back( std::make_shared<ForExprAST>(
+      std::make_shared<BlockAST>(
+       VarList3->protoarglist.front(),
+       StatementList4->statement_list.front()),
+      Expression6->tree.front(),
+      StatementList8->statement_list.front(),
+      Block10->tree.front()
      ) );
     return t;
 }

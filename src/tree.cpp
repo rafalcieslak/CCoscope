@@ -116,7 +116,6 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
         // value and return it.
         return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
     }else{
-
         // Create new stack vars.
         Function* parent = ctx.CurrentFunc;
         for(auto& var : Vars){
@@ -285,9 +284,31 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
 }
 
 Value* ForExprAST::codegen(CodegenContext& ctx) const {
+    /* Transform
+     * `for(Init | Cond | Step) { Body }`
+     * into
+     * `{
+     *     Init;
+     *     while(Cond) {
+     *         Body;
+     *         Step;
+     *     }
+     * }`
+     */
+    auto body = std::static_pointer_cast<BlockAST>(Body);
+    auto innerVars = body->Vars;
+    auto innerStatements = body->Statements;
+    innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
+    auto whileAST = std::make_shared<WhileExprAST>(Cond, 
+      std::make_shared<BlockAST>(innerVars, innerStatements));
     
-    //Function* parent = ctx.CurrentFunc;
-    return nullptr;
+    auto init = std::static_pointer_cast<BlockAST>(Init);
+    auto outerStatements = init->Statements;
+    outerStatements.push_back(whileAST);
+    
+    auto block = std::make_shared<BlockAST>(init->Vars, outerStatements);
+    
+    return block->codegen(ctx);
 }
 
 //------------------------------------------
