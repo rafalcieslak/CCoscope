@@ -135,8 +135,13 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
         // Generate statements inside the block
         Value* last = nullptr;
         for(const auto& stat : Statements){
-            last = stat->codegen(ctx);
-            if(!last) return nullptr;
+            if(ctx.should_codegen_further) {
+                last = stat->codegen(ctx);
+                if(!last) return nullptr;
+            } else {
+                ctx.should_codegen_further = true;
+                break;
+            }
         }
 
         // Remove stack vars
@@ -325,10 +330,12 @@ Value* KeywordAST::codegen(CodegenContext& ctx) const {
             if (ctx.LoopsBBHeaderPost.empty()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
+                std::cout << "'break' keyword outside any loop\n";
                 return nullptr;
             } else {
                 auto postBB = ctx.LoopsBBHeaderPost.back().second;
                 ctx.Builder.CreateBr(postBB);
+                ctx.should_codegen_further = false;
                 return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
             }
             break;
@@ -336,10 +343,12 @@ Value* KeywordAST::codegen(CodegenContext& ctx) const {
             if (ctx.LoopsBBHeaderPost.empty()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
+                std::cout << "'continue' keyword outside any loop\n";
                 return nullptr;
             } else {
                 auto headerBB = ctx.LoopsBBHeaderPost.back().first;
                 ctx.Builder.CreateBr(headerBB);
+                ctx.should_codegen_further = false;
                 return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
             }
             break;
