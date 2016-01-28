@@ -51,6 +51,7 @@ std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m, unsi
 
     // Create a new pass manager attached to it.
     auto TheFPM = std::make_shared<legacy::FunctionPassManager>(m);
+
     // mem2reg
     if(lvl >= 1)
       TheFPM->add(createPromoteMemoryToRegisterPass());

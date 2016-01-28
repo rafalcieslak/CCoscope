@@ -15,7 +15,8 @@ class CodegenContext{
 public:
     CodegenContext(std::shared_ptr<Module> module)
         : TheModule(module),
-          Builder(getGlobalContext())
+          Builder(getGlobalContext()),
+          should_codegen_further(true)
     {}
 
     std::shared_ptr<Module> TheModule;
@@ -25,8 +26,12 @@ public:
     std::map<std::string, AllocaInst*> VarsInScope;
     
     // For tracking in which loop we are currently in
+    // .first -- headerBB, .second -- postBB
     std::list<std::pair<BasicBlock*, BasicBlock*>> LoopsBBHeaderPost;
-
+    
+    // a flag useful when bumping into `continue` or `break` keyword
+    bool should_codegen_further;
+    
     // Special function handles
     Function* func_printf;
 };

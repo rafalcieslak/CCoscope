@@ -1,9 +1,14 @@
-fun gcd (a : int, b : int) : int {
+fun main () : int {
     var c : int;
+    var a : int;
+    var b : int;
+    a := 10;
+    b := 6;
     c := 0;
     while ( a != 0 ) {
         c := a;
         a := b % a;
+        print(a);
         break;
         b := c;
     }
