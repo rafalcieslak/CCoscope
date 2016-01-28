@@ -109,6 +109,7 @@ void usage(const char* prog){
     std::cout << " -S, --no-assemble  Compiles files to LLVM IR, without assembling or linking them.\n";
     std::cout << " -l                 Passes additional flags to linker.\n";
     std::cout << " -L                 Passes additional flags to linker.\n";
+    std::cout << " -O N               Sets optimisation level, currently 0-3.\n";
     std::cout << "\n";
     exit(0);
 }
@@ -129,6 +130,7 @@ int main(int argc, char** argv){
 
     std::vector<std::string> config_linkerlibs;
     std::vector<std::string> config_linkerdirs;
+    unsigned int config_optlevel = 0;
 
     // Command-line argument recognition
     int c;
@@ -137,6 +139,9 @@ int main(int argc, char** argv){
         switch (c){
         case 'h':
             usage(argv[0]);
+            break;
+        case 'O':
+	  config_optlevel = std::atoi(optarg);
             break;
         case 'o':
             config_outfile = optarg;
@@ -202,7 +207,7 @@ int main(int argc, char** argv){
             return 1;
         case FileType::CCO:
             tmpfile = GetTmpFile(".ll");
-            res = Compile(file, tmpfile);
+            res = Compile(file, tmpfile, config_optlevel);
             if(res < 0) return -1;
             file = tmpfile;
             /* FALLTHROUGH */

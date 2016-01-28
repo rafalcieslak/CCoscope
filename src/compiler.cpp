@@ -47,27 +47,32 @@ void DeclareCFunctions(CodegenContext& ctx){
     ctx.func_printf = f;
 }
 
-std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m){
+std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m, unsigned int lvl){
 
     // Create a new pass manager attached to it.
     auto TheFPM = std::make_shared<legacy::FunctionPassManager>(m);
     // mem2reg
-    TheFPM->add(createPromoteMemoryToRegisterPass());
+    if(lvl >= 1)
+      TheFPM->add(createPromoteMemoryToRegisterPass());
     // Do simple "peephole" optimizations and bit-twiddling optzns.
-    TheFPM->add(createInstructionCombiningPass());
+    if(lvl >= 1)
+      TheFPM->add(createInstructionCombiningPass());
     // Reassociate expressions.
-    TheFPM->add(createReassociatePass());
+    if(lvl >= 2)
+      TheFPM->add(createReassociatePass());
     // Eliminate Common SubExpressions.
-    TheFPM->add(createGVNPass());
+    if(lvl >= 1)
+      TheFPM->add(createGVNPass());
     // Simplify the control flow graph (deleting unreachable blocks, etc).
-    TheFPM->add(createCFGSimplificationPass());
+    if(lvl >= 2)
+      TheFPM->add(createCFGSimplificationPass());
 
     TheFPM->doInitialization();
 
     return TheFPM;
 }
 
-int Compile(std::string infile, std::string outfile){
+int Compile(std::string infile, std::string outfile, unsigned int optlevel){
 
     if(!FileExists(infile)){
         std::cout << "File " << infile << " does not exist." << std::endl;
@@ -97,7 +102,7 @@ int Compile(std::string infile, std::string outfile){
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
     CodegenContext ctx(module);
 
-    auto TheFPM = PreparePassManager(ctx.TheModule.get());
+    auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);
 
     DeclareCFunctions(ctx);
 
