@@ -1,0 +1,19 @@
+fun main() : int{
+    var a : int;
+    a := 1;
+    
+    for(var i : int;
+        var j : int;
+        i := 1;
+        j := 1;
+        |
+        i + j < 20
+        |
+        i := i + 1;
+        j := j + 2;
+        ) {
+        print(a);
+        print(i);
+        print(j);
+    }
+}

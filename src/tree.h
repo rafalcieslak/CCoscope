@@ -18,6 +18,14 @@ enum datatype{
     DATATYPE_void, // Not available for variables, but can be returned by a function
 };
 
+enum keyword {
+    KEYWORD_break,
+    KEYWORD_continue
+};
+
+// Forward declaration for BlockAST <-> ForExprAST dependency
+class ForExprAST;
+
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
  public:
@@ -72,9 +80,12 @@ class BlockAST : public ExprAST {
     std::list<std::shared_ptr<ExprAST>> Statements;
 
 public:
-    BlockAST(const std::vector<std::pair<std::string,datatype>> &vars, const std::list<std::shared_ptr<ExprAST>>& s)
+    BlockAST(const std::vector<std::pair<std::string,datatype>> &vars, 
+             const std::list<std::shared_ptr<ExprAST>>& s)
         : Vars(vars), Statements(s) {}
     Value* codegen(CodegenContext& ctx) const override;
+    
+    friend ForExprAST;
 };
 
 /// AssignmentAST - Represents an assignment operations
@@ -121,6 +132,30 @@ public:
     Value* codegen(CodegenContext& ctx) const override;
 };
 
+/// ForExprAST - Expression class for for.
+class ForExprAST : public ExprAST {
+    std::shared_ptr<ExprAST> Init, Cond;
+    std::list<std::shared_ptr<ExprAST>> Step;
+    std::shared_ptr<ExprAST> Body;
+
+public:
+    ForExprAST(std::shared_ptr<ExprAST> Init,
+                 std::shared_ptr<ExprAST> Cond,
+                 std::list<std::shared_ptr<ExprAST>> Step,
+                 std::shared_ptr<ExprAST> Body)
+        : Init(std::move(Init)), Cond(std::move(Cond)),
+          Step(std::move(Step)), Body(std::move(Body)) {}
+    Value* codegen(CodegenContext& ctx) const override;
+};
+
+class KeywordAST : public ExprAST {
+    keyword which;
+    
+public:
+    KeywordAST(keyword which) : which(which) {}
+    Value* codegen(CodegenContext& ctx) const override;
+};
+
 // --------------------------------------------------------------------------------
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -149,7 +184,6 @@ public:
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
     Function* codegen(CodegenContext& ctx) const;
 };
-
 
 
 // I really hate having to add this operator, but maphoon insists on printing all token arguments...

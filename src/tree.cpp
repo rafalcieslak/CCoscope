@@ -13,17 +13,155 @@ static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
 }
 
 // Creates a global i8 string. Useful for printing values.
-Constant* CreateI8String(Module* M, char const* str, Twine const& name) {
-  Constant* strConstant = ConstantDataArray::getString(getGlobalContext(), str);
+Constant* CreateI8String(Module* M, char const* str, Twine const& name, CodegenContext& ctx) {
+  /*Constant* strConstant = ConstantDataArray::getString(getGlobalContext(), str);
   GlobalVariable* GVStr =
       new GlobalVariable(*M, strConstant->getType(), true,
                          GlobalValue::InternalLinkage, strConstant, name);
   Constant* zero = Constant::getNullValue(IntegerType::getInt32Ty(getGlobalContext()));
   Constant* indices[] = {zero, zero};
-  Constant* strVal = ConstantExpr::getGetElementPtr(GVStr, indices, true);
-  return strVal;
+  
+  
+  Type* I8P = Type::getInt8PtrTy(getGlobalContext());
+  
+  
+  Constant* strVal = ConstantExpr::getGetElementPtr(I8P, GVStr, indices);*/
+  //IRBuilder<> builder(getGlobalContext());
+  auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
+  return cast<Constant>(strVal);
 }
 
+// ---------------------------------------------------------------------
+
+Value* NumberExprAST::codegen(CodegenContext& ctx) const {
+    // Again, assuming that everything is an int.
+    return ConstantInt::get(getGlobalContext(), APInt(32, Val, 1));;
+}
+
+Value* VariableExprAST::codegen(CodegenContext& ctx) const {
+    // Assuming that everything is an int.
+    if(ctx.VarsInScope.count(Name) < 1){
+        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
+        return nullptr;
+    }
+    AllocaInst* alloca = ctx.VarsInScope[Name];
+    Value* V = ctx.Builder.CreateLoad(alloca, Name.c_str());
+    return V;
+}
+
+Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
+    Value* valL = LHS->codegen(ctx);
+    Value* valR = RHS->codegen(ctx);
+    if(!valL || !valR) return nullptr;
+
+    // TODO: Operator overloading is necessary in order to respect types!
+    // I believe it would make sense if we simply returned, from every codegen, a pair: datatype, value.
+    // Then we might lookup viable operators in a global map   (name, datatype1, datatype2) -> codegen function ptr
+    // and use that mapped function to generate code. As implicit conversions are possible, we would lookup
+    // various combinations types, which would yield a set of possible operators. Or we could order them by their
+    // conversion cost and lookup them one by one.
+
+    // But temporarily I assume everything is an int.
+    if(Opcode == "ADD"){
+        return ctx.Builder.CreateAdd(valL, valR, "addtmp");
+    }else if(Opcode == "SUB"){
+        return ctx.Builder.CreateSub(valL, valR, "subtmp");
+    }else if(Opcode == "MULT"){
+        return ctx.Builder.CreateMul(valL, valR, "multmp");
+    }else if(Opcode == "DIV"){
+        return ctx.Builder.CreateSDiv(valL, valR, "divtmp");
+    }else if(Opcode == "MOD"){
+        return ctx.Builder.CreateSRem(valL, valR, "modtmp");
+
+    }else if(Opcode == "EQUAL"){
+        return ctx.Builder.CreateICmpEQ(valL, valR, "cmptmp");
+    }else if(Opcode == "NEQUAL"){
+        return ctx.Builder.CreateICmpNE(valL, valR, "cmptmp");
+
+    }else if(Opcode == "GREATER"){
+        return ctx.Builder.CreateICmpUGT(valL, valR, "cmptmp");
+    }else if(Opcode == "GREATEREQ"){
+        return ctx.Builder.CreateICmpUGE(valL, valR, "cmptmp");
+
+    }else if(Opcode == "LESS"){
+        return ctx.Builder.CreateICmpULT(valL, valR, "cmptmp");
+    }else if(Opcode == "LESSEQ"){
+        return ctx.Builder.CreateICmpULE(valL, valR, "cmptmp");
+
+    }else if(Opcode == "LOGICAL_AND"){
+        // These are currently implemented as arythmetical ANDs. This
+        // will yield weird results when trying to (5 && 7). Maybe a
+        // good solution would be to convert these into u1, then do
+        // AND on these u1s, and then convert the result back to u32.
+        return ctx.Builder.CreateAnd(valL, valR, "andtmp");
+    }else if(Opcode == "LOGICAL_OR"){
+        return ctx.Builder.CreateOr(valL, valR, "ortmp");
+
+    }else{
+        std::cout << "Operator '" << Opcode << "' codegen is not implemented!" << std::endl;
+        return nullptr;
+    }
+}
+
+Value* ReturnExprAST::codegen(CodegenContext& ctx) const {
+    Value* val = Expr->codegen(ctx);
+    if(!val) return nullptr;
+    ctx.Builder.CreateRet(val);
+    return val;
+}
+
+Value* BlockAST::codegen(CodegenContext& ctx) const {
+    if(Statements.size() == 0){
+        // Aah, an empty block. That seems like a special case,
+        // because this results in no Value, and there would be
+        // nothing we can give to our caller. So let's just create a 0
+        // value and return it.
+        return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+    }else{
+        // Create new stack vars.
+        Function* parent = ctx.CurrentFunc;
+        for(auto& var : Vars){
+            if(ctx.VarsInScope.count(var.first) > 0){
+                std::cout << "Variable shadowing is not allowed" << std::endl;
+                return nullptr;
+            }
+            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first);
+            // Initialize the var to 0.
+            Value* zero = ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));;
+            ctx.Builder.CreateStore(zero,Alloca);
+            ctx.VarsInScope[var.first] = Alloca;
+        }
+
+        // Generate statements inside the block
+        Value* last = nullptr;
+        for(const auto& stat : Statements){
+            last = stat->codegen(ctx);
+            if(!last) return nullptr;
+        }
+
+        // Remove stack vars
+        for(auto& var : Vars){
+            auto it = ctx.VarsInScope.find(var.first);
+            ctx.VarsInScope.erase(it);
+        }
+
+        return last;
+    }
+}
+
+Value* AssignmentAST::codegen(CodegenContext& ctx) const {
+    Value* Val = Expr->codegen(ctx);
+    if(!Val) return nullptr;
+
+    // Look up the target var name.
+    if (ctx.VarsInScope.count(Name) < 1){
+        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
+        return nullptr;
+    }
+    AllocaInst* alloca = ctx.VarsInScope[Name];
+    ctx.Builder.CreateStore(Val, alloca);
+    return Val;
+}
 
 Value* CallExprAST::codegen(CodegenContext& ctx) const {
     // Special case for print
@@ -34,7 +172,7 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
             return nullptr;
         }
         std::vector<Value*> ArgsV;
-        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), "%d\n", "printf_number") );
+        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), "%d\n", "printf_number", ctx) );
         ArgsV.push_back( Args[0]->codegen(ctx) );
         return ctx.Builder.CreateCall(ctx.func_printf, ArgsV, "calltmp");
     }
@@ -60,31 +198,6 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
     }
 
   return ctx.Builder.CreateCall(CalleeF, ArgsV, "calltmp");
-}
-
-Value* VariableExprAST::codegen(CodegenContext& ctx) const {
-    // Assuming that everything is an int.
-    if(ctx.VarsInScope.count(Name) < 1){
-        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
-        return nullptr;
-    }
-    AllocaInst* alloca = ctx.VarsInScope[Name];
-    Value* V = ctx.Builder.CreateLoad(alloca, Name.c_str());
-    return V;
-}
-
-Value* AssignmentAST::codegen(CodegenContext& ctx) const {
-    Value* Val = Expr->codegen(ctx);
-    if(!Val) return nullptr;
-
-    // Look up the target var name.
-    if (ctx.VarsInScope.count(Name) < 1){
-        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
-        return nullptr;
-    }
-    AllocaInst* alloca = ctx.VarsInScope[Name];
-    ctx.Builder.CreateStore(Val, alloca);
-    return Val;
 }
 
 Value* IfExprAST::codegen(CodegenContext& ctx) const {
@@ -158,6 +271,9 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
     Value* cmp = ctx.Builder.CreateICmpNE(cond, ConstantInt::get(getGlobalContext(), APInt(1, 0, 1)), "whilecond");
     ctx.Builder.CreateCondBr(cmp, BodyBB, PostBB);
 
+    // Update of codegening context -- we are in a loop from now on
+    ctx.LoopsBBHeaderPost.push_back({HeaderBB, PostBB});
+
     // BODY
     parent->getBasicBlockList().push_back(BodyBB);
     ctx.Builder.SetInsertPoint(BodyBB);
@@ -168,116 +284,69 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
     // POSTWHILE
     parent->getBasicBlockList().push_back(PostBB);
     ctx.Builder.SetInsertPoint(PostBB);
+    
+    // Update of codegening context -- we've just got out of the loop
+    ctx.LoopsBBHeaderPost.pop_back();
 
     return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
 }
 
-Value* NumberExprAST::codegen(CodegenContext& ctx) const {
-    // Again, assuming that everything is an int.
-    return ConstantInt::get(getGlobalContext(), APInt(32, Val, 1));;
+Value* ForExprAST::codegen(CodegenContext& ctx) const {
+    /* Transform
+     * `for(Init | Cond | Step) { Body }`
+     * into
+     * `{
+     *     Init;
+     *     while(Cond) {
+     *         Body;
+     *         Step;
+     *     }
+     * }`
+     */
+    auto body = std::static_pointer_cast<BlockAST>(Body);
+    auto innerVars = body->Vars;
+    auto innerStatements = body->Statements;
+    innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
+    auto whileAST = std::make_shared<WhileExprAST>(Cond, 
+      std::make_shared<BlockAST>(innerVars, innerStatements));
+    
+    auto init = std::static_pointer_cast<BlockAST>(Init);
+    auto outerStatements = init->Statements;
+    outerStatements.push_back(whileAST);
+    
+    auto block = std::make_shared<BlockAST>(init->Vars, outerStatements);
+    
+    return block->codegen(ctx);
 }
 
-Value* BlockAST::codegen(CodegenContext& ctx) const {
-    if(Statements.size() == 0){
-        // Aah, an empty block. That seems like a special case,
-        // because this results in no Value, and there would be
-        // nothing we can give to our caller. So let's just create a 0
-        // value and return it.
-        return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
-    }else{
-
-        // Create new stack vars.
-        Function* parent = ctx.CurrentFunc;
-        for(auto& var : Vars){
-            if(ctx.VarsInScope.count(var.first) > 0){
-                std::cout << "Variable shadowing is not allowed" << std::endl;
+Value* KeywordAST::codegen(CodegenContext& ctx) const {
+    switch(which) {
+        case KEYWORD_break:
+            if (ctx.LoopsBBHeaderPost.empty()) {
+                // TODO: inform the user at which line (and column)
+                // they wrote `break;` outside any loop
                 return nullptr;
+            } else {
+                auto postBB = ctx.LoopsBBHeaderPost.back().second;
+                ctx.Builder.CreateBr(postBB);
+                return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
             }
-            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first);
-            // Initialize the var to 0.
-            Value* zero = ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));;
-            ctx.Builder.CreateStore(zero,Alloca);
-            ctx.VarsInScope[var.first] = Alloca;
-        }
-
-        // Generate statements inside the block
-        Value* last = nullptr;
-        for(const auto& stat : Statements){
-            last = stat->codegen(ctx);
-            if(!last) return nullptr;
-        }
-
-        // Remove stack vars
-        for(auto& var : Vars){
-            auto it = ctx.VarsInScope.find(var.first);
-            ctx.VarsInScope.erase(it);
-        }
-
-        return last;
+            break;
+        case KEYWORD_continue:
+            if (ctx.LoopsBBHeaderPost.empty()) {
+                // TODO: inform the user at which line (and column)
+                // they wrote `break;` outside any loop
+                return nullptr;
+            } else {
+                auto headerBB = ctx.LoopsBBHeaderPost.back().first;
+                ctx.Builder.CreateBr(headerBB);
+                return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+            }
+            break;
     }
+    
+    return nullptr;
 }
-
-Value* ReturnExprAST::codegen(CodegenContext& ctx) const {
-    Value* val = Expr->codegen(ctx);
-    if(!val) return nullptr;
-    ctx.Builder.CreateRet(val);
-    return val;
-}
-
-Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
-    Value* valL = LHS->codegen(ctx);
-    Value* valR = RHS->codegen(ctx);
-    if(!valL || !valR) return nullptr;
-
-    // TODO: Operator overloading is necessary in order to respect types!
-    // I believe it would make sense if we simply returned, from every codegen, a pair: datatype, value.
-    // Then we might lookup viable operators in a global map   (name, datatype1, datatype2) -> codegen function ptr
-    // and use that mapped function to generate code. As implicit conversions are possible, we would lookup
-    // various combinations types, which would yield a set of possible operators. Or we could order them by their
-    // conversion cost and lookup them one by one.
-
-    // But temporarily I assume everything is an int.
-    if(Opcode == "ADD"){
-        return ctx.Builder.CreateAdd(valL, valR, "addtmp");
-    }else if(Opcode == "SUB"){
-        return ctx.Builder.CreateSub(valL, valR, "subtmp");
-    }else if(Opcode == "MULT"){
-        return ctx.Builder.CreateMul(valL, valR, "multmp");
-    }else if(Opcode == "DIV"){
-        return ctx.Builder.CreateSDiv(valL, valR, "divtmp");
-    }else if(Opcode == "MOD"){
-        return ctx.Builder.CreateSRem(valL, valR, "modtmp");
-
-    }else if(Opcode == "EQUAL"){
-        return ctx.Builder.CreateICmpEQ(valL, valR, "cmptmp");
-    }else if(Opcode == "NEQUAL"){
-        return ctx.Builder.CreateICmpNE(valL, valR, "cmptmp");
-
-    }else if(Opcode == "GREATER"){
-        return ctx.Builder.CreateICmpUGT(valL, valR, "cmptmp");
-    }else if(Opcode == "GREATEREQ"){
-        return ctx.Builder.CreateICmpUGE(valL, valR, "cmptmp");
-
-    }else if(Opcode == "LESS"){
-        return ctx.Builder.CreateICmpULT(valL, valR, "cmptmp");
-    }else if(Opcode == "LESSEQ"){
-        return ctx.Builder.CreateICmpULE(valL, valR, "cmptmp");
-
-    }else if(Opcode == "LOGICAL_AND"){
-        // These are currently implemented as arythmetical ANDs. This
-        // will yield weird results when trying to (5 && 7). Maybe a
-        // good solution would be to convert these into u1, then do
-        // AND on these u1s, and then convert the result back to u32.
-        return ctx.Builder.CreateAnd(valL, valR, "andtmp");
-    }else if(Opcode == "LOGICAL_OR"){
-        return ctx.Builder.CreateOr(valL, valR, "ortmp");
-
-    }else{
-        std::cout << "Operator '" << Opcode << "' codegen is not implemented!" << std::endl;
-        return nullptr;
-    }
-}
-
 
 //------------------------------------------
 

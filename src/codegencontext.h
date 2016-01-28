@@ -7,6 +7,7 @@
 #include "llvm/IR/Module.h"
 
 #include <memory>
+#include <list>
 
 using namespace llvm;
 
@@ -22,6 +23,9 @@ public:
     // std::map<std::string, Value*> CurrentFuncArgs; // Moved to VarsInScope
     Function* CurrentFunc;
     std::map<std::string, AllocaInst*> VarsInScope;
+    
+    // For tracking in which loop we are currently in
+    std::list<std::pair<BasicBlock*, BasicBlock*>> LoopsBBHeaderPost;
 
     // Special function handles
     Function* func_printf;

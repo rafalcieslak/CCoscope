@@ -1,9 +1,9 @@
 // Terminal symbols:
 %token EOF SCANERROR
-%token SEMICOLON COLON COMMA
+%token SEMICOLON COLON COMMA PIPE
 %token KEYWORD_EXTERN KEYWORD_FUN KEYWORD_VAR KEYWORD_RETURN
 %token TYPE
-%token KEYWORD_IF KEYWORD_ELSE KEYWORD_WHILE KEYWORD_FOR
+%token KEYWORD_IF KEYWORD_ELSE KEYWORD_WHILE KEYWORD_FOR KEYWORD_BREAK KEYWORD_CONTINUE
 %token LPAR RPAR
 %token LBRACKET RBRACKET
 %token IDENTIFIER
@@ -18,7 +18,7 @@
 %token Start FuncDecl FuncDef ReturnType ProtoArgList
 %token Block Statement StatementList
 %token VarList VarDef
-%token If While
+%token If While For
 %token Return
 %token Expression Expr10 Expr20 Expr30 Expr40 Expr50 Expr100
 
@@ -69,6 +69,7 @@
 %constraint TypedIdentifier typedident 1 2
 %constraint VarDef typedident 1 2
 %constraint ReturnType returntype 1 2
+/* %constraint KeywordType keywordtype 1 2 */
 
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
@@ -227,6 +228,20 @@
 {   FuncCall1->type = tkn_Statement;
     return FuncCall1;
 }
+%           | KEYWORD_BREAK SEMICOLON
+{   token t(tkn_Statement);
+    t.tree.push_back(std::make_shared<KeywordAST>(
+          KEYWORD_break
+          ));
+    return t;
+}
+%           | KEYWORD_CONTINUE SEMICOLON
+{   token t(tkn_Statement);
+    t.tree.push_back(std::make_shared<KeywordAST>(
+          KEYWORD_continue
+          ));
+    return t;
+}
 %           ;
 
 
@@ -267,6 +282,20 @@
     t.tree.push_back( std::make_shared<WhileExprAST>(
       Expression3->tree.front(),
       Block5->tree.front()
+     ) );
+    return t;
+}
+%       ;
+
+% For : KEYWORD_FOR LPAR VarList StatementList PIPE Expression PIPE StatementList RPAR Block
+{   token t(tkn_For);
+    t.tree.push_back( std::make_shared<ForExprAST>(
+      std::make_shared<BlockAST>(
+       VarList3->protoarglist.front(),
+       StatementList4->statement_list.front()),
+      Expression6->tree.front(),
+      StatementList8->statement_list.front(),
+      Block10->tree.front()
      ) );
     return t;
 }
