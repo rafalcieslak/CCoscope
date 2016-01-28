@@ -13,8 +13,8 @@ static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
 }
 
 // Creates a global i8 string. Useful for printing values.
-Constant* CreateI8String(Module* M, char const* str, Twine const& name) {
-  Constant* strConstant = ConstantDataArray::getString(getGlobalContext(), str);
+Constant* CreateI8String(Module* M, char const* str, Twine const& name, CodegenContext& ctx) {
+  /*Constant* strConstant = ConstantDataArray::getString(getGlobalContext(), str);
   GlobalVariable* GVStr =
       new GlobalVariable(*M, strConstant->getType(), true,
                          GlobalValue::InternalLinkage, strConstant, name);
@@ -25,8 +25,10 @@ Constant* CreateI8String(Module* M, char const* str, Twine const& name) {
   Type* I8P = Type::getInt8PtrTy(getGlobalContext());
   
   
-  Constant* strVal = ConstantExpr::getGetElementPtr(I8P, GVStr, indices);
-  return strVal;
+  Constant* strVal = ConstantExpr::getGetElementPtr(I8P, GVStr, indices);*/
+  //IRBuilder<> builder(getGlobalContext());
+  auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
+  return cast<Constant>(strVal);
 }
 
 // ---------------------------------------------------------------------
@@ -170,7 +172,7 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
             return nullptr;
         }
         std::vector<Value*> ArgsV;
-        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), "%d\n", "printf_number") );
+        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), "%d\n", "printf_number", ctx) );
         ArgsV.push_back( Args[0]->codegen(ctx) );
         return ctx.Builder.CreateCall(ctx.func_printf, ArgsV, "calltmp");
     }
