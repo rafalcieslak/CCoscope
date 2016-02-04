@@ -438,3 +438,55 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
   TheFunction->eraseFromParent();
   return nullptr;
 }
+
+// --------------------------------------------------
+// Typechecking
+// --------------------------------------------------
+
+ExprType ExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType NumberExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType VariableExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType BinaryExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType BlockAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType AssignmentAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType CallExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType IfExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType WhileExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType ForExprAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType PrototypeAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}
+
+ExprType FunctionAST::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+}

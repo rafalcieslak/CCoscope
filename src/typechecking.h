@@ -24,6 +24,7 @@ public:
 };
 
 class CCVoidType : public CCPrimitiveType {
+public:
     CCVoidType()
         : CCPrimitiveType()
     {}
@@ -68,12 +69,8 @@ public:
     }
     
     CCType returnType () const { return operand(0); }
-    // Mind you -- one based argument list
+    // Mind you -- one-based argument list
     CCType argument (size_t i) const { return operand(i); }
 };
-
-// ---------------------------------------------------
-
-std::pair<CCType, ExprAST> maintype(std::shared_ptr<ExprAST> tree);
 
 

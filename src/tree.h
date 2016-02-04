@@ -3,6 +3,7 @@
 #define __TREE_H__
 
 #include "codegencontext.h"
+#include "typechecking.h"
 
 #include <string>
 #include <memory>
@@ -25,12 +26,17 @@ enum class keyword {
 
 // Forward declaration for BlockAST <-> ForExprAST dependency
 class ForExprAST;
+class ExprAST; 
+
+using ExprType = std::pair<std::shared_ptr<ExprAST>, CCType>;
 
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
- public:
+public:
     virtual ~ExprAST() {}
     virtual Value* codegen(CodegenContext& ctx) const = 0;
+    virtual ExprType maintype(CodegenContext& ctx) const;
+
 };
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
@@ -39,7 +45,9 @@ class NumberExprAST : public ExprAST {
 
 public:
     NumberExprAST(int v) : Val(v) {}
+    
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -48,7 +56,9 @@ class VariableExprAST : public ExprAST {
 
 public:
     VariableExprAST(const std::string &Name) : Name(Name) {}
+    
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -60,7 +70,9 @@ public:
     BinaryExprAST(std::string Op, std::shared_ptr<ExprAST> LHS,
                   std::shared_ptr<ExprAST> RHS)
         : Opcode(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
+    
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// ReturnExprAST - Represents a value return expression
@@ -103,6 +115,7 @@ public:
              const std::list<std::shared_ptr<ExprAST>>& s)
         : Vars(vars), Statements(s) {}
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
     
     friend ForExprAST;
 };
@@ -115,6 +128,7 @@ public:
     AssignmentAST(const std::string& Name, std::shared_ptr<ExprAST> Expr) :
         Name(Name), Expr(Expr) {}
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// CallExprAST - Expression class for function calls.
@@ -127,6 +141,7 @@ public:
                 std::vector<std::shared_ptr<ExprAST>> Args)
         : Callee(Callee), Args(std::move(Args)) {}
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// IfExprAST - Expression class for if/then/else.
@@ -138,6 +153,7 @@ public:
               std::shared_ptr<ExprAST> Else)
         : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// WhileExprAST - Expression class for while.
@@ -149,6 +165,7 @@ public:
                  std::shared_ptr<ExprAST> Body)
         : Cond(std::move(Cond)), Body(std::move(Body)) {}
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// ForExprAST - Expression class for for.
@@ -165,6 +182,7 @@ public:
         : Init(std::move(Init)), Cond(std::move(Cond)),
           Step(std::move(Step)), Body(std::move(Body)) {}
     Value* codegen(CodegenContext& ctx) const override;
+    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 class KeywordAST : public ExprAST {
@@ -190,6 +208,7 @@ public:
         : Name(Name), Args(std::move(Args)), ReturnType(ReturnType) {}
     const std::string &getName() const { return Name; }
     Function* codegen(CodegenContext& ctx) const;
+    virtual ExprType maintype (CodegenContext& ctx) const;
 };
 
 /// FunctionAST - This class represents a function definition itself.
@@ -202,6 +221,7 @@ public:
                 std::shared_ptr<ExprAST> Body)
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
     Function* codegen(CodegenContext& ctx) const;
+    virtual ExprType maintype (CodegenContext& ctx) const;
 };
 
 
