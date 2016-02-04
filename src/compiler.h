@@ -3,6 +3,6 @@
 
 #include "utils.h"
 
-int Compile(std::string infile, std::string outfile);
+int Compile(std::string infile, std::string outfile, unsigned int optlevel=0);
 
 #endif // __COMPILER_H__
