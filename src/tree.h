@@ -18,9 +18,9 @@ enum datatype{
     DATATYPE_void, // Not available for variables, but can be returned by a function
 };
 
-enum keyword {
-    KEYWORD_break,
-    KEYWORD_continue
+enum class keyword {
+    Break,
+    Continue
 };
 
 // Forward declaration for BlockAST <-> ForExprAST dependency
@@ -76,6 +76,25 @@ public:
 /// BlockAST - Represents a list of variable definitions and a list of
 /// statements executed in a particular order
 class BlockAST : public ExprAST {
+    class ScopeManager {
+    public:
+        ScopeManager(const BlockAST* parent, CodegenContext& ctx)
+            : parent(parent)
+            , ctx(ctx)
+        {}
+        
+        ~ScopeManager() {
+            for (auto& var : parent->Vars) {
+                auto it = ctx.VarsInScope.find(var.first);
+                ctx.VarsInScope.erase(it);
+            }
+        }
+        
+    protected:
+        const BlockAST* parent;
+        CodegenContext& ctx;
+    };
+    
     std::vector<std::pair<std::string,datatype>> Vars;
     std::list<std::shared_ptr<ExprAST>> Statements;
 

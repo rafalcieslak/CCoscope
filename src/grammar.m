@@ -231,14 +231,14 @@
 %           | KEYWORD_BREAK SEMICOLON
 {   token t(tkn_Statement);
     t.tree.push_back(std::make_shared<KeywordAST>(
-          KEYWORD_break
+          keyword::Break
           ));
     return t;
 }
 %           | KEYWORD_CONTINUE SEMICOLON
 {   token t(tkn_Statement);
     t.tree.push_back(std::make_shared<KeywordAST>(
-          KEYWORD_continue
+          keyword::Continue
           ));
     return t;
 }

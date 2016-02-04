@@ -15,8 +15,7 @@ class CodegenContext{
 public:
     CodegenContext(std::shared_ptr<Module> module)
         : TheModule(module),
-          Builder(getGlobalContext()),
-          should_codegen_further(true)
+          Builder(getGlobalContext())
     {}
 
     std::shared_ptr<Module> TheModule;
@@ -29,8 +28,7 @@ public:
     // .first -- headerBB, .second -- postBB
     std::list<std::pair<BasicBlock*, BasicBlock*>> LoopsBBHeaderPost;
     
-    // a flag useful when bumping into `continue` or `break` keyword
-    bool should_codegen_further;
+    bool is_inside_loop () const { return !LoopsBBHeaderPost.empty(); }
     
     // Special function handles
     Function* func_printf;
