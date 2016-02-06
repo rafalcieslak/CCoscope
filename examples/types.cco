@@ -1,0 +1,15 @@
+fun main() : int {
+    var i : int;
+    var f : double;
+    var btrue : bool;
+    var bfalse : bool;
+    i := 10;
+    f := 3e-4 ;
+    btrue := true;
+    bfalse := false;
+    
+    print(i);
+    print(f);
+    print(btrue);
+    print(bfalse);
+}

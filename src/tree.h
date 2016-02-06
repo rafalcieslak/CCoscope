@@ -19,6 +19,22 @@ enum datatype{
     DATATYPE_void, // Not available for variables, but can be returned by a function
 };
 
+/*
+ * For some reason this definition yields a
+ * compilation error "multiple definition of `stodatatype(std::string)`"
+ * TODO: understand why and fix it
+datatype stodatatype (std::string s) {
+    if (s == "int")
+        return datatype::DATATYPE_int;
+    else if (s == "float")
+        return datatype::DATATYPE_float;
+    else if (s == "bool")
+        return datatype::DATATYPE_bool;
+    else
+        return datatype::DATATYPE_void;
+}
+*/
+
 enum class keyword {
     Break,
     Continue
@@ -39,16 +55,27 @@ public:
 
 };
 
-/// NumberExprAST - Expression class for numeric literals like "1.0".
-class NumberExprAST : public ExprAST {
-    int Val;
+/// PrimitiveExprAST - Expression class for numeric literals like "1.0"
+/// as well as boolean constants
+template<typename T>
+class PrimitiveExprAST : public ExprAST {
+protected:
+    T Val;
 
 public:
-    NumberExprAST(int v) : Val(v) {}
+    PrimitiveExprAST(T v) : Val(v) {}
     
     Value* codegen(CodegenContext& ctx) const override;
     virtual ExprType maintype (CodegenContext& ctx) const override;
 };
+
+// For some reason putting the implementation below to the .cpp file
+// yields a compiler error.
+// TODO: understand why :)
+template<typename T>
+ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+}
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {

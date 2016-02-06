@@ -132,7 +132,17 @@
  */
 % ReturnType : COLON TYPE
 {   token t(tkn_ReturnType);
-    t.returntype.push_back(DATATYPE_int);
+    datatype d;
+    std::string s(TYPE2->id.front());
+    if(s == "int")
+      d = datatype::DATATYPE_int;
+    else if (s == "double")
+      d = datatype::DATATYPE_float;
+    else if (s == "bool")
+      d = datatype::DATATYPE_bool;
+    else
+      d = datatype::DATATYPE_void;
+    t.returntype.push_back(d);//stodatatypefoo(TYPE2->id.front()));//DATATYPE_int);
     return t;
 }
 %            |
@@ -151,7 +161,19 @@
  */
 % TypedIdentifier : IDENTIFIER COLON TYPE
 {  token t(tkn_TypedIdentifier);
-   t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(), DATATYPE_int));
+   datatype d;
+    std::string s(TYPE3->id.front());
+    if(s == "int")
+      d = datatype::DATATYPE_int;
+    else if (s == "double")
+      d = datatype::DATATYPE_float;
+    else if (s == "bool")
+      d = datatype::DATATYPE_bool;
+    else
+      d = datatype::DATATYPE_void;
+   t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(), 
+    //DATATYPE_int));
+    d));//stodatatypefoo(TYPE3->id.front())));
    return t;
 }
 %                 ;
@@ -441,7 +463,12 @@
 // Highest priority operators / expressions
 % Expr100    : LITERAL_INT
 {   token t(tkn_Expr100);
-    t.tree.push_back(std::make_shared<NumberExprAST>(LITERAL_INT1->value_int.front()));
+    t.tree.push_back(std::make_shared<PrimitiveExprAST<int>>(LITERAL_INT1->value_int.front()));
+    return t;
+}
+%            | LITERAL_FLOAT
+{   token t(tkn_Expr100);
+    t.tree.push_back(std::make_shared<PrimitiveExprAST<float>>(LITERAL_FLOAT1->value_float.front()));
     return t;
 }
 %            | IDENTIFIER

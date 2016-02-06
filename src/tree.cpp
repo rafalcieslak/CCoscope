@@ -32,14 +32,32 @@ Constant* CreateI8String(Module* M, char const* str, Twine const& name, CodegenC
 }
 
 // ---------------------------------------------------------------------
+template<>
+Value* PrimitiveExprAST<int>::codegen(CodegenContext& ctx) const {
+    return ConstantInt::get(getGlobalContext(), APInt(32, Val, 1));
+}
 
-Value* NumberExprAST::codegen(CodegenContext& ctx) const {
-    // Again, assuming that everything is an int.
-    return ConstantInt::get(getGlobalContext(), APInt(32, Val, 1));;
+template<>
+Value* PrimitiveExprAST<bool>::codegen(CodegenContext& ctx) const {
+    if(Val == true)
+        return ConstantInt::getTrue(getGlobalContext());
+    else
+        return ConstantInt::getFalse(getGlobalContext());
+}
+
+template<>
+Value* PrimitiveExprAST<float>::codegen(CodegenContext& ctx) const {
+    return ConstantFP::get(getGlobalContext(), APFloat(Val));
+}
+
+template<typename T>
+Value* PrimitiveExprAST<T>::codegen(CodegenContext& ctx) const {
+    return nullptr;
 }
 
 Value* VariableExprAST::codegen(CodegenContext& ctx) const {
     // Assuming that everything is an int.
+     // --> where does this assumption appear?
     if(ctx.VarsInScope.count(Name) < 1){
         std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
         return nullptr;
@@ -444,49 +462,50 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
 // --------------------------------------------------
 
 ExprType ExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
-
-ExprType NumberExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+/* see `tree.h`
+template<typename T>
+ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
-
+*/
 ExprType VariableExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType BinaryExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType BlockAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType AssignmentAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType CallExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType IfExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType WhileExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType ForExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType PrototypeAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType FunctionAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<NumberExprAST>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
