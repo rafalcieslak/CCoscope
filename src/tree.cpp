@@ -2,14 +2,33 @@
 
 #include "llvm/IR/Verifier.h"
 
+Type* datatype2llvmType(datatype d) {
+    switch(d) {
+        case DATATYPE_int:   return Type::getInt32Ty(getGlobalContext());
+        case DATATYPE_bool:  return Type::getInt1Ty(getGlobalContext());
+        case DATATYPE_float: return Type::getFloatTy(getGlobalContext());
+        case DATATYPE_void:  return Type::getVoidTy(getGlobalContext());
+    }
+    return nullptr;
+}
+
+Value* createDefaultValue(datatype d) {
+    switch(d) {
+        case DATATYPE_int: return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+        case DATATYPE_float: return ConstantFP::get(getGlobalContext(), APFloat(0.0));
+        case DATATYPE_bool: return ConstantInt::getFalse(getGlobalContext());
+        default: return nullptr;
+    }
+}
+
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
 static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
-                                          const std::string &VarName) {
+                                          const std::string &VarName,
+                                          Type* type) {
   IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
                  TheFunction->getEntryBlock().begin());
-  return TmpB.CreateAlloca(Type::getInt32Ty(getGlobalContext()), 0,
-                           (VarName + "_addr").c_str());
+  return TmpB.CreateAlloca(type, 0, (VarName + "_addr").c_str());
 }
 
 // Creates a global i8 string. Useful for printing values.
@@ -159,10 +178,11 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
                 std::cout << "Variable shadowing is not allowed" << std::endl;
                 return nullptr;
             }
-            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first);
+            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, datatype2llvmType(var.second));
             // Initialize the var to 0.
-            Value* zero = ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));;
-            ctx.Builder.CreateStore(zero,Alloca);
+            Value* zero = createDefaultValue(var.second);
+              //ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+            ctx.Builder.CreateStore(zero, Alloca);
             ctx.VarsInScope[var.first] = Alloca;
         }
 
@@ -404,10 +424,16 @@ Function* PrototypeAST::codegen(CodegenContext& ctx) const {
   // Make the function type:  double(double,double) etc.
 
     // TODO: Respect argument types.
-  std::vector<Type *> Ints(Args.size(),
+  /*std::vector<Type *> Ints(Args.size(),
                               Type::getInt32Ty(getGlobalContext()));
+  */
+  std::vector<Type*> argsTypes;
+  for (auto& p : Args) {
+      argsTypes.push_back(datatype2llvmType(p.second));
+  }  
+  
   FunctionType *FT =
-      FunctionType::get(Type::getInt32Ty(getGlobalContext()), Ints, false);
+      FunctionType::get(datatype2llvmType(ReturnType), argsTypes, false);
 
   Function *F =
       Function::Create(FT, Function::ExternalLinkage, Name, ctx.TheModule.get());
@@ -444,7 +470,7 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
 
   // Record the function arguments in the VarsInScope map.
   for (auto &Arg : TheFunction->args()){
-      AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName());
+      AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), Arg.getType());
       ctx.Builder.CreateStore(&Arg,Alloca);
       ctx.VarsInScope[Arg.getName()] = Alloca;
   }

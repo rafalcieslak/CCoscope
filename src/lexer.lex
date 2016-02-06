@@ -36,6 +36,9 @@ float	-?{base}{exponent}?
 /* Integers */
 int	    -?{digit}+
 
+/* Booleans */
+bool    true|false
+
 literalend  [^0-9a-zA-Z.]
 
 /* Identifiers */
@@ -67,6 +70,7 @@ continue        PUTTOK(tkn_KEYWORD_CONTINUE);
 :=              PUTTOK(tkn_ASSIGN);
 {int}/{literalend}   PUTTOK(tkn_LITERAL_INT);   TOKADD(value_int  , std::stod(yytext));
 {float}/{literalend} PUTTOK(tkn_LITERAL_FLOAT); TOKADD(value_float, std::stof(yytext));
+{bool}/{literalend} PUTTOK(tkn_LITERAL_BOOL); TOKADD(value_bool, std::string(yytext) == "true" ? true : false);
 :               PUTTOK(tkn_COLON);
 ==              PUTTOK(tkn_EQUAL);
 !=              PUTTOK(tkn_NEQUAL);

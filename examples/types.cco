@@ -1,15 +1,15 @@
 fun main() : int {
     var i : int;
     var f : double;
-    var btrue : bool;
-    var bfalse : bool;
+    //var btrue : bool;
+    //var bfalse : bool;
     i := 10;
-    f := 3e-4 ;
-    btrue := true;
-    bfalse := false;
+    //f := 3;//e-4 ;
+    //btrue := true;
+    //bfalse := false;
     
     print(i);
-    print(f);
-    print(btrue);
-    print(bfalse);
+    //print(f);
+    //print(btrue);
+    //print(bfalse);
 }
