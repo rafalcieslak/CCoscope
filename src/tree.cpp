@@ -31,6 +31,18 @@ Constant* CreateI8String(Module* M, char const* str, Twine const& name, CodegenC
   return cast<Constant>(strVal);
 }
 
+datatype stodatatype (std::string s)
+{
+    if (s == "int")
+        return datatype::DATATYPE_int;
+    else if (s == "double")
+        return datatype::DATATYPE_float;
+    else if (s == "bool")
+        return datatype::DATATYPE_bool;
+    else
+        return datatype::DATATYPE_void;
+}
+
 // ---------------------------------------------------------------------
 template<>
 Value* PrimitiveExprAST<int>::codegen(CodegenContext& ctx) const {

@@ -124,25 +124,9 @@
 
 
 // The return type of a function
-/* WARNING
- * WARNING
- * Currently all types are assumed to be ints.
- * WARNING
- * WARNING
- */
 % ReturnType : COLON TYPE
 {   token t(tkn_ReturnType);
-    datatype d;
-    std::string s(TYPE2->id.front());
-    if(s == "int")
-      d = datatype::DATATYPE_int;
-    else if (s == "double")
-      d = datatype::DATATYPE_float;
-    else if (s == "bool")
-      d = datatype::DATATYPE_bool;
-    else
-      d = datatype::DATATYPE_void;
-    t.returntype.push_back(d);//stodatatypefoo(TYPE2->id.front()));//DATATYPE_int);
+    t.returntype.push_back(stodatatype(TYPE2->id.front()));
     return t;
 }
 %            |
@@ -153,27 +137,10 @@
 %            ;
 
 // An identifier with type, eg.    x : int
-/* WARNING
- * WARNING
- * Currently all types are assumed to be ints.
- * WARNING
- * WARNING
- */
 % TypedIdentifier : IDENTIFIER COLON TYPE
 {  token t(tkn_TypedIdentifier);
-   datatype d;
-    std::string s(TYPE3->id.front());
-    if(s == "int")
-      d = datatype::DATATYPE_int;
-    else if (s == "double")
-      d = datatype::DATATYPE_float;
-    else if (s == "bool")
-      d = datatype::DATATYPE_bool;
-    else
-      d = datatype::DATATYPE_void;
-   t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(), 
-    //DATATYPE_int));
-    d));//stodatatypefoo(TYPE3->id.front())));
+   t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(),
+    stodatatype(TYPE3->id.front())));
    return t;
 }
 %                 ;

@@ -19,21 +19,7 @@ enum datatype{
     DATATYPE_void, // Not available for variables, but can be returned by a function
 };
 
-/*
- * For some reason this definition yields a
- * compilation error "multiple definition of `stodatatype(std::string)`"
- * TODO: understand why and fix it
-datatype stodatatype (std::string s) {
-    if (s == "int")
-        return datatype::DATATYPE_int;
-    else if (s == "float")
-        return datatype::DATATYPE_float;
-    else if (s == "bool")
-        return datatype::DATATYPE_bool;
-    else
-        return datatype::DATATYPE_void;
-}
-*/
+datatype stodatatype (std::string s);
 
 enum class keyword {
     Break,
