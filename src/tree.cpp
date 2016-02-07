@@ -2,7 +2,8 @@
 
 #include "llvm/IR/Verifier.h"
 
-#define NDEBUG 1
+#define NDEBUG
+//#undef NDEBUG
 
 Type* datatype2llvmType(datatype d) {
     switch(d) {
@@ -233,6 +234,10 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
         std::cerr << "in call will codegen arg" << std::endl;
 #endif
         auto temp = Args[0]->codegen(ctx);
+       // auto vare = dynamic_cast<VariableExprAST*>(Args[0]);
+      //  if(vare != nullptr) {
+      //      std::cerr << "codegening var 
+      //  }
 #ifndef NDEBUG
         std::cerr << "in call after codegen arg" << std::endl;
 #endif

@@ -14,16 +14,6 @@
 
 using namespace llvm;
 
-/*
-enum datatype{
-    DATATYPE_int,
-    DATATYPE_float,
-    DATATYPE_bool,
-    DATATYPE_void, // Not available for variables, but can be returned by a function
-};
-
-datatype stodatatype (std::string s);
-*/
 enum class keyword {
     Break,
     Continue
@@ -118,7 +108,6 @@ class BlockAST : public ExprAST {
                                        [&var](auto& p) {
                                            return p.first == var.first;
                                        });
-                 //ctx.VarsInScope.find(var.first);
                 ctx.VarsInScope.erase(it);
             }
         }
@@ -136,7 +125,6 @@ public:
              const std::list<std::shared_ptr<ExprAST>>& s)
         : Vars(vars), Statements(s) {}
     Value* codegen(CodegenContext& ctx) const override;
-   // virtual ExprType maintype (CodegenContext& ctx) const override;
     
     friend ForExprAST;
 };
@@ -174,7 +162,6 @@ public:
               std::shared_ptr<ExprAST> Else)
         : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
     Value* codegen(CodegenContext& ctx) const override;
-    //virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// WhileExprAST - Expression class for while.
@@ -186,7 +173,6 @@ public:
                  std::shared_ptr<ExprAST> Body)
         : Cond(std::move(Cond)), Body(std::move(Body)) {}
     Value* codegen(CodegenContext& ctx) const override;
-    //virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// ForExprAST - Expression class for for.
@@ -203,7 +189,6 @@ public:
         : Init(std::move(Init)), Cond(std::move(Cond)),
           Step(std::move(Step)), Body(std::move(Body)) {}
     Value* codegen(CodegenContext& ctx) const override;
-    //virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 class KeywordAST : public ExprAST {
