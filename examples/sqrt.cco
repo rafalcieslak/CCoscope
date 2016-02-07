@@ -1,13 +1,13 @@
 // The square root example
-extern fun abs(double) : double;
-extern fun pow(double,double) : double;
+extern fun abs(a : double) : double;
+extern fun pow(a : double, b: double) : double;
 fun sqrt(num : double) : double{
     var prec : double;
     var start : double;
     var end : double;
     var cur : double;
     num := abs(num);
-    prec := 1e-5;
+    prec := 0.00001; //1e-5;
     start := 0.;
     end := num;
     cur := num;
