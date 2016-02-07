@@ -9,9 +9,12 @@
 #include <memory>
 #include <list>
 
+#include "typechecking.h"
+
 using namespace llvm;
 
-class CodegenContext{
+class CodegenContext
+{
 public:
     CodegenContext(std::shared_ptr<Module> module)
         : TheModule(module),
@@ -22,7 +25,7 @@ public:
     IRBuilder<> Builder;
     // std::map<std::string, Value*> CurrentFuncArgs; // Moved to VarsInScope
     Function* CurrentFunc;
-    std::map<std::string, AllocaInst*> VarsInScope;
+    std::map<std::string, std::pair<AllocaInst*, datatype>> VarsInScope;
     
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB

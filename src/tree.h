@@ -12,6 +12,9 @@
 #include <list>
 #include <iostream>
 
+using namespace llvm;
+
+/*
 enum datatype{
     DATATYPE_int,
     DATATYPE_float,
@@ -20,7 +23,7 @@ enum datatype{
 };
 
 datatype stodatatype (std::string s);
-
+*/
 enum class keyword {
     Break,
     Continue
@@ -30,7 +33,7 @@ enum class keyword {
 class ForExprAST;
 class ExprAST; 
 
-using ExprType = std::pair<std::shared_ptr<ExprAST>, CCType>;
+using ExprType = std::pair<std::shared_ptr<ExprAST>, datatype/*CCType*/>;
 
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
@@ -60,7 +63,7 @@ public:
 // TODO: understand why :)
 template<typename T>
 ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -110,7 +113,12 @@ class BlockAST : public ExprAST {
         
         ~ScopeManager() {
             for (auto& var : parent->Vars) {
-                auto it = ctx.VarsInScope.find(var.first);
+                auto it = std::find_if(ctx.VarsInScope.begin(),
+                                       ctx.VarsInScope.end(),
+                                       [&var](auto& p) {
+                                           return p.first == var.first;
+                                       });
+                 //ctx.VarsInScope.find(var.first);
                 ctx.VarsInScope.erase(it);
             }
         }
@@ -128,7 +136,7 @@ public:
              const std::list<std::shared_ptr<ExprAST>>& s)
         : Vars(vars), Statements(s) {}
     Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+   // virtual ExprType maintype (CodegenContext& ctx) const override;
     
     friend ForExprAST;
 };
@@ -166,7 +174,7 @@ public:
               std::shared_ptr<ExprAST> Else)
         : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
     Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    //virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// WhileExprAST - Expression class for while.
@@ -178,7 +186,7 @@ public:
                  std::shared_ptr<ExprAST> Body)
         : Cond(std::move(Cond)), Body(std::move(Body)) {}
     Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    //virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 /// ForExprAST - Expression class for for.
@@ -195,7 +203,7 @@ public:
         : Init(std::move(Init)), Cond(std::move(Cond)),
           Step(std::move(Step)), Body(std::move(Body)) {}
     Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    //virtual ExprType maintype (CodegenContext& ctx) const override;
 };
 
 class KeywordAST : public ExprAST {
@@ -220,6 +228,7 @@ public:
     PrototypeAST(const std::string &Name, std::vector<std::pair<std::string, datatype>> Args, datatype ReturnType)
         : Name(Name), Args(std::move(Args)), ReturnType(ReturnType) {}
     const std::string &getName() const { return Name; }
+    const std::vector<std::pair<std::string, datatype>>& getArgs() const { return Args; }
     Function* codegen(CodegenContext& ctx) const;
     virtual ExprType maintype (CodegenContext& ctx) const;
 };

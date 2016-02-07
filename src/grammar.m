@@ -83,6 +83,7 @@
 #define ASSERT( X ) { assert( ( X ) ); }
 #include <cstdio>
 #include "tree.h"
+#include "typechecking.h"
 #include <memory>
 
 % Start : Module

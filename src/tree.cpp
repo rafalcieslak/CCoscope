@@ -2,6 +2,8 @@
 
 #include "llvm/IR/Verifier.h"
 
+#define NDEBUG 1
+
 Type* datatype2llvmType(datatype d) {
     switch(d) {
         case DATATYPE_int:   return Type::getInt32Ty(getGlobalContext());
@@ -14,9 +16,9 @@ Type* datatype2llvmType(datatype d) {
 
 Value* createDefaultValue(datatype d) {
     switch(d) {
-        case DATATYPE_int: return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
-        case DATATYPE_float: return ConstantFP::get(getGlobalContext(), APFloat(0.0));
-        case DATATYPE_bool: return ConstantInt::getFalse(getGlobalContext());
+        case DATATYPE_int:   return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+        case DATATYPE_float: return ConstantFP::get(Type::getFloatTy(getGlobalContext()), 0.0);
+        case DATATYPE_bool:  return ConstantInt::getFalse(getGlobalContext());
         default: return nullptr;
     }
 }
@@ -33,19 +35,6 @@ static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
 
 // Creates a global i8 string. Useful for printing values.
 Constant* CreateI8String(Module* M, char const* str, Twine const& name, CodegenContext& ctx) {
-  /*Constant* strConstant = ConstantDataArray::getString(getGlobalContext(), str);
-  GlobalVariable* GVStr =
-      new GlobalVariable(*M, strConstant->getType(), true,
-                         GlobalValue::InternalLinkage, strConstant, name);
-  Constant* zero = Constant::getNullValue(IntegerType::getInt32Ty(getGlobalContext()));
-  Constant* indices[] = {zero, zero};
-  
-  
-  Type* I8P = Type::getInt8PtrTy(getGlobalContext());
-  
-  
-  Constant* strVal = ConstantExpr::getGetElementPtr(I8P, GVStr, indices);*/
-  //IRBuilder<> builder(getGlobalContext());
   auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
   return cast<Constant>(strVal);
 }
@@ -78,7 +67,7 @@ Value* PrimitiveExprAST<bool>::codegen(CodegenContext& ctx) const {
 
 template<>
 Value* PrimitiveExprAST<float>::codegen(CodegenContext& ctx) const {
-    return ConstantFP::get(getGlobalContext(), APFloat(Val));
+    return ConstantFP::get(Type::getFloatTy(getGlobalContext()), Val);
 }
 
 template<typename T>
@@ -93,7 +82,7 @@ Value* VariableExprAST::codegen(CodegenContext& ctx) const {
         std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
         return nullptr;
     }
-    AllocaInst* alloca = ctx.VarsInScope[Name];
+    AllocaInst* alloca = ctx.VarsInScope[Name].first;
     Value* V = ctx.Builder.CreateLoad(alloca, Name.c_str());
     return V;
 }
@@ -181,9 +170,14 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
             AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, datatype2llvmType(var.second));
             // Initialize the var to 0.
             Value* zero = createDefaultValue(var.second);
+#ifndef NDEBUG
+            std::cerr << "created zero value ";
+            zero->dump();
+            std::cerr << std::endl;
+#endif
               //ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
             ctx.Builder.CreateStore(zero, Alloca);
-            ctx.VarsInScope[var.first] = Alloca;
+            ctx.VarsInScope[var.first] = std::make_pair(Alloca, var.second);
         }
 
         // Generate statements inside the block
@@ -212,7 +206,7 @@ Value* AssignmentAST::codegen(CodegenContext& ctx) const {
         std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
         return nullptr;
     }
-    AllocaInst* alloca = ctx.VarsInScope[Name];
+    AllocaInst* alloca = ctx.VarsInScope[Name].first;
     ctx.Builder.CreateStore(Val, alloca);
     return Val;
 }
@@ -226,8 +220,28 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
             return nullptr;
         }
         std::vector<Value*> ArgsV;
-        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), "%d\n", "printf_number", ctx) );
-        ArgsV.push_back( Args[0]->codegen(ctx) );
+        std::string formatSpecifier;
+        switch(Args[0]->maintype(ctx).second) {
+            case DATATYPE_int: formatSpecifier = "%d"; break;
+            case DATATYPE_float: formatSpecifier = "%f"; break;
+            case DATATYPE_bool: formatSpecifier = "%d"; break;
+            default: formatSpecifier = "%d";
+        }
+        
+        ArgsV.push_back( CreateI8String(ctx.TheModule.get(), (formatSpecifier + "\n").c_str(), "printf_number", ctx) );
+#ifndef NDEBUG
+        std::cerr << "in call will codegen arg" << std::endl;
+#endif
+        auto temp = Args[0]->codegen(ctx);
+#ifndef NDEBUG
+        std::cerr << "in call after codegen arg" << std::endl;
+#endif
+        ArgsV.push_back( temp ); //Args[0]->codegen(ctx) );
+#ifndef NDEBUG
+        std::cerr << "printujemy: " << formatSpecifier << " : ";
+        temp->dump();
+        std::cerr << std::endl;
+#endif
         return ctx.Builder.CreateCall(ctx.func_printf, ArgsV, "calltmp");
     }
 
@@ -467,12 +481,13 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
   // Clear the scope.
   ctx.VarsInScope.clear();
 
-
+  size_t i = 0;
   // Record the function arguments in the VarsInScope map.
   for (auto &Arg : TheFunction->args()){
       AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), Arg.getType());
       ctx.Builder.CreateStore(&Arg,Alloca);
-      ctx.VarsInScope[Arg.getName()] = Alloca;
+      ctx.VarsInScope[Arg.getName()] = std::make_pair(Alloca, (Proto->getArgs())[i].second);
+      i++;
   }
 
 
@@ -500,7 +515,7 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
 // --------------------------------------------------
 
 ExprType ExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 /* see `tree.h`
 template<typename T>
@@ -508,42 +523,41 @@ ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
     return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 */
+template<>
+ExprType PrimitiveExprAST<int>::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_int};
+}
+
+template<>
+ExprType PrimitiveExprAST<bool>::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_bool};
+}
+
+template<>
+ExprType PrimitiveExprAST<float>::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_float};
+}
+
 ExprType VariableExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), ctx.VarsInScope[Name].second};//CCVoidType()};
 }
 
 ExprType BinaryExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
-}
-
-ExprType BlockAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 ExprType AssignmentAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 ExprType CallExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
-}
-
-ExprType IfExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
-}
-
-ExprType WhileExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
-}
-
-ExprType ForExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 ExprType PrototypeAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 ExprType FunctionAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }

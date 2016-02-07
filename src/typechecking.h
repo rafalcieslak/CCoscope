@@ -1,5 +1,14 @@
+#ifndef __TYPECHECKING_H__
+#define __TYPECHECKING_H__
 
-#include "tree.h"
+enum datatype{
+    DATATYPE_int,
+    DATATYPE_float,
+    DATATYPE_bool,
+    DATATYPE_void, // Not available for variables, but can be returned by a function
+};
+
+datatype stodatatype (std::string s);
 
 class CCType {
 public:
@@ -73,4 +82,4 @@ public:
     CCType argument (size_t i) const { return operand(i); }
 };
 
-
+#endif

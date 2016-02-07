@@ -4,12 +4,12 @@ fun main() : int {
     //var btrue : bool;
     //var bfalse : bool;
     i := 10;
-    //f := 3;//e-4 ;
+    f := 3.1415;//e-4 ;
     //btrue := true;
     //bfalse := false;
     
     print(i);
-    //print(f);
+    print(f);
     //print(btrue);
     //print(bfalse);
 }
