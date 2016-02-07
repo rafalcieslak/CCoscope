@@ -101,41 +101,9 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
     // conversion cost and lookup them one by one.
 
     // But temporarily I assume everything is an int.
-    if(Opcode == "ADD"){
-        return ctx.Builder.CreateAdd(valL, valR, "addtmp");
-    }else if(Opcode == "SUB"){
-        return ctx.Builder.CreateSub(valL, valR, "subtmp");
-    }else if(Opcode == "MULT"){
-        return ctx.Builder.CreateMul(valL, valR, "multmp");
-    }else if(Opcode == "DIV"){
-        return ctx.Builder.CreateSDiv(valL, valR, "divtmp");
-    }else if(Opcode == "MOD"){
-        return ctx.Builder.CreateSRem(valL, valR, "modtmp");
-
-    }else if(Opcode == "EQUAL"){
-        return ctx.Builder.CreateICmpEQ(valL, valR, "cmptmp");
-    }else if(Opcode == "NEQUAL"){
-        return ctx.Builder.CreateICmpNE(valL, valR, "cmptmp");
-
-    }else if(Opcode == "GREATER"){
-        return ctx.Builder.CreateICmpUGT(valL, valR, "cmptmp");
-    }else if(Opcode == "GREATEREQ"){
-        return ctx.Builder.CreateICmpUGE(valL, valR, "cmptmp");
-
-    }else if(Opcode == "LESS"){
-        return ctx.Builder.CreateICmpULT(valL, valR, "cmptmp");
-    }else if(Opcode == "LESSEQ"){
-        return ctx.Builder.CreateICmpULE(valL, valR, "cmptmp");
-
-    }else if(Opcode == "LOGICAL_AND"){
-        // These are currently implemented as arythmetical ANDs. This
-        // will yield weird results when trying to (5 && 7). Maybe a
-        // good solution would be to convert these into u1, then do
-        // AND on these u1s, and then convert the result back to u32.
-        return ctx.Builder.CreateAnd(valL, valR, "andtmp");
-    }else if(Opcode == "LOGICAL_OR"){
-        return ctx.Builder.CreateOr(valL, valR, "ortmp");
-
+    auto fit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_int, DATATYPE_int));
+    if(fit != ctx.BinOpCreator.end()) {
+        return (fit->second)(valL, valR);
     }else{
         std::cout << "Operator '" << Opcode << "' codegen is not implemented!" << std::endl;
         return nullptr;
