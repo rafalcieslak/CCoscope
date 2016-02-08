@@ -1,7 +1,17 @@
 // Recursion example (fibonacci sequence)
 fun fib(n : int) : int {
-    if (n >= 0)
+    if (n >= 0) {
         return fib(n - 2) + fib(n - 1);
-    else
+    } else {
         return 0;
+    }
+}
+
+fun main() : int {
+    var i : int;
+    i := 1;
+    while(i < 10) {
+        print(fib(i));
+        i := i + 1;
+    }
 }
