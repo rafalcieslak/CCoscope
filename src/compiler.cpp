@@ -1,6 +1,7 @@
 #include "compiler.h"
 #include "utils.h"
 #include "codegencontext.h"
+#include "codegencontext.cpp" // gcc needs it for some reason...
 #include "tree.h"
 #include "token.h"
 #include "tokenizer.h"
