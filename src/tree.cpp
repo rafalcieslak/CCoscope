@@ -99,12 +99,20 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
     // and use that mapped function to generate code. As implicit conversions are possible, we would lookup
     // various combinations types, which would yield a set of possible operators. Or we could order them by their
     // conversion cost and lookup them one by one.
+    // <-----
+    //       I think we can reuse the types that LLVM gives to us
+    //       and this approach is applied in current implementation
+    // TODO: implicit conversions and a cost function related to it
 
-    // But temporarily I assume everything is an int.
-    auto fit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_int, DATATYPE_int));
-    if(fit != ctx.BinOpCreator.end()) {
-        return (fit->second)(valL, valR);
-    }else{
+    auto fitit = ctx.BinOpCreator.end();
+    if (valL->getType()->isIntegerTy() && valR->getType()->isIntegerTy())
+        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_int, DATATYPE_int));
+    else if (valL->getType()->isFloatTy() && valR->getType()->isFloatTy())
+        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_float, DATATYPE_float));
+    
+    if(fitit != ctx.BinOpCreator.end())
+        return (fitit->second)(valL, valR);
+    else {
         std::cout << "Operator '" << Opcode << "' codegen is not implemented!" << std::endl;
         return nullptr;
     }

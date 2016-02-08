@@ -1,0 +1,21 @@
+
+fun main() : int{
+    var a : int;
+    var b : int;
+    var c : double;
+    var d : double;
+    var b1 : bool;
+    var b2 : bool;
+    
+    a := 2;
+    b := 5;
+    c := 3.14;
+    d := 5.2;
+    if(a > b) {
+        c := c + d;
+    } else {
+        b := b + a;
+    }
+    print(c);
+    print(b);
+}
