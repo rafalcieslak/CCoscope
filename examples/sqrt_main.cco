@@ -1,0 +1,7 @@
+extern fun sqrt(num : double) : double;
+
+fun main() : int{
+    print(sqrt(25.));
+    print(sqrt(23.));
+    print(sqrt(28.));
+}
