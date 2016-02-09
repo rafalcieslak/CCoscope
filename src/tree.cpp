@@ -7,19 +7,19 @@
 
 Type* datatype2llvmType(datatype d) {
     switch(d) {
-        case DATATYPE_int:   return Type::getInt32Ty(getGlobalContext());
-        case DATATYPE_bool:  return Type::getInt1Ty(getGlobalContext());
+        case DATATYPE_int:    return Type::getInt32Ty(getGlobalContext());
+        case DATATYPE_bool:   return Type::getInt1Ty(getGlobalContext());
         case DATATYPE_double: return Type::getDoubleTy(getGlobalContext());
-        case DATATYPE_void:  return Type::getVoidTy(getGlobalContext());
+        case DATATYPE_void:   return Type::getVoidTy(getGlobalContext());
     }
     return nullptr;
 }
 
 Value* createDefaultValue(datatype d) {
     switch(d) {
-        case DATATYPE_int:   return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+        case DATATYPE_int:    return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
         case DATATYPE_double: return ConstantFP::get(getGlobalContext(), APFloat(0.0));
-        case DATATYPE_bool:  return ConstantInt::getFalse(getGlobalContext());
+        case DATATYPE_bool:   return ConstantInt::getFalse(getGlobalContext());
         default: return nullptr;
     }
 }
@@ -67,8 +67,7 @@ Value* PrimitiveExprAST<bool>::codegen(CodegenContext& ctx) const {
 }
 
 template<>
-Value* PrimitiveExprAST</*float*/double>::codegen(CodegenContext& ctx) const {
-    std::cout << "creating " << Val << std::endl;
+Value* PrimitiveExprAST<double>::codegen(CodegenContext& ctx) const {
     return ConstantFP::get(getGlobalContext(), APFloat(Val));
 }
 
@@ -114,7 +113,7 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
     if(fitit != ctx.BinOpCreator.end())
         return (fitit->second)(valL, valR);
     else {
-        std::cout << "Operator '" << Opcode << "' codegen is not implemented!" << std::endl;
+        std::cout << "Operator's '" << Opcode << "' codegen is not implemented!" << std::endl;
         return nullptr;
     }
 }
@@ -485,7 +484,7 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
 
   // Before terminating the function, create a default return value, in case the function body does not contain one.
   // TODO: Default return type.
-  ctx.Builder.CreateRet( ConstantInt::get(getGlobalContext(), APInt(32, 0, 1)) );
+  ctx.Builder.CreateRet(createDefaultValue(Proto->ReturnType));
 
   if(val){
     // Validate the generated code, checking for consistency.
@@ -523,7 +522,7 @@ ExprType PrimitiveExprAST<bool>::maintype(CodegenContext& ctx) const {
 }
 
 template<>
-ExprType PrimitiveExprAST</*float*/double>::maintype(CodegenContext& ctx) const {
+ExprType PrimitiveExprAST<double>::maintype(CodegenContext& ctx) const {
     return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_double};//float};
 }
 
