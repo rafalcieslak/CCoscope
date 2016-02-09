@@ -1,4 +1,5 @@
 #include "codegencontext.h"
+#include "utils.h"
 #include <iostream>
 
 CodegenContext::CodegenContext(std::shared_ptr<Module> module, std::string fname)
@@ -64,10 +65,10 @@ CodegenContext::CodegenContext(std::shared_ptr<Module> module, std::string fname
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateOr(LHS, RHS, "cmptmp");
         };
-    
+
     // Operators on doubles
-    
-    BinOpCreator[std::make_tuple("ADD", DATATYPE_double, DATATYPE_double)] = 
+
+    BinOpCreator[std::make_tuple("ADD", DATATYPE_double, DATATYPE_double)] =
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFAdd(LHS, RHS, "faddtmp");
         };
@@ -125,6 +126,7 @@ bool CodegenContext::IsErrorFree(){
 
 void CodegenContext::DisplayErrors(){
     for(const auto& e : errors){
-        std::cout << filename << ": ERROR in function `" << e.first << "`: " << e.second << std::endl;
+        std::cout << ColorStrings::Color(Color::White, true) << filename << ": " << ColorStrings::Color(Color::Red, true) << "ERROR" << ColorStrings::Reset();
+        std::cout << " in function `" << e.first << "`: " << e.second << std::endl;
     }
 }

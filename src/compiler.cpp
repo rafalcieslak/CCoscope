@@ -83,7 +83,7 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     tokenizer tok;
     tok.prepare(infile);
 
-    std::cout << "Parsing " << infile << std::endl;
+    std::cout << ColorStrings::Color(Color::Cyan, true) << "Parsing " << infile << ColorStrings::Reset() << std::endl;
 
     std::list<std::shared_ptr<PrototypeAST>> prototypes;
     std::list<std::shared_ptr<FunctionAST>> definitions;

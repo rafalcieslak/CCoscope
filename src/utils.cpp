@@ -72,3 +72,11 @@ std::string FindLLVMExecutable(std::string name){
     }
     return "";
 }
+
+std::string ColorStrings::Reset(){
+    return "\x1b[0m";
+}
+
+std::string ColorStrings::Color(enum Color c, bool bold){
+    return "\x1b[" + std::to_string((int)c + 30) + ((bold)?";1m":"m");
+}
