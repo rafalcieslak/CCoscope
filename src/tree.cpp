@@ -546,9 +546,9 @@ ExprType CallExprAST::maintype(CodegenContext& ctx) const {
     // the more I create such solutions, the more I think
     // we should stick to the LLVM's type system
     // as much as we can
-    if(CalleeF->getType()->isIntegerTy())
+    if(CalleeF->getReturnType()->isIntegerTy())
         return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_int};
-    else if(CalleeF->getType()->isDoubleTy())
+    else if(CalleeF->getReturnType()->isDoubleTy())
         return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_double};
     else
         return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};
