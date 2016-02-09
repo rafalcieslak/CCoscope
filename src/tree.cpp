@@ -68,7 +68,9 @@ Value* PrimitiveExprAST<bool>::codegen(CodegenContext& ctx) const {
 
 template<>
 Value* PrimitiveExprAST</*float*/double>::codegen(CodegenContext& ctx) const {
+#ifndef NDEBUG
     std::cout << "creating " << Val << std::endl;
+#endif
     return ConstantFP::get(getGlobalContext(), APFloat(Val));
 }
 
@@ -81,7 +83,7 @@ Value* VariableExprAST::codegen(CodegenContext& ctx) const {
     // Assuming that everything is an int.
      // --> where does this assumption appear?
     if(ctx.VarsInScope.count(Name) < 1){
-        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
+        ctx.AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
     AllocaInst* alloca = ctx.VarsInScope[Name].first;
@@ -110,11 +112,11 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
         fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_int, DATATYPE_int));
     else if (valL->getType()->isDoubleTy() && valR->getType()->isDoubleTy())
         fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_double, DATATYPE_double));
-    
+
     if(fitit != ctx.BinOpCreator.end())
         return (fitit->second)(valL, valR);
     else {
-        std::cout << "Operator '" << Opcode << "' codegen is not implemented!" << std::endl;
+        ctx.AddError("Operator '" + Opcode + "' codegen is not implemented!");
         return nullptr;
     }
 }
@@ -122,19 +124,19 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
 Value* ReturnExprAST::codegen(CodegenContext& ctx) const {
     Value* val = Expr->codegen(ctx);
     if(!val) return nullptr;
-    
+
     Function* parent = ctx.CurrentFunc;
     BasicBlock* returnBB    = BasicBlock::Create(getGlobalContext(), "returnBB");
     BasicBlock* discardBB   = BasicBlock::Create(getGlobalContext(), "breakDiscard");
-    
+
     ctx.Builder.CreateCondBr(ConstantInt::getTrue(getGlobalContext()), returnBB, discardBB);
     parent->getBasicBlockList().push_back(returnBB);
     ctx.Builder.SetInsertPoint(returnBB);
     ctx.Builder.CreateRet(val);
-    
+
     parent->getBasicBlockList().push_back(discardBB);
     ctx.Builder.SetInsertPoint(discardBB);
-    
+
     return val;
 }
 
@@ -149,12 +151,12 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
         // Create new stack vars.
         Function* parent = ctx.CurrentFunc;
         ScopeManager SM {this, ctx};
-        
+
         // TODO: make ScopeManager sensitive to how many variables were
         // successfully initialized
         for(auto& var : Vars){
             if(ctx.VarsInScope.count(var.first) > 0){
-                std::cout << "Variable shadowing is not allowed" << std::endl;
+                ctx.AddError("Variable shadowing is not allowed");
                 return nullptr;
             }
             AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, datatype2llvmType(var.second));
@@ -171,9 +173,10 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
 
         // Generate statements inside the block
         Value* last = nullptr;
+        bool errors = false;
         for(const auto& stat : Statements){
             last = stat->codegen(ctx);
-            if(!last) return nullptr;
+            if(!last) errors = true;
         }
         /* Not necessary now - ScopeManager will clean up
         // Remove stack vars
@@ -182,6 +185,7 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
             ctx.VarsInScope.erase(it);
         }
         */
+        if(errors) return nullptr;
         return last;
     }
 }
@@ -192,7 +196,7 @@ Value* AssignmentAST::codegen(CodegenContext& ctx) const {
 
     // Look up the target var name.
     if (ctx.VarsInScope.count(Name) < 1){
-        std::cout << "Variable '" << Name << "' is not available in this scope." << std::endl;
+        ctx.AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
     AllocaInst* alloca = ctx.VarsInScope[Name].first;
@@ -205,7 +209,7 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
     if(Callee == "print"){
         // Translate the call into a call to cstdlibs' printf.
         if(Args.size() != 1){
-            std::cout << "Function print takes 1 argument, " << Args.size() << " given." << std::endl;
+            ctx.AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
             return nullptr;
         }
         std::vector<Value*> ArgsV;
@@ -216,7 +220,7 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
             case DATATYPE_bool: formatSpecifier = "%d"; break;
             default: formatSpecifier = "%d";
         }
-        
+
         ArgsV.push_back( CreateI8String(ctx.TheModule.get(), (formatSpecifier + "\n").c_str(), "printf_number", ctx) );
 #ifndef NDEBUG
         std::cerr << "in call will codegen arg" << std::endl;
@@ -224,14 +228,14 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
         auto temp = Args[0]->codegen(ctx);
        // auto vare = dynamic_cast<VariableExprAST*>(Args[0]);
       //  if(vare != nullptr) {
-      //      std::cerr << "codegening var 
+      //      std::cerr << "codegening var
       //  }
 #ifndef NDEBUG
         std::cerr << "in call after codegen arg" << std::endl;
 #endif
         ArgsV.push_back( temp ); //Args[0]->codegen(ctx) );
 #ifndef NDEBUG
-        std::cerr << "printujemy: " << formatSpecifier << " : ";
+        std::cerr << "printing: " << formatSpecifier << " : ";
         temp->dump();
         std::cerr << std::endl;
 #endif
@@ -241,13 +245,13 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
     // Look up the name in the global module table.
     Function *CalleeF = ctx.TheModule->getFunction(Callee);
     if (!CalleeF){
-        std::cout << "Function " << Callee << " was not declared" << std::endl;
+        ctx.AddError("Function " + Callee + " was not declared");
         return nullptr;
     }
 
     // If argument mismatch error.
     if (CalleeF->arg_size() != Args.size()){
-        std::cout << "Function " << Callee << " takes " << CalleeF->arg_size() << " arguments, " << Args.size() << " given." << std::endl;
+        ctx.AddError("Function " + Callee + " takes " + std::to_string(CalleeF->arg_size()) + " arguments, " + std::to_string(Args.size()) + " given.");
         return nullptr;
     }
 
@@ -334,7 +338,7 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
 
     // Update of codegening context -- we are in a loop from now on
     ctx.LoopsBBHeaderPost.push_back({HeaderBB, PostBB});
-    
+
     // BODY
     parent->getBasicBlockList().push_back(BodyBB);
     ctx.Builder.SetInsertPoint(BodyBB);
@@ -346,7 +350,7 @@ Value* WhileExprAST::codegen(CodegenContext& ctx) const {
     // POSTWHILE
     parent->getBasicBlockList().push_back(PostBB);
     ctx.Builder.SetInsertPoint(PostBB);
-    
+
     // Update of codegening context -- we've just got out of the loop
     ctx.LoopsBBHeaderPost.pop_back();
 
@@ -369,15 +373,15 @@ Value* ForExprAST::codegen(CodegenContext& ctx) const {
     auto innerVars = body->Vars;
     auto innerStatements = body->Statements;
     innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
-    auto whileAST = std::make_shared<WhileExprAST>(Cond, 
+    auto whileAST = std::make_shared<WhileExprAST>(Cond,
       std::make_shared<BlockAST>(innerVars, innerStatements));
-    
+
     auto init = std::static_pointer_cast<BlockAST>(Init);
     auto outerStatements = init->Statements;
     outerStatements.push_back(whileAST);
-    
+
     auto block = std::make_shared<BlockAST>(init->Vars, outerStatements);
-    
+
     return block->codegen(ctx);
 }
 
@@ -388,15 +392,15 @@ Value* KeywordAST::codegen(CodegenContext& ctx) const {
             if (!ctx.is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
-                std::cout << "'break' keyword outside any loop\n";
+                ctx.AddError("'break' keyword outside any loop");
                 return nullptr;
             } else {
                   auto postBB = ctx.LoopsBBHeaderPost.back().second;
-                  
+
                   // A bit of a hack here -- we generate a non-reachable basic block
                   // because it turns out to be a lot easier then fighting with
                   // branch instructions generated by `If` or `While` statements
-                  // that may occur immediately below the branch from 
+                  // that may occur immediately below the branch from
                   // `break` or `continue` keyword
                   BasicBlock* discardBB   = BasicBlock::Create(getGlobalContext(), "breakDiscard");
                   parent->getBasicBlockList().push_back(discardBB);
@@ -409,7 +413,7 @@ Value* KeywordAST::codegen(CodegenContext& ctx) const {
             if (!ctx.is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
-                std::cout << "'continue' keyword outside any loop\n";
+                ctx.AddError("'continue' keyword outside any loop");
                 return nullptr;
             } else {
                 auto headerBB = ctx.LoopsBBHeaderPost.back().first;
@@ -434,8 +438,8 @@ Function* PrototypeAST::codegen(CodegenContext& ctx) const {
   std::vector<Type*> argsTypes;
   for (auto& p : Args) {
       argsTypes.push_back(datatype2llvmType(p.second));
-  }  
-  
+  }
+
   FunctionType *FT =
       FunctionType::get(datatype2llvmType(ReturnType), argsTypes, false);
 

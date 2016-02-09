@@ -101,23 +101,33 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     std::cout << "Found " << prototypes.size() << " prototypes and " << definitions.size() << " function definitions. " << std::endl;
 
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
-    CodegenContext ctx(module);
+    CodegenContext ctx(module, infile);
 
     auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);
 
     DeclareCFunctions(ctx);
 
+    bool errors = false;
+
     for(const auto& protoAST : prototypes){
         Function* func = protoAST->codegen(ctx);
-        if(!func) return -1;
+        if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // func->dump();
     }
     for(const auto& functionAST : definitions){
         Function* func = functionAST->codegen(ctx);
-        if(!func) return -1;
+        if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // Optimize the function
         TheFPM->run(*func);
         // func->dump();
+    }
+
+    if(errors || !ctx.IsErrorFree()){
+        if(ctx.IsErrorFree())
+            std::cout << "Failure: Some functions failed to compile, but no error messages were generated." << std::endl;
+        else
+            ctx.DisplayErrors();
+        return -1;
     }
 
     // Write the resulting llvm ir to some output file
