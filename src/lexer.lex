@@ -39,7 +39,7 @@ int	    -?{digit}+
 /* Booleans */
 bool    true|false
 
-literalend  [^0-9a-zA-Z.]
+literalend  [^0-9.]
 
 /* Identifiers */
 identifier_char	{alphanum}|"_"

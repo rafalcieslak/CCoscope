@@ -1,0 +1,12 @@
+// This file tests error output, and should NOT compile successfully.
+
+fun badfunc(a : int, b : int){
+    a := 5;
+    c := 7;
+    x := 9;
+    break;
+}
+
+fun another(){
+    a := 10;
+}
