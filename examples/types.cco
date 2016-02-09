@@ -4,10 +4,10 @@ fun main() : int {
     var btrue : bool;
     var bfalse : bool;
     i := 10;
-    f := 3.14159 ;
+    f := 31.4e-1 ;
     btrue := true;
     bfalse := false;
-    
+
     print(i);
     print(f);
     print(btrue);
