@@ -40,19 +40,19 @@ CodegenContext::CodegenContext(std::shared_ptr<Module> module)
     
     BinOpCreator[std::make_tuple("GREATER", DATATYPE_int, DATATYPE_int)] = 
         [this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpUGT(LHS, RHS, "cmptmp");
+            return this->Builder.CreateICmpSGT(LHS, RHS, "cmptmp");
         };
     BinOpCreator[std::make_tuple("GREATEREQ", DATATYPE_int, DATATYPE_int)] = 
         [this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpUGE(LHS, RHS, "cmptmp");
+            return this->Builder.CreateICmpSGE(LHS, RHS, "cmptmp");
         };
     BinOpCreator[std::make_tuple("LESS", DATATYPE_int, DATATYPE_int)] = 
         [this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpULT(LHS, RHS, "cmptmp");
+            return this->Builder.CreateICmpSLT(LHS, RHS, "cmptmp");
         };
     BinOpCreator[std::make_tuple("LESSEQ", DATATYPE_int, DATATYPE_int)] = 
         [this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpULE(LHS, RHS, "cmptmp");
+            return this->Builder.CreateICmpSLE(LHS, RHS, "cmptmp");
         };
     
     BinOpCreator[std::make_tuple("LOGICAL_AND", DATATYPE_int, DATATYPE_int)] = 
