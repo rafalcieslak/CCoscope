@@ -9,7 +9,7 @@ Type* datatype2llvmType(datatype d) {
     switch(d) {
         case DATATYPE_int:   return Type::getInt32Ty(getGlobalContext());
         case DATATYPE_bool:  return Type::getInt1Ty(getGlobalContext());
-        case DATATYPE_float: return Type::getFloatTy(getGlobalContext());
+        case DATATYPE_double: return Type::getDoubleTy(getGlobalContext());
         case DATATYPE_void:  return Type::getVoidTy(getGlobalContext());
     }
     return nullptr;
@@ -18,7 +18,7 @@ Type* datatype2llvmType(datatype d) {
 Value* createDefaultValue(datatype d) {
     switch(d) {
         case DATATYPE_int:   return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
-        case DATATYPE_float: return ConstantFP::get(Type::getFloatTy(getGlobalContext()), 0.0);
+        case DATATYPE_double: return ConstantFP::get(getGlobalContext(), APFloat(0.0));
         case DATATYPE_bool:  return ConstantInt::getFalse(getGlobalContext());
         default: return nullptr;
     }
@@ -45,7 +45,7 @@ datatype stodatatype (std::string s)
     if (s == "int")
         return datatype::DATATYPE_int;
     else if (s == "double")
-        return datatype::DATATYPE_float;
+        return datatype::DATATYPE_double;
     else if (s == "bool")
         return datatype::DATATYPE_bool;
     else
@@ -67,8 +67,9 @@ Value* PrimitiveExprAST<bool>::codegen(CodegenContext& ctx) const {
 }
 
 template<>
-Value* PrimitiveExprAST<float>::codegen(CodegenContext& ctx) const {
-    return ConstantFP::get(Type::getFloatTy(getGlobalContext()), Val);
+Value* PrimitiveExprAST</*float*/double>::codegen(CodegenContext& ctx) const {
+    std::cout << "creating " << Val << std::endl;
+    return ConstantFP::get(getGlobalContext(), APFloat(Val));
 }
 
 template<typename T>
@@ -107,8 +108,8 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
     auto fitit = ctx.BinOpCreator.end();
     if (valL->getType()->isIntegerTy() && valR->getType()->isIntegerTy())
         fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_int, DATATYPE_int));
-    else if (valL->getType()->isFloatTy() && valR->getType()->isFloatTy())
-        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_float, DATATYPE_float));
+    else if (valL->getType()->isDoubleTy() && valR->getType()->isDoubleTy())
+        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_double, DATATYPE_double));
     
     if(fitit != ctx.BinOpCreator.end())
         return (fitit->second)(valL, valR);
@@ -152,7 +153,6 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
             zero->dump();
             std::cerr << std::endl;
 #endif
-              //ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
             ctx.Builder.CreateStore(zero, Alloca);
             ctx.VarsInScope[var.first] = std::make_pair(Alloca, var.second);
         }
@@ -200,7 +200,7 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
         std::string formatSpecifier;
         switch(Args[0]->maintype(ctx).second) {
             case DATATYPE_int: formatSpecifier = "%d"; break;
-            case DATATYPE_float: formatSpecifier = "%f"; break;
+            case DATATYPE_double: formatSpecifier = "%f"; break;
             case DATATYPE_bool: formatSpecifier = "%d"; break;
             default: formatSpecifier = "%d";
         }
@@ -419,9 +419,6 @@ Function* PrototypeAST::codegen(CodegenContext& ctx) const {
   // Make the function type:  double(double,double) etc.
 
     // TODO: Respect argument types.
-  /*std::vector<Type *> Ints(Args.size(),
-                              Type::getInt32Ty(getGlobalContext()));
-  */
   std::vector<Type*> argsTypes;
   for (auto& p : Args) {
       argsTypes.push_back(datatype2llvmType(p.second));
@@ -471,7 +468,6 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
       i++;
   }
 
-
   // Insert function body into the function insertion point.
   Value* val = Body->codegen(ctx);
 
@@ -515,8 +511,8 @@ ExprType PrimitiveExprAST<bool>::maintype(CodegenContext& ctx) const {
 }
 
 template<>
-ExprType PrimitiveExprAST<float>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_float};
+ExprType PrimitiveExprAST</*float*/double>::maintype(CodegenContext& ctx) const {
+    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_double};//float};
 }
 
 ExprType VariableExprAST::maintype(CodegenContext& ctx) const {

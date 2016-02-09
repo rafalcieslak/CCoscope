@@ -10,7 +10,7 @@
 %token ASSIGN
 %token ADD SUB MULT DIV MOD
 %token EQUAL NEQUAL LESS LESSEQ GREATER GREATEREQ
-%token LITERAL_INT LITERAL_FLOAT LITERAL_BOOL
+%token LITERAL_INT LITERAL_DOUBLE LITERAL_BOOL
 
 // Non-terminal symbols:
 %token E F G H LISTARGS
@@ -25,7 +25,7 @@
 %startsymbol Start EOF
 
 %attribute value_bool    bool
-%attribute value_float   float
+%attribute value_double  double
 %attribute value_int     int
 %attribute id            std::string
 %attribute reason        std::string
@@ -44,7 +44,7 @@
 %constraint TYPE        id 1 2
 
 %constraint LITERAL_INT value_int 1 2
-%constraint LITERAL_FLOAT value_float 1 2
+%constraint LITERAL_DOUBLE value_double 1 2
 %constraint LITERAL_BOOL value_bool 1 2
 
 %constraint Expr10 tree 1 2
@@ -436,9 +436,9 @@
     t.tree.push_back(std::make_shared<PrimitiveExprAST<int>>(LITERAL_INT1->value_int.front()));
     return t;
 }
-%            | LITERAL_FLOAT
+%            | LITERAL_DOUBLE
 {   token t(tkn_Expr100);
-    t.tree.push_back(std::make_shared<PrimitiveExprAST<float>>(LITERAL_FLOAT1->value_float.front()));
+    t.tree.push_back(std::make_shared<PrimitiveExprAST<double>>(LITERAL_DOUBLE1->value_double.front()));
     return t;
 }
 %            | LITERAL_BOOL

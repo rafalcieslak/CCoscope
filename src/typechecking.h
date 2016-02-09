@@ -3,7 +3,7 @@
 
 enum datatype{
     DATATYPE_int,
-    DATATYPE_float,
+    DATATYPE_double,//float,
     DATATYPE_bool,
     DATATYPE_void, // Not available for variables, but can be returned by a function
 };

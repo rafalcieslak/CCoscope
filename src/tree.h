@@ -39,6 +39,7 @@ public:
 template<typename T>
 class PrimitiveExprAST : public ExprAST {
 protected:
+public:
     T Val;
 
 public:

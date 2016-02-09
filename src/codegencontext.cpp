@@ -66,49 +66,49 @@ CodegenContext::CodegenContext(std::shared_ptr<Module> module)
     
     // Operators on floats
     
-    BinOpCreator[std::make_tuple("ADD", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("ADD", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFAdd(LHS, RHS, "faddtmp");
         };
-    BinOpCreator[std::make_tuple("SUB", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("SUB", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFSub(LHS, RHS, "fsubtmp");
         };
-    BinOpCreator[std::make_tuple("MULT", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("MULT", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFMul(LHS, RHS, "fmultmp");
         };
-    BinOpCreator[std::make_tuple("DIV", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("DIV", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFDiv(LHS, RHS, "fdivtmp");
         };
-    BinOpCreator[std::make_tuple("MOD", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("MOD", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFRem(LHS, RHS, "fmodtmp");
         };
     
-    BinOpCreator[std::make_tuple("EQUAL", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("EQUAL", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpOEQ(LHS, RHS, "fcmptmp");
         };
-    BinOpCreator[std::make_tuple("NEQUAL", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("NEQUAL", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpONE(LHS, RHS, "fcmptmp");
         };
     
-    BinOpCreator[std::make_tuple("GREATER", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("GREATER", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpOGT(LHS, RHS, "fcmptmp");
         };
-    BinOpCreator[std::make_tuple("GREATEREQ", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("GREATEREQ", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpOGE(LHS, RHS, "fcmptmp");
         };
-    BinOpCreator[std::make_tuple("LESS", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("LESS", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpOLT(LHS, RHS, "fcmptmp");
         };
-    BinOpCreator[std::make_tuple("LESSEQ", DATATYPE_float, DATATYPE_float)] = 
+    BinOpCreator[std::make_tuple("LESSEQ", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpOLE(LHS, RHS, "fcmptmp");
         };
