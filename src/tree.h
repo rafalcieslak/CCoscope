@@ -39,7 +39,6 @@ public:
 template<typename T>
 class PrimitiveExprAST : public ExprAST {
 protected:
-public:
     T Val;
 
 public:
@@ -202,10 +201,13 @@ public:
 
 // --------------------------------------------------------------------------------
 
+class FunctionAST; // forward declaration for PrototypeAST <-> FunctionAST dependency
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes).
 class PrototypeAST {
+    friend class FunctionAST;
+    
     std::string Name;
     std::vector<std::pair<std::string, datatype>> Args;
     datatype ReturnType;
