@@ -4,7 +4,7 @@ fun main() : int {
     var btrue : bool;
     var bfalse : bool;
     i := 10;
-    f := 3.14159 ;
+    f := 3e-4; //3.14159 ;
     btrue := true;
     bfalse := false;
     

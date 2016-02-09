@@ -4,10 +4,13 @@ extern fun pow(a : double, b : double) : double;
 fun main() : int{
     var a : double;
     var b : double;
+    var c : double;
     a := 3.0;
     b := 2.0;
+    c := pow(a, b);
     print(a);
     print(b);
+    print(c);
     print(pow(a,b));
     print(pow(3.0,2.0));
 }

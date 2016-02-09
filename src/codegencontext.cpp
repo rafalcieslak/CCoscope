@@ -64,7 +64,7 @@ CodegenContext::CodegenContext(std::shared_ptr<Module> module)
             return this->Builder.CreateOr(LHS, RHS, "cmptmp");
         };
     
-    // Operators on floats
+    // Operators on doubles
     
     BinOpCreator[std::make_tuple("ADD", DATATYPE_double, DATATYPE_double)] = 
         [this] (Value* LHS, Value* RHS) {

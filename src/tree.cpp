@@ -539,7 +539,18 @@ ExprType AssignmentAST::maintype(CodegenContext& ctx) const {
 }
 
 ExprType CallExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    auto CalleeF = ctx.TheModule->getFunction(Callee);
+    // ad-hoc solution :(
+    // the more I create such solutions, the more I think
+    // we should stick to the LLVM's type system
+    // as much as we can
+    if(CalleeF->getType()->isIntegerTy())
+        return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_int};
+    else if(CalleeF->getType()->isDoubleTy())
+        return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_double};
+    else
+        return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};
+    //return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 ExprType PrototypeAST::maintype(CodegenContext& ctx) const {
