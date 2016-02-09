@@ -21,4 +21,23 @@ inline bool StringEndsWith(std::string const & value, std::string const & ending
 
 std::string FindLLVMExecutable(std::string name);
 
+// Colorizing strings for terminal output
+
+enum class Color : int{
+    Black = 0,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White
+};
+
+class ColorStrings{
+public:
+    static std::string Reset();
+    static std::string Color(Color c, bool bold = false);
+};
+
 #endif // __UTILS_H__

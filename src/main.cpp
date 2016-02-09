@@ -13,7 +13,7 @@ int AssembleIR(std::string input_file, std::string outfile){
     if(llc_path.empty()) return -1;
 
     std::string command = llc_path + " " + input_file + " -o " + outfile;
-    std::cout << "Executing: '" << command << "'..." << std::endl;
+    std::cout << ColorStrings::Color(Color::Blue) << "Executing:"  << ColorStrings::Reset() << " '" << command << "'..." << std::endl;
 
     int n = system(command.c_str());
     if(n < 0) return -1; // We hope that the failed command will print some output.
@@ -28,7 +28,7 @@ int AssembleAS(std::string infile, std::string outfile){
     if(clang_path.empty()) return -1;
 
     std::string command = clang_path + " -c " + infile + " -o " + outfile;
-    std::cout << "Executing: '" << command << "'..." << std::endl;
+    std::cout << ColorStrings::Color(Color::Blue) << "Executing:"  << ColorStrings::Reset() << " '" << command << "'..." << std::endl;
 
     int n = system(command.c_str());
     if(n < 0) return -1; // We hope that the failed command will print some output.
@@ -64,7 +64,7 @@ int Link(std::vector<std::string> input_files, std::string outfile,
         libs += "-l" + lib;
 
     std::string command = clang_path + " " + JoinString(input_files, " ") + " " + dirs + " " + libs + " -o " + outfile;
-    std::cout << "Executing: '" << command << "'..." << std::endl;
+    std::cout << ColorStrings::Color(Color::Blue) << "Executing:"  << ColorStrings::Reset() << " '" << command << "'..." << std::endl;
 
     // TODO: Use some wiser mechanism than system()
     int n = system(command.c_str());
