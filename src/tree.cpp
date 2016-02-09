@@ -122,7 +122,19 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
 Value* ReturnExprAST::codegen(CodegenContext& ctx) const {
     Value* val = Expr->codegen(ctx);
     if(!val) return nullptr;
+    
+    Function* parent = ctx.CurrentFunc;
+    BasicBlock* returnBB    = BasicBlock::Create(getGlobalContext(), "returnBB");
+    BasicBlock* discardBB   = BasicBlock::Create(getGlobalContext(), "breakDiscard");
+    
+    ctx.Builder.CreateCondBr(ConstantInt::getTrue(getGlobalContext()), returnBB, discardBB);
+    parent->getBasicBlockList().push_back(returnBB);
+    ctx.Builder.SetInsertPoint(returnBB);
     ctx.Builder.CreateRet(val);
+    
+    parent->getBasicBlockList().push_back(discardBB);
+    ctx.Builder.SetInsertPoint(discardBB);
+    
     return val;
 }
 
