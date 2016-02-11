@@ -5,16 +5,21 @@
 #define NDEBUG
 //#undef NDEBUG
 
-Type* datatype2llvmType(datatype d) {
-    switch(d) {
-        case DATATYPE_int:    return Type::getInt32Ty(getGlobalContext());
-        case DATATYPE_bool:   return Type::getInt1Ty(getGlobalContext());
-        case DATATYPE_double: return Type::getDoubleTy(getGlobalContext());
-        case DATATYPE_void:   return Type::getVoidTy(getGlobalContext());
-    }
+using namespace llvm;
+/*
+Type* datatype2llvmType(CCType d) {
+    if(d == CCIntegerType())
+        return Type::getInt32Ty(getGlobalContext());
+    else if(d == CCBooleanType())
+        return Type::getInt1Ty(getGlobalContext());
+    else if(d == CCDoubleType())
+        return Type::getDoubleTy(getGlobalContext());
+    else if(d == CCVoidType())
+        return Type::getVoidTy(getGlobalContext());
+    
     return nullptr;
-}
-
+}*/
+/*
 Value* createDefaultValue(datatype d) {
     switch(d) {
         case DATATYPE_int:    return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
@@ -23,6 +28,7 @@ Value* createDefaultValue(datatype d) {
         default: return nullptr;
     }
 }
+*/
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
@@ -39,7 +45,7 @@ Constant* CreateI8String(Module* M, char const* str, Twine const& name, CodegenC
   auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
   return cast<Constant>(strVal);
 }
-
+/*
 datatype stodatatype (std::string s)
 {
     if (s == "int")
@@ -51,7 +57,7 @@ datatype stodatatype (std::string s)
     else
         return datatype::DATATYPE_void;
 }
-
+*/
 // ---------------------------------------------------------------------
 template<>
 Value* PrimitiveExprAST<int>::codegen(CodegenContext& ctx) const {
@@ -106,9 +112,9 @@ Value* BinaryExprAST::codegen(CodegenContext& ctx) const {
 
     auto fitit = ctx.BinOpCreator.end();
     if (valL->getType()->isIntegerTy() && valR->getType()->isIntegerTy())
-        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_int, DATATYPE_int));
+        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, CCIntegerType(), CCIntegerType()));
     else if (valL->getType()->isDoubleTy() && valR->getType()->isDoubleTy())
-        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, DATATYPE_double, DATATYPE_double));
+        fitit = ctx.BinOpCreator.find(std::make_tuple(Opcode, CCDoubleType(), CCDoubleType()));
 
     if(fitit != ctx.BinOpCreator.end())
         return (fitit->second)(valL, valR);
@@ -175,13 +181,7 @@ Value* BlockAST::codegen(CodegenContext& ctx) const {
             last = stat->codegen(ctx);
             if(!last) errors = true;
         }
-        /* Not necessary now - ScopeManager will clean up
-        // Remove stack vars
-        for(auto& var : Vars){
-            auto it = ctx.VarsInScope.find(var.first);
-            ctx.VarsInScope.erase(it);
-        }
-        */
+        
         if(errors) return nullptr;
         return last;
     }
@@ -211,12 +211,10 @@ Value* CallExprAST::codegen(CodegenContext& ctx) const {
         }
         std::vector<Value*> ArgsV;
         std::string formatSpecifier;
-        switch(Args[0]->maintype(ctx).second) {
-            case DATATYPE_int: formatSpecifier = "%d"; break;
-            case DATATYPE_double: formatSpecifier = "%f"; break;
-            case DATATYPE_bool: formatSpecifier = "%d"; break;
-            default: formatSpecifier = "%d";
-        }
+        if(Args[0]->maintype(ctx).second == CCDoubleType())
+            formatSpecifier = "%f";
+        else
+            formatSpecifier = "%d";
 
         ArgsV.push_back( CreateI8String(ctx.TheModule.get(), (formatSpecifier + "\n").c_str(), "printf_number", ctx) );
 #ifndef NDEBUG
@@ -505,7 +503,7 @@ Function *FunctionAST::codegen(CodegenContext& ctx) const {
 // --------------------------------------------------
 
 ExprType ExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 /* see `tree.h`
 template<typename T>
@@ -515,17 +513,17 @@ ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
 */
 template<>
 ExprType PrimitiveExprAST<int>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_int};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCIntegerType()};
 }
 
 template<>
 ExprType PrimitiveExprAST<bool>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_bool};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCBooleanType};
 }
 
 template<>
 ExprType PrimitiveExprAST<double>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_double};//float};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCDoubleType};
 }
 
 ExprType VariableExprAST::maintype(CodegenContext& ctx) const {
@@ -533,11 +531,11 @@ ExprType VariableExprAST::maintype(CodegenContext& ctx) const {
 }
 
 ExprType BinaryExprAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType AssignmentAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType CallExprAST::maintype(CodegenContext& ctx) const {
@@ -547,18 +545,18 @@ ExprType CallExprAST::maintype(CodegenContext& ctx) const {
     // we should stick to the LLVM's type system
     // as much as we can
     if(CalleeF->getReturnType()->isIntegerTy())
-        return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_int};
+        return {std::make_shared<PrimitiveExprAST<int>>(42), CCIntegerType()};
     else if(CalleeF->getReturnType()->isDoubleTy())
-        return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_double};
+        return {std::make_shared<PrimitiveExprAST<int>>(42), CCDoubleType()};
     else
-        return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};
+        return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
     //return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
 }
 
 ExprType PrototypeAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 ExprType FunctionAST::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }

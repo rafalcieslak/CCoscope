@@ -11,28 +11,28 @@
 
 #include "typechecking.h"
 
-using namespace llvm;
+//using namespace llvm;
 
 class CodegenContext
 {
 public:
-    CodegenContext(std::shared_ptr<Module> module, std::string filename);
+    CodegenContext(std::shared_ptr<llvm::Module> module, std::string filename);
 
-    std::shared_ptr<Module> TheModule;
-    IRBuilder<> Builder;
-    Function* CurrentFunc;
-    std::map<std::string, std::pair<AllocaInst*, datatype>> VarsInScope;
+    std::shared_ptr<llvm::Module> TheModule;
+    llvm::IRBuilder<> Builder;
+    llvm::Function* CurrentFunc;
+    std::map<std::string, std::pair<llvm::AllocaInst*, CCType>> VarsInScope;
 
-    std::map<std::tuple<std::string, datatype, datatype>, std::function<Value*(Value*, Value*)>> BinOpCreator;
+    std::map<std::tuple<std::string, CCType, CCType>, std::function<llvm::Value*(llvm::Value*, llvm::Value*)>> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB
-    std::list<std::pair<BasicBlock*, BasicBlock*>> LoopsBBHeaderPost;
+    std::list<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> LoopsBBHeaderPost;
 
     bool is_inside_loop () const { return !LoopsBBHeaderPost.empty(); }
 
     // Special function handles
-    Function* func_printf;
+    llvm::Function* func_printf;
 
     // Stores an error-message. TODO: Add file positions storage.
     void AddError(std::string text);

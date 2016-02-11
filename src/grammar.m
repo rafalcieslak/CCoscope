@@ -32,11 +32,11 @@
  /* This is an aux used by StatementList and Block */
 %attribute statement_list std::list<std::shared_ptr<ExprAST>>
  /* This is an aux used by ProtoArgList and ProtoArgListL */
-%attribute protoarglist std::vector<std::pair<std::string,datatype>>
+%attribute protoarglist std::vector<std::pair<std::string,CCType>>
 %attribute arglist std::vector<std::shared_ptr<ExprAST>>
  /* This is an aux used by TypedIdentifier */
-%attribute typedident std::pair<std::string,datatype>
-%attribute returntype       datatype
+%attribute typedident std::pair<std::string,CCType>
+%attribute returntype       CCType
 
 %attribute tree          std::shared_ptr<ExprAST>
 
@@ -134,7 +134,7 @@
 }
 %            |
 {   token t(tkn_ReturnType);
-    t.returntype.push_back(DATATYPE_void);
+    t.returntype.push_back(CCVoidType());
     return t;
 }
 %            ;
@@ -165,7 +165,7 @@
 }
 %         |
 {   token t(tkn_VarList);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    t.protoarglist.push_back( std::vector<std::pair<std::string,CCType>>() );
     return t;
 }
 %         ;
@@ -479,7 +479,7 @@
 }
 %          |
 {   token t(tkn_ProtoArgList);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    t.protoarglist.push_back( std::vector<std::pair<std::string,CCType>>() );
     return t;
 }
 %          ;
@@ -490,7 +490,7 @@
 }
 %              |
 {   token t(tkn_ProtoArgListL);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,datatype>>() );
+    t.protoarglist.push_back( std::vector<std::pair<std::string,CCType>>() );
     return t;
 }
 %              ;

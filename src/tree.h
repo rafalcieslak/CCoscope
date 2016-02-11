@@ -12,7 +12,9 @@
 #include <list>
 #include <iostream>
 
-using namespace llvm;
+//using namespace llvm;
+using llvm::Value;
+using llvm::Function;
 
 enum class keyword {
     Break,
@@ -23,7 +25,7 @@ enum class keyword {
 class ForExprAST;
 class ExprAST; 
 
-using ExprType = std::pair<std::shared_ptr<ExprAST>, datatype/*CCType*/>;
+using ExprType = std::pair<std::shared_ptr<ExprAST>, CCType>;
 
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
@@ -53,7 +55,7 @@ public:
 // TODO: understand why :)
 template<typename T>
 ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
+    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
 }
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -117,11 +119,11 @@ class BlockAST : public ExprAST {
         CodegenContext& ctx;
     };
     
-    std::vector<std::pair<std::string,datatype>> Vars;
+    std::vector<std::pair<std::string, CCType>> Vars;
     std::list<std::shared_ptr<ExprAST>> Statements;
 
 public:
-    BlockAST(const std::vector<std::pair<std::string,datatype>> &vars, 
+    BlockAST(const std::vector<std::pair<std::string, CCType>> &vars, 
              const std::list<std::shared_ptr<ExprAST>>& s)
         : Vars(vars), Statements(s) {}
     Value* codegen(CodegenContext& ctx) const override;
@@ -209,14 +211,14 @@ class PrototypeAST {
     friend class FunctionAST;
     
     std::string Name;
-    std::vector<std::pair<std::string, datatype>> Args;
-    datatype ReturnType;
+    std::vector<std::pair<std::string, CCType>> Args;
+    CCType ReturnType;
 
 public:
-    PrototypeAST(const std::string &Name, std::vector<std::pair<std::string, datatype>> Args, datatype ReturnType)
+    PrototypeAST(const std::string &Name, std::vector<std::pair<std::string, CCType>> Args, CCType ReturnType)
         : Name(Name), Args(std::move(Args)), ReturnType(ReturnType) {}
     const std::string &getName() const { return Name; }
-    const std::vector<std::pair<std::string, datatype>>& getArgs() const { return Args; }
+    const std::vector<std::pair<std::string, CCType>>& getArgs() const { return Args; }
     Function* codegen(CodegenContext& ctx) const;
     virtual ExprType maintype (CodegenContext& ctx) const;
 };
@@ -240,11 +242,11 @@ inline std::ostream& operator<<(std::ostream& s, const std::list<std::shared_ptr
     s << "A list of " << l.size() << " statements." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std::string,datatype>>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std::string,CCType>>& l){
     s << "A list of " << l.size() << " function arguments." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,datatype>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,CCType>& l){
     s << "Identifier " << l.first << "and its type." << std::endl;
     return s;
 }

@@ -1,22 +1,37 @@
 #ifndef __TYPECHECKING_H__
 #define __TYPECHECKING_H__
 
+#include <typeinfo>
+
+/*
 enum datatype{
     DATATYPE_int,
     DATATYPE_double,
     DATATYPE_bool,
     DATATYPE_void, // Not available for variables, but can be returned by a function
-};
+};*/
+class CCType;
 
-datatype stodatatype (std::string s);
+CCType stodatatype (std::string s);
+
+llvm::Type* datatype2llvmType(CCType d);
+
+llvm::Value* createDefaultValue(CCType d);
 
 class CCType {
-public:
+protected:
     CCType(std::vector<CCType> operands)
         : operands_(operands)
     {}
     
+    virtual bool equal (const CCType &other) const;
+    //bool typeidequal (const CCType &other) const;
+    
+public:
     virtual ~CCType() {}
+    
+    bool operator== (const CCType &other) const;
+    bool operator!= (const CCType &other) const;
     
     CCType operand(size_t i) const { return operands_[i]; }
     size_t size() const { return operands_.size(); }
@@ -51,12 +66,11 @@ public:
     CCIntegerType()
         : CCArithmeticType()
     {}
-
 };
 
-class CCFloatType : public CCArithmeticType {
+class CCDoubleType : public CCArithmeticType {
 public:
-    CCFloatType()
+    CCDoubleType()
         : CCArithmeticType()
     {}
 };
@@ -80,6 +94,15 @@ public:
     CCType returnType () const { return operand(0); }
     // Mind you -- one-based argument list
     CCType argument (size_t i) const { return operand(i); }
+};
+
+class CCReferenceType : public CCType {
+public:
+    CCReferenceType(CCType of)
+        : CCType({of})
+    {}
+    
+    CCType of () const { return operand(0); }
 };
 
 #endif
