@@ -30,15 +30,15 @@
 %attribute id            std::string
 %attribute reason        std::string
  /* This is an aux used by StatementList and Block */
-%attribute statement_list std::list<std::shared_ptr<ExprAST>>
+%attribute statement_list std::list</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>
  /* This is an aux used by ProtoArgList and ProtoArgListL */
-%attribute protoarglist std::vector<std::pair<std::string,CCType>>
-%attribute arglist std::vector<std::shared_ptr<ExprAST>>
+%attribute protoarglist std::vector<std::pair<std::string,ccoscope::Type>>
+%attribute arglist std::vector</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>
  /* This is an aux used by TypedIdentifier */
-%attribute typedident std::pair<std::string,CCType>
-%attribute returntype       CCType
+%attribute typedident std::pair<std::string, ccoscope::Type>
+%attribute returntype       ccoscope::Type
 
-%attribute tree          std::shared_ptr<ExprAST>
+%attribute tree          ccoscope::Expr
 
 %constraint IDENTIFIER  id 1 2
 %constraint TYPE        id 1 2
@@ -76,8 +76,9 @@
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
 
-%global prototypes  std::list<std::shared_ptr<PrototypeAST>>
-%global definitions std::list<std::shared_ptr<FunctionAST>>
+// %global prototypes  std::list<std::shared_ptr<PrototypeAST>>
+// %global definitions std::list<std::shared_ptr<FunctionAST>>
+%global ctx ccoscope::CodegenContext
 
 #include <cassert>
 #define ASSERT( X ) { assert( ( X ) ); }
@@ -98,30 +99,30 @@
 // Function declaration
 % FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType SEMICOLON
 {
-    auto Prototype = std::make_shared<PrototypeAST>(
+    auto Prototype = ctx.makePrototype(
          IDENTIFIER3->id.front(),
          ProtoArgList5->protoarglist.front(),
          ReturnType7->returntype.front()
          );
 
-    prototypes.push_back(Prototype);
+    ctx.prototypes.push_back(Prototype);
 }
 %          ;
 
 // Function definition
 % FuncDef : KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType Block
 {
-    auto Prototype = std::make_shared<PrototypeAST>(
+    auto Prototype = ctx.makePrototype(
          IDENTIFIER2->id.front(),
          ProtoArgList4->protoarglist.front(),
          ReturnType6->returntype.front()
          );
-    auto Function = std::make_shared<FunctionAST>(
+    auto Function = ctx.makeFunction(
          Prototype,
          Block7->tree.front()
          );
 
-    definitions.push_back(Function);
+    ctx.definitions.push_back(Function);
 }
 %         ;
 
@@ -150,7 +151,7 @@
 
 % Block : LBRACKET VarList StatementList RBRACKET
 {   token t(tkn_Block);
-    t.tree.push_back( std::make_shared<BlockAST>(
+    t.tree.push_back( ctx.makeBlock(
        VarList2->protoarglist.front(),
        StatementList3->statement_list.front())
     );
@@ -165,7 +166,7 @@
 }
 %         |
 {   token t(tkn_VarList);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,CCType>>() );
+    t.protoarglist.push_back( std::vector<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %         ;
@@ -185,7 +186,7 @@
 }
 %               |
 {   token t(tkn_StatementList);
-    t.statement_list.push_back( std::list<std::shared_ptr<ExprAST>>() );
+    t.statement_list.push_back( std::list</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>() );
     return t;
 }
 %               ;
@@ -222,14 +223,14 @@
 }
 %           | KEYWORD_BREAK SEMICOLON
 {   token t(tkn_Statement);
-    t.tree.push_back(std::make_shared<KeywordAST>(
+    t.tree.push_back(ctx.makeKeyword(
           keyword::Break
           ));
     return t;
 }
 %           | KEYWORD_CONTINUE SEMICOLON
 {   token t(tkn_Statement);
-    t.tree.push_back(std::make_shared<KeywordAST>(
+    t.tree.push_back(ctx.makeKeyword(
           keyword::Continue
           ));
     return t;
@@ -240,7 +241,7 @@
 // Assignment statement
 % Assignment : IDENTIFIER ASSIGN Expression SEMICOLON
 {   token t(tkn_Assignment);
-    t.tree.push_back( std::make_shared<AssignmentAST>(
+    t.tree.push_back( ctx.makeAssignment(
          IDENTIFIER1->id.front(),
          Expression3->tree.front()
         ) );
@@ -251,7 +252,7 @@
 // IF statement
 % If : KEYWORD_IF LPAR Expression RPAR Block
 {   token t(tkn_If);
-    t.tree.push_back( std::make_shared<IfExprAST>(
+    t.tree.push_back( ctx.makeIf(
       Expression3->tree.front(),
       Block5->tree.front(),
       nullptr
@@ -260,7 +261,7 @@
 }
 %    | KEYWORD_IF LPAR Expression RPAR Block KEYWORD_ELSE Block
 {   token t(tkn_If);
-    t.tree.push_back( std::make_shared<IfExprAST>(
+    t.tree.push_back( ctx.makeIf(
       Expression3->tree.front(),
       Block5->tree.front(),
       Block7->tree.front()
@@ -271,7 +272,7 @@
 
 % While : KEYWORD_WHILE LPAR Expression RPAR Block
 {   token t(tkn_While);
-    t.tree.push_back( std::make_shared<WhileExprAST>(
+    t.tree.push_back( ctx.makeWhile(
       Expression3->tree.front(),
       Block5->tree.front()
      ) );
@@ -281,8 +282,8 @@
 
 % For : KEYWORD_FOR LPAR VarList StatementList PIPE Expression PIPE StatementList RPAR Block
 {   token t(tkn_For);
-    t.tree.push_back( std::make_shared<ForExprAST>(
-      std::make_shared<BlockAST>(
+    t.tree.push_back( ctx.makeFor(
+      ctx.makeBlock(
        VarList3->protoarglist.front(),
        StatementList4->statement_list.front()),
       Expression6->tree.front(),
@@ -297,7 +298,7 @@
 // Return from function statement
 % Return : KEYWORD_RETURN Expression SEMICOLON
 {   token t(tkn_Return);
-    t.tree.push_back(std::make_shared<ReturnExprAST>(Expression2->tree.front()));
+    t.tree.push_back(ctx.makeReturn(Expression2->tree.front()));
     return t;
 }
 %        ;
@@ -314,14 +315,14 @@
 // Lowest priority operators
 % Expr20     : Expr20 AND Expr30
 {   token t(tkn_Expr20);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("LOGICAL_AND",
+    t.tree.push_back(ctx.makeBinary("LOGICAL_AND",
         Expr201->tree.front(),
         Expr303->tree.front() ));
     return t;
 }
 %            | Expr20 OR  Expr30
 {   token t(tkn_Expr20);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("LOGICAL_OR",
+    t.tree.push_back(ctx.makeBinary("LOGICAL_OR",
         Expr201->tree.front(),
         Expr303->tree.front() ));
     return t;
@@ -336,42 +337,42 @@
  * This forbids " x == y == z " or " a < b < c " which would be very confusing. */
 % Expr30     : Expr40 EQUAL     Expr40
 {   token t(tkn_Expr30);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("EQUAL",
+    t.tree.push_back(ctx.makeBinary("EQUAL",
         Expr401->tree.front(),
         Expr403->tree.front() ));
     return t;
 }
 %            | Expr40 NEQUAL    Expr40
 {   token t(tkn_Expr30);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("NEQUAL",
+    t.tree.push_back(ctx.makeBinary("NEQUAL",
         Expr401->tree.front(),
         Expr403->tree.front() ));
     return t;
 }
 %            | Expr40 LESS      Expr40
 {   token t(tkn_Expr30);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("LESS",
+    t.tree.push_back(ctx.makeBinary("LESS",
         Expr401->tree.front(),
         Expr403->tree.front() ));
     return t;
 }
 %            | Expr40 GREATER   Expr40
 {   token t(tkn_Expr30);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("GREATER",
+    t.tree.push_back(ctx.makeBinary("GREATER",
         Expr401->tree.front(),
         Expr403->tree.front() ));
     return t;
 }
 %            | Expr40 LESSEQ    Expr40
 {   token t(tkn_Expr30);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("LESSEQ",
+    t.tree.push_back(ctx.makeBinary("LESSEQ",
         Expr401->tree.front(),
         Expr403->tree.front() ));
     return t;
 }
 %            | Expr40 GREATEREQ Expr40
 {   token t(tkn_Expr30);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("GREATEREQ",
+    t.tree.push_back(ctx.makeBinary("GREATEREQ",
         Expr401->tree.front(),
         Expr403->tree.front() ));
     return t;
@@ -384,14 +385,14 @@
 
 % Expr40     : Expr40 ADD Expr50
 {   token t(tkn_Expr40);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("ADD",
+    t.tree.push_back(ctx.makeBinary("ADD",
         Expr401->tree.front(),
         Expr503->tree.front() ));
     return t;
 }
 %            | Expr40 SUB Expr50
 {   token t(tkn_Expr40);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("SUB",
+    t.tree.push_back(ctx.makeBinary("SUB",
         Expr401->tree.front(),
         Expr503->tree.front() ));
     return t;
@@ -405,21 +406,21 @@
 // Medium priority operators
 % Expr50     : Expr50 MULT Expr100
 {   token t(tkn_Expr50);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("MULT",
+    t.tree.push_back(ctx.makeBinary("MULT",
         Expr501 ->tree.front(),
         Expr1003->tree.front() ));
     return t;
 }
 %            | Expr50 DIV  Expr100
 {   token t(tkn_Expr50);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("DIV",
+    t.tree.push_back(ctx.makeBinary("DIV",
         Expr501 ->tree.front(),
         Expr1003->tree.front() ));
     return t;
 }
 %            | Expr50 MOD  Expr100
 {   token t(tkn_Expr50);
-    t.tree.push_back(std::make_shared<BinaryExprAST>("MOD",
+    t.tree.push_back(ctx.makeBinary("MOD",
         Expr501 ->tree.front(),
         Expr1003->tree.front() ));
     return t;
@@ -433,22 +434,22 @@
 // Highest priority operators / expressions
 % Expr100    : LITERAL_INT
 {   token t(tkn_Expr100);
-    t.tree.push_back(std::make_shared<PrimitiveExprAST<int>>(LITERAL_INT1->value_int.front()));
+    t.tree.push_back(ctx.makeInt(LITERAL_INT1->value_int.front()));
     return t;
 }
 %            | LITERAL_DOUBLE
 {   token t(tkn_Expr100);
-    t.tree.push_back(std::make_shared<PrimitiveExprAST<double>>(LITERAL_DOUBLE1->value_double.front()));
+    t.tree.push_back(ctx.makeDouble(LITERAL_DOUBLE1->value_double.front()));
     return t;
 }
 %            | LITERAL_BOOL
 {   token t(tkn_Expr100);
-    t.tree.push_back(std::make_shared<PrimitiveExprAST<bool>>(LITERAL_BOOL1->value_bool.front()));
+    t.tree.push_back(ctx.makeBool(LITERAL_BOOL1->value_bool.front()));
     return t;
 }
 %            | IDENTIFIER
 {   token t(tkn_Expr100);
-    t.tree.push_back(std::make_shared<VariableExprAST>(IDENTIFIER1->id.front()));
+    t.tree.push_back(ctx.makeVariable(IDENTIFIER1->id.front()));
     return t;
 }
 %            | LPAR Expression RPAR
@@ -463,9 +464,8 @@
 
 % FuncCall  : IDENTIFIER LPAR ArgList RPAR
 {   token t(tkn_FuncCall);
-    t.tree.push_back(std::make_shared<CallExprAST>(
-                                                   IDENTIFIER1->id.front(),
-                                                   ArgList3->arglist.front()
+    t.tree.push_back(ctx.makeCall( IDENTIFIER1->id.front(),
+                                   ArgList3->arglist.front()
     ));
     return t;
 }
@@ -479,7 +479,7 @@
 }
 %          |
 {   token t(tkn_ProtoArgList);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,CCType>>() );
+    t.protoarglist.push_back( std::vector<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %          ;
@@ -490,7 +490,7 @@
 }
 %              |
 {   token t(tkn_ProtoArgListL);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,CCType>>() );
+    t.protoarglist.push_back( std::vector<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %              ;
@@ -503,7 +503,7 @@
 }
 %          |
 {   token t(tkn_ArgList);
-    t.arglist.push_back( std::vector<std::shared_ptr<ExprAST>>() );
+    t.arglist.push_back( std::vector</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>() );
     return t;
 }
 %          ;
@@ -514,7 +514,7 @@
 }
 %              |
 {   token t(tkn_ArgListL);
-    t.arglist.push_back( std::vector<std::shared_ptr<ExprAST>>() );
+    t.arglist.push_back( std::vector</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>() );
     return t;
 }
 %              ;

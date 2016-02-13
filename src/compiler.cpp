@@ -16,7 +16,7 @@
 
 #include <fstream>
 
-using namespace llvm;
+namespace ccoscope {
 
 bool WasParserSuccessful(tokenizer& tok){\
 
@@ -37,18 +37,21 @@ bool WasParserSuccessful(tokenizer& tok){\
 }
 
 void DeclareCFunctions(CodegenContext& ctx){
-    std::vector<Type *> putchar_args = {Type::getInt32Ty(getGlobalContext())};
-    FunctionType *putchar_type = FunctionType::get(Type::getInt32Ty(getGlobalContext()), putchar_args, false);
-    Function::Create(putchar_type, Function::ExternalLinkage, "putchar", ctx.TheModule.get());
+    using namespace llvm;
+    
+    std::vector<llvm::Type *> putchar_args = {llvm::Type::getInt32Ty(getGlobalContext())};
+    auto putchar_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(getGlobalContext()), putchar_args, false);
+    llvm::Function::Create(putchar_type, llvm::Function::ExternalLinkage, "putchar", ctx.TheModule.get());
 
 
-    FunctionType *printf_type = llvm::TypeBuilder<int(char *, ...), false>::get(getGlobalContext());
-    Function *f = Function::Create(printf_type, Function::ExternalLinkage, "printf", ctx.TheModule.get());
+    auto printf_type = TypeBuilder<int(char *, ...), false>::get(getGlobalContext());
+    auto f = llvm::Function::Create(printf_type, llvm::Function::ExternalLinkage, "printf", ctx.TheModule.get());
     ctx.func_printf = f;
 }
 
-std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m, unsigned int lvl){
-
+std::shared_ptr<llvm::legacy::FunctionPassManager> PreparePassManager(llvm::Module * m, unsigned int lvl){
+    using namespace llvm;
+    
     // Create a new pass manager attached to it.
     auto TheFPM = std::make_shared<legacy::FunctionPassManager>(m);
 
@@ -74,7 +77,8 @@ std::shared_ptr<legacy::FunctionPassManager> PreparePassManager(Module * m, unsi
 }
 
 int Compile(std::string infile, std::string outfile, unsigned int optlevel){
-
+    using namespace llvm;
+    
     if(!FileExists(infile)){
         std::cout << "File " << infile << " does not exist." << std::endl;
         return -1;
@@ -85,11 +89,13 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
 
     std::cout << ColorStrings::Color(Color::Cyan, true) << "Parsing " << infile << ColorStrings::Reset() << std::endl;
 
-    std::list<std::shared_ptr<PrototypeAST>> prototypes;
-    std::list<std::shared_ptr<FunctionAST>> definitions;
-
-    parser(tok,prototypes,definitions,tkn_Start,0);
-
+    //std::list<Prototype> prototypes;
+    //std::list<Function> definitions;
+    
+    auto ctx = CodegenContext{};
+    
+    parser(tok, ctx, /*prototypes,definitions, */tkn_Start, 0);
+    
     // Instead of returning an exit status, the parser returns
     // nothing, and we need to determine if parsing was successful by
     // examining the lookahead buffer.
@@ -98,24 +104,28 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
         return -1;
     }
 
-    std::cout << "Found " << prototypes.size() << " prototypes and " << definitions.size() << " function definitions. " << std::endl;
+    std::cout << "Found " << ctx.prototypes.size() << " prototypes and " << ctx.definitions.size() << " function definitions. " << std::endl;
 
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
-    CodegenContext ctx(module, infile);
-
+    
+    //std::unique_ptr<World> world(new World(*module, infile));
+    //auto& ctx = world->ctx();
+    //CodegenContext ctx(module, infile);
+    ctx.SetModuleAndFile(module, infile);
+    
     auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);
 
     DeclareCFunctions(ctx);
 
     bool errors = false;
 
-    for(const auto& protoAST : prototypes){
-        Function* func = protoAST->codegen(ctx);
+    for(const auto& protoAST : ctx.prototypes){
+        llvm::Function* func = protoAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // func->dump();
     }
-    for(const auto& functionAST : definitions){
-        Function* func = functionAST->codegen(ctx);
+    for(const auto& functionAST : ctx.definitions){
+        llvm::Function* func = functionAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // Optimize the function
         TheFPM->run(*func);
@@ -139,4 +149,6 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     lloutfile.close();
 
     return 0;
+}
+
 }

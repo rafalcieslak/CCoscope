@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <getopt.h>
 
+using namespace ccoscope;
+
 int AssembleIR(std::string input_file, std::string outfile){
 
     // Compile the ir file to assembly
