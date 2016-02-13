@@ -15,6 +15,12 @@
 
 namespace ccoscope {
 
+static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
+                                          const std::string &VarName,
+                                          llvm::Type* type);
+
+llvm::Constant* CreateI8String(char const* str, CodegenContext& ctx);
+
 template<class T>
 struct GIDHash {
     size_t operator () (T n) const { return n->gid(); }
@@ -99,7 +105,7 @@ public:
      * corresponding type
      */ 
     std::map<std::tuple<std::string, /*Type, Type*/size_t, size_t>, 
-            std::function<llvm::Value*(llvm::Value*, llvm::Value*)>,
+            std::function<llvm::Value*(llvm::Value*, llvm::Value*)>//,
             /*TTypeCmp*/> BinOpCreator;
 
     // For tracking in which loop we are currently in

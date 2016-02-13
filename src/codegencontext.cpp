@@ -7,6 +7,22 @@ namespace ccoscope {
 using namespace std;
 using namespace llvm;
 
+/// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
+/// the function.  This is used for mutable variables etc.
+static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
+                                          const std::string &VarName,
+                                          llvm::Type* type) {
+  llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+                 TheFunction->getEntryBlock().begin());
+  return TmpB.CreateAlloca(type, 0, (VarName + "_addr").c_str());
+}
+
+// Creates a global i8 string. Useful for printing values.
+llvm::Constant* CreateI8String(char const* str, CodegenContext& ctx) {
+  auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
+  return llvm::cast<llvm::Constant>(strVal);
+}
+
 CodegenContext::CodegenContext()
     : Builder(getGlobalContext())
     , gid_(0)
@@ -139,68 +155,69 @@ bool TTypeCmp::operator () (const std::tuple<std::string, Type, Type>& lhs,
 // Factory methods for AST nodes
 
 VariableExpr CodegenContext::makeVariable(std::string name) {
-    return introduce_expr(new VariableExprAST(*this, gid_++, name));
+    return introduceE(new VariableExprAST(*this, gid_++, name));
 }
 
 PrimitiveExpr<int> CodegenContext::makeInt(int value) {
-    return introduce_expr(new PrimitiveExprAST<int>(*this, gid_++, value));
+    return introduceE(new PrimitiveExprAST<int>(*this, gid_++, value));
 }
 
 PrimitiveExpr<double> CodegenContext::makeDouble(double value) {
-    return introduce_expr(new PrimitiveExprAST<double>(*this, gid_++, value));
+    return introduceE(new PrimitiveExprAST<double>(*this, gid_++, value));
 }
 
 PrimitiveExpr<bool> CodegenContext::makeBool(bool value) {
-    return introduce_expr(new PrimitiveExprAST<bool>(*this, gid_++, value));
+    return introduceE(new PrimitiveExprAST<bool>(*this, gid_++, value));
 }
 
 BinaryExpr CodegenContext::makeBinary(std::string Op, Expr LHS, Expr RHS) {
-    return introduce_expr(new BinaryExprAST(*this, gid_++, Op, LHS, RHS));
+    return introduceE(new BinaryExprAST(*this, gid_++, Op, LHS, RHS));
 }
 
 ReturnExpr CodegenContext::makeReturn(Expr expr) {
-    return introduce_expr(new ReturnExprAST(*this, gid_++, expr));
+    return introduceE(new ReturnExprAST(*this, gid_++, expr));
 }
 
-Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, CCType>> &vars, const std::list<Expr>& s) {
-    return introduce_expr(new BlockAST(*this, gid_++, vars, s));
+Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, Type>> &vars, 
+                                const std::list<Expr>& s) {
+    return introduceE(new BlockAST(*this, gid_++, vars, s));
 }
 
 Assignment CodegenContext::makeAssignment(const std::string& Name, Expr expr) {
-    return introduce_expr(new AssignmentAST(*this, gid_++, Name, expr));
+    return introduceE(new AssignmentAST(*this, gid_++, Name, expr));
 }
 
 CallExpr CodegenContext::makeCall(const std::string &Callee, std::vector<Expr> Args) {
-    return introduce_expr(new CallExprAST(*this, gid_++, Callee, Args));
+    return introduceE(new CallExprAST(*this, gid_++, Callee, Args));
 }
 
 IfExpr CodegenContext::makeIf(Expr Cond, Expr Then, Expr Else) {
-    return introduce_expr(new IfExprAST(*this, gid_++, Cond, Then, Else));
+    return introduceE(new IfExprAST(*this, gid_++, Cond, Then, Else));
 }
 
 WhileExpr CodegenContext::makeWhile(Expr Cond, Expr Body) {
-    return introduce_expr(new WhileExprAST(*this, gid_++, Cond, Body));
+    return introduceE(new WhileExprAST(*this, gid_++, Cond, Body));
 }
 
 ForExpr CodegenContext::makeFor(Expr Init, Expr Cond, std::list<Expr> Step, Expr Body) {
-    return introduce_expr(new ForExprAST(*this, gid_++, Init, Cond, Step, Body));
+    return introduceE(new ForExprAST(*this, gid_++, Init, Cond, Step, Body));
 }
 
 Keyword CodegenContext::makeKeyword(keyword which) {
-    return introduce_expr(new KeywordAST(*this, gid_++, which));
+    return introduceE(new KeywordAST(*this, gid_++, which));
 }
 
 Prototype CodegenContext::makePrototype(const std::string &Name, 
-        std::vector<std::pair<std::string, CCType>> Args, CCType ReturnType)
+        std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
 {
     auto nprot = new PrototypeAST(*this, gid_++, Name, Args, ReturnType);
-    prototypes.insert(nprot);
+    //prototypes.insert(nprot);
     return nprot;
 }
 
 Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
     auto nfun = new FunctionAST(*this, gid_++, Proto, Body);
-    definitions.insert(nfun);
+    //definitions.insert(nfun);
     return nfun;
 }
 
@@ -209,28 +226,28 @@ Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
 // ==---------------------------------------------------------------
 // Factory methods for Types
 
-VoidType getVoidTy() {
-    return introduce_type(new VoidTypeAST(*this, gid_++));
+VoidType CodegenContext::getVoidTy() {
+    return introduceT(new VoidTypeAST(*this, gid_++));
 }
 
-IntegerType getIntegerTy() {
-    return introduce_type(new IntegerTypeAST(*this, gid_++));
+IntegerType CodegenContext::getIntegerTy() {
+    return introduceT(new IntegerTypeAST(*this, gid_++));
 }
 
-DoubleType getDoubleTy() {
-    return introduce_type(new DoubleTypeAST(*this, gid_++));
+DoubleType CodegenContext::getDoubleTy() {
+    return introduceT(new DoubleTypeAST(*this, gid_++));
 }
 
-BooleanType getBooleanTy() {
-    return introduce_type(new BooleanTypeAST(*this, gid_++));
+BooleanType CodegenContext::getBooleanTy() {
+    return introduceT(new BooleanTypeAST(*this, gid_++));
 }
 
-FunctionType getFunctionTy(Type ret, std::vector<Type> args) {
-    return introduce_type(new FunctionTypeAST(*this, gid_++, ret, args));
+FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) {
+    return introduceT(new FunctionTypeAST(*this, gid_++, ret, args));
 }
 
-ReferenceType getReferenceTy(Type of) {
-    return introduce_type(new ReferenceTypeAST(*this, gid_++, of));
+ReferenceType CodegenContext::getReferenceTy(Type of) {
+    return introduceT(new ReferenceTypeAST(*this, gid_++, of));
 }
 
 // ==---------------------------------------------------------------

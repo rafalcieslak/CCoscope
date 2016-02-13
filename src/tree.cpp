@@ -1,4 +1,5 @@
 #include "tree.h"
+#include "codegencontext.h"
 
 #include "llvm/IR/Verifier.h"
 
@@ -23,22 +24,6 @@ template class Proxy<KeywordAST>;
 template class Proxy<PrototypeAST>;
 template class Proxy<FunctionAST>;
 
-/// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
-/// the function.  This is used for mutable variables etc.
-static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
-                                          const std::string &VarName,
-                                          llvm::Type* type) {
-  llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-                 TheFunction->getEntryBlock().begin());
-  return TmpB.CreateAlloca(type, 0, (VarName + "_addr").c_str());
-}
-
-// Creates a global i8 string. Useful for printing values.
-llvm::Constant* CreateI8String(llvm::Module* M, char const* str, llvm::Twine const& name, CodegenContext& ctx) {
-  auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
-  return llvm::cast<Constant>(strVal);
-}
-
 bool ExprAST::equal(const ExprAST& other) const {
     return gid() == other.gid();
 }
@@ -46,29 +31,29 @@ bool ExprAST::equal(const ExprAST& other) const {
 // ---------------------------------------------------------------------
 
 template<>
-Value* PrimitiveExprAST<int>::codegen() const {
-    return llvm::ConstantInt::get(getGlobalContext(), APInt(32, Val, 1));
+llvm::Value* PrimitiveExprAST<int>::codegen() const {
+    return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(32, Val, 1));
 }
 
 template<>
-Value* PrimitiveExprAST<bool>::codegen() const {
+llvm::Value* PrimitiveExprAST<bool>::codegen() const {
     if(Val == true)
-        return llvm::ConstantInt::getTrue(getGlobalContext());
+        return llvm::ConstantInt::getTrue(llvm::getGlobalContext());
     else
-        return llvm::ConstantInt::getFalse(getGlobalContext());
+        return llvm::ConstantInt::getFalse(llvm::getGlobalContext());
 }
 
 template<>
-Value* PrimitiveExprAST<double>::codegen() const {
-    return llvm::ConstantFP::get(getGlobalContext(), APFloat(Val));
+llvm::Value* PrimitiveExprAST<double>::codegen() const {
+    return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat(Val));
 }
 
 template<typename T>
-Value* PrimitiveExprAST<T>::codegen() const {
+llvm::Value* PrimitiveExprAST<T>::codegen() const {
     return nullptr;
 }
 
-Value* VariableExprAST::codegen() const {
+llvm::Value* VariableExprAST::codegen() const {
     using namespace llvm;
     // Assuming that everything is an int.
      // --> where does this assumption appear?
@@ -81,7 +66,9 @@ Value* VariableExprAST::codegen() const {
     return V;
 }
 
-Value* BinaryExprAST::codegen() const {
+llvm::Value* BinaryExprAST::codegen() const {
+    using namespace llvm; 
+    
     Value* valL = LHS->codegen();
     Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
@@ -97,12 +84,13 @@ Value* BinaryExprAST::codegen() const {
     //       and this approach is applied in current implementation
     // TODO: implicit conversions and a cost function related to it
 
-    auto fitit = ctx().BinOpCreator.end();
-    if (valL->getType()->isIntegerTy() && valR->getType()->isIntegerTy())
-        fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, CCIntegerType(), CCIntegerType()));
+    auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 1, 2));
+    
+   /* if (LHS->maintype() == ctx().getIn
+        fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, ctx().getIntegerTy(), ctx().getIntegerTy()));
     else if (valL->getType()->isDoubleTy() && valR->getType()->isDoubleTy())
-        fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, CCDoubleType(), CCDoubleType()));
-
+        fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, ctx().getDoubleTy(), ctx().getDoubleTy()));
+*/
     if(fitit != ctx().BinOpCreator.end())
         return (fitit->second)(valL, valR);
     else {
@@ -111,17 +99,17 @@ Value* BinaryExprAST::codegen() const {
     }
 }
 
-Value* ReturnExprAST::codegen() const {
+llvm::Value* ReturnExprAST::codegen() const {
     using namespace llvm;
     
     Value* val = Expression->codegen();
     if(!val) return nullptr;
 
-    Function* parent = ctx().CurrentFunc;
-    BasicBlock* returnBB    = BasicBlock::Create(getGlobalContext(), "returnBB");
-    BasicBlock* discardBB   = BasicBlock::Create(getGlobalContext(), "breakDiscard");
+    llvm::Function* parent = ctx().CurrentFunc;
+    BasicBlock* returnBB    = BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
+    BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
 
-    ctx().Builder.CreateCondBr(ConstantInt::getTrue(getGlobalContext()), returnBB, discardBB);
+    ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
     parent->getBasicBlockList().push_back(returnBB);
     ctx().Builder.SetInsertPoint(returnBB);
     ctx().Builder.CreateRet(val);
@@ -132,7 +120,7 @@ Value* ReturnExprAST::codegen() const {
     return val;
 }
 
-Value* BlockAST::codegen() const {
+llvm::Value* BlockAST::codegen() const {
     using namespace llvm;
     
     if(Statements.size() == 0){
@@ -140,10 +128,10 @@ Value* BlockAST::codegen() const {
         // because this results in no Value, and there would be
         // nothing we can give to our caller. So let's just create a 0
         // value and return it.
-        return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+        return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
     }else{
         // Create new stack vars.
-        Function* parent = ctx().CurrentFunc;
+        llvm::Function* parent = ctx().CurrentFunc;
         ScopeManager SM {this, ctx()};
 
         // TODO: make ScopeManager sensitive to how many variables were
@@ -153,9 +141,9 @@ Value* BlockAST::codegen() const {
                 ctx().AddError("Variable shadowing is not allowed");
                 return nullptr;
             }
-            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, datatype2llvmType(var.second));
+            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, var.second->toLLVMs());
             // Initialize the var to 0.
-            Value* zero = createDefaultValue(var.second);
+            Value* zero = var.second->defaultLLVMsValue();
             ctx().Builder.CreateStore(zero, Alloca);
             ctx().VarsInScope[var.first] = std::make_pair(Alloca, var.second);
         }
@@ -173,7 +161,7 @@ Value* BlockAST::codegen() const {
     }
 }
 
-Value* AssignmentAST::codegen() const {
+llvm::Value* AssignmentAST::codegen() const {
     using namespace llvm;
     
     Value* Val = Expression->codegen();
@@ -189,7 +177,7 @@ Value* AssignmentAST::codegen() const {
     return Val;
 }
 
-Value* CallExprAST::codegen() const {
+llvm::Value* CallExprAST::codegen() const {
     // Special case for print
     if(Callee == "print"){
         // Translate the call into a call to cstdlibs' printf.
@@ -199,16 +187,18 @@ Value* CallExprAST::codegen() const {
         }
         std::vector<llvm::Value*> ArgsV;
         std::string formatSpecifier;
-        if(Args[0]->maintype(ctx).second == CCDoubleType())
+        
+        // TODO !!!!!!!!!!
+        if(Args[0]->gid() == 2)//maintype() == ctx().getDoubleTy())
             formatSpecifier = "%f";
         else
             formatSpecifier = "%d";
 
-        ArgsV.push_back( CreateI8String(ctx().TheModule.get(), (formatSpecifier + "\n").c_str(), "printf_number", ctx) );
+        ArgsV.push_back( CreateI8String((formatSpecifier + "\n").c_str(), ctx()) );
 #ifndef NDEBUG
         std::cerr << "in call will codegen arg" << std::endl;
 #endif
-        auto temp = Args[0]->codegen(ctx());
+        auto temp = Args[0]->codegen();
        // auto vare = dynamic_cast<VariableExprAST*>(Args[0]);
       //  if(vare != nullptr) {
       //      std::cerr << "codegening var
@@ -248,29 +238,29 @@ Value* CallExprAST::codegen() const {
   return ctx().Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
-Value* IfExprAST::codegen() const {
+llvm::Value* IfExprAST::codegen() const {
     using namespace llvm;
     
     Value* cond = Cond->codegen();
     if(!cond) return nullptr;
 
-    Value* cmp = ctx().Builder.CreateICmpNE(cond, ConstantInt::get(getGlobalContext(), APInt(1, 0, 1)), "ifcond");
+    Value* cmp = ctx().Builder.CreateICmpNE(cond, ConstantInt::get(llvm::getGlobalContext(), APInt(1, 0, 1)), "ifcond");
 
     auto parent = ctx().CurrentFunc;
 
-    BasicBlock *ThenBB  = BasicBlock::Create(getGlobalContext(), "then");
-    BasicBlock *MergeBB = BasicBlock::Create(getGlobalContext(), "ifcont");
+    BasicBlock *ThenBB  = BasicBlock::Create(llvm::getGlobalContext(), "then");
+    BasicBlock *MergeBB = BasicBlock::Create(llvm::getGlobalContext(), "ifcont");
 
     BasicBlock *ElseBB;
     if(Else){
         // There is an else-block for this if. Create BB for else.
-        ElseBB  = BasicBlock::Create(getGlobalContext(), "else");
+        ElseBB  = BasicBlock::Create(llvm::getGlobalContext(), "else");
     }else{
         // There is no else-block for this if. Do not create a block. Make sure that failing the condition will jump to merge.
         ElseBB = MergeBB;
     }
 
-    ctx.Builder.CreateCondBr(cmp, ThenBB, ElseBB);
+    ctx().Builder.CreateCondBr(cmp, ThenBB, ElseBB);
 
     // THEN
     // Add to parent
@@ -300,16 +290,17 @@ Value* IfExprAST::codegen() const {
     parent->getBasicBlockList().push_back(MergeBB);
     ctx().Builder.SetInsertPoint(MergeBB);
 
-    return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+    return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
 }
 
-Value* WhileExprAST::codegen() const {
-
+llvm::Value* WhileExprAST::codegen() const {
+    using namespace llvm; 
+    
     auto parent = ctx().CurrentFunc;
 
-    BasicBlock* HeaderBB = BasicBlock::Create(getGlobalContext(), "header");
-    BasicBlock* BodyBB   = BasicBlock::Create(getGlobalContext(), "body");
-    BasicBlock* PostBB   = BasicBlock::Create(getGlobalContext(), "postwhile");
+    BasicBlock* HeaderBB = BasicBlock::Create(llvm::getGlobalContext(), "header");
+    BasicBlock* BodyBB   = BasicBlock::Create(llvm::getGlobalContext(), "body");
+    BasicBlock* PostBB   = BasicBlock::Create(llvm::getGlobalContext(), "postwhile");
 
     ctx().Builder.CreateBr(HeaderBB);
 
@@ -318,7 +309,7 @@ Value* WhileExprAST::codegen() const {
     ctx().Builder.SetInsertPoint(HeaderBB);
     Value* cond = Cond->codegen();
     if(!cond) return nullptr;
-    Value* cmp = ctx().Builder.CreateICmpNE(cond, ConstantInt::get(getGlobalContext(), APInt(1, 0, 1)), "whilecond");
+    Value* cmp = ctx().Builder.CreateICmpNE(cond, ConstantInt::get(llvm::getGlobalContext(), APInt(1, 0, 1)), "whilecond");
     ctx().Builder.CreateCondBr(cmp, BodyBB, PostBB);
 
     // Update of codegening context -- we are in a loop from now on
@@ -339,10 +330,10 @@ Value* WhileExprAST::codegen() const {
     // Update of codegening context -- we've just got out of the loop
     ctx().LoopsBBHeaderPost.pop_back();
 
-    return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+    return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
 }
 
-Value* ForExprAST::codegen() const {
+llvm::Value* ForExprAST::codegen() const {
     /* Transform
      * `for(Init | Cond | Step) { Body }`
      * into
@@ -372,14 +363,16 @@ Value* ForExprAST::codegen() const {
     return block->codegen(ctx);*/
 }
 
-Value* KeywordAST::codegen() const {
+llvm::Value* KeywordAST::codegen() const {
+    using namespace llvm;
+    
     auto parent = ctx().CurrentFunc;
     switch(which) {
         case keyword::Break:
             if (!ctx().is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
-                ctx.AddError("'break' keyword outside any loop");
+                ctx().AddError("'break' keyword outside any loop");
                 return nullptr;
             } else {
                   auto postBB = ctx().LoopsBBHeaderPost.back().second;
@@ -389,26 +382,26 @@ Value* KeywordAST::codegen() const {
                   // branch instructions generated by `If` or `While` statements
                   // that may occur immediately below the branch from
                   // `break` or `continue` keyword
-                  BasicBlock* discardBB   = BasicBlock::Create(getGlobalContext(), "breakDiscard");
+                  BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
                   parent->getBasicBlockList().push_back(discardBB);
-                  ctx().Builder.CreateCondBr(ConstantInt::getTrue(getGlobalContext()), postBB, discardBB);
+                  ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), postBB, discardBB);
                   ctx().Builder.SetInsertPoint(discardBB);
-                  return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+                  return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
             }
             break;
         case keyword::Continue:
             if (!ctx().is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
-                ctx.AddError("'continue' keyword outside any loop");
+                ctx().AddError("'continue' keyword outside any loop");
                 return nullptr;
             } else {
                 auto headerBB = ctx().LoopsBBHeaderPost.back().first;
-                BasicBlock* discardBB   = BasicBlock::Create(getGlobalContext(), "continueDiscard");
+                BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "continueDiscard");
                 parent->getBasicBlockList().push_back(discardBB);
-                ctx().Builder.CreateCondBr(ConstantInt::getTrue(getGlobalContext()), headerBB, discardBB);
+                ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), headerBB, discardBB);
                 ctx().Builder.SetInsertPoint(discardBB);
-                return ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
+                return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
             }
             break;
     }
@@ -418,20 +411,19 @@ Value* KeywordAST::codegen() const {
 //------------------------------------------
 
 
-Function* PrototypeAST::codegen() const {
+llvm::Function* PrototypeAST::codegen() const {
   // Make the function type:  double(double,double) etc.
 
     // TODO: Respect argument types.
   std::vector<llvm::Type*> argsTypes;
   for (auto& p : Args) {
-      argsTypes.push_back(datatype2llvmType(p.second));
+      argsTypes.push_back(p.second->toLLVMs());
   }
 
-  FunctionType *FT =
-      FunctionType::get(datatype2llvmType(ReturnType), argsTypes, false);
+  FunctionType *FT = ctx().getFunctionTy(ReturnType, argsTypes);
 
   auto F =
-      llvm::Function::Create(FT, Function::ExternalLinkage, Name, ctx().TheModule.get());
+      llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, ctx().TheModule.get());
 
   // Set names for all arguments.
   unsigned Idx = 0;
@@ -443,6 +435,8 @@ Function* PrototypeAST::codegen() const {
 
 
 llvm::Function *FunctionAST::codegen() const {
+  using namespace llvm;
+  
   // First, check for an existing function from a previous 'extern' declaration.
   auto TheFunction = ctx().TheModule->getFunction(Proto->getName());
 
@@ -456,7 +450,7 @@ llvm::Function *FunctionAST::codegen() const {
   ctx().CurrentFunc = TheFunction;
 
   // Create a new basic block to start insertion into.
-  BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
+  BasicBlock *BB = BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
   ctx().Builder.SetInsertPoint(BB);
 
   // Clear the scope.
@@ -476,7 +470,7 @@ llvm::Function *FunctionAST::codegen() const {
 
   // Before terminating the function, create a default return value, in case the function body does not contain one.
   // TODO: Default return type.
-  ctx().Builder.CreateRet(createDefaultValue(Proto->ReturnType));
+  ctx().Builder.CreateRet(Proto->ReturnType->defaultLLVMsValue());
 
   if(val){
     // Validate the generated code, checking for consistency.
@@ -494,8 +488,8 @@ llvm::Function *FunctionAST::codegen() const {
 // Typechecking
 // --------------------------------------------------
 
-CCType ExprAST::maintype() const {
-    return ctx.getVoidTy();
+Type ExprAST::maintype() const {
+    return ctx().getVoidTy();
 }
 /* see `tree.h`
 template<typename T>
@@ -505,25 +499,25 @@ ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
 */
 template<>
 Type PrimitiveExprAST<int>::maintype() const {
-    return ctx.getIntegerTy();
+    return ctx().getIntegerTy();
 }
 
 template<>
 Type PrimitiveExprAST<bool>::maintype() const {
-    return ctx.getBooleanTy();
+    return ctx().getBooleanTy();
 }
 
 template<>
 Type PrimitiveExprAST<double>::maintype() const {
-    return ctx.getDoubleTy();
+    return ctx().getDoubleTy();
 }
 
 Type VariableExprAST::maintype() const {
-    return ctx.VarsInScope[Name].second;
+    return ctx().VarsInScope[Name].second;
 }
 
 Type BinaryExprAST::maintype() const {
-    return ctx.getVoidTy(); // TODO!
+    return ctx().getVoidTy(); // TODO!
 }
 
 Type AssignmentAST::maintype() const {
@@ -539,29 +533,29 @@ Type CallExprAST::maintype() const {
     // we should stick to the LLVM's type system
     // as much as we can
     if(CalleeF->getReturnType()->isIntegerTy())
-        return ctx.getIntegerTy();
+        return ctx().getIntegerTy();
     else if(CalleeF->getReturnType()->isDoubleTy())
-        return ctx.getDoubleTy();
+        return ctx().getDoubleTy();
     else
-        return ctx.getVoidTy();
+        return ctx().getVoidTy();
 }
 
 Type PrototypeAST::maintype() const {
-    return ctx.getVoidTy(); // TODO
+    return ctx().getVoidTy(); // TODO
 }
 
 Type FunctionAST::maintype() const {
-    return ctx.getVoidTy();// TODO
+    return ctx().getVoidTy();// TODO
 }
 
 BlockAST::ScopeManager~BlockAST::ScopeManager() {
     for (auto& var : parent->Vars) {
-    auto it = std::find_if(ctx.VarsInScope.begin(),
-                           ctx.VarsInScope.end(),
+    auto it = std::find_if(ctx().VarsInScope.begin(),
+                           ctx().VarsInScope.end(),
                            [&var](auto& p) {
                                return p.first == var.first;
                            });
-    ctx.VarsInScope.erase(it);
+    ctx().VarsInScope.erase(it);
     }
 }
 

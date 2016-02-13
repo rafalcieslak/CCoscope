@@ -80,14 +80,14 @@ public:
 protected:
     T Val;
 };
-
+/*
 // For some reason putting the implementation below to the .cpp file
 // yields a compilation-time error.
 // TODO: understand why :)
 template<typename T>
 Type PrimitiveExprAST<T>::maintype() const {
     return ctx.getVoidTy();
-}
+}*/
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
