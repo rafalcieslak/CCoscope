@@ -415,15 +415,15 @@ llvm::Function* PrototypeAST::codegen() const {
   // Make the function type:  double(double,double) etc.
 
     // TODO: Respect argument types.
-  std::vector<llvm::Type*> argsTypes;
+  std::vector<Type> argsTypes;
   for (auto& p : Args) {
-      argsTypes.push_back(p.second->toLLVMs());
+      argsTypes.push_back(p.second);
   }
 
-  FunctionType *FT = ctx().getFunctionTy(ReturnType, argsTypes);
+  auto FT = ctx().getFunctionTy(ReturnType, argsTypes);
 
   auto F =
-      llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, ctx().TheModule.get());
+      llvm::Function::Create(FT->FuntoLLVMs(), llvm::Function::ExternalLinkage, Name, ctx().TheModule.get());
 
   // Set names for all arguments.
   unsigned Idx = 0;
@@ -548,14 +548,14 @@ Type FunctionAST::maintype() const {
     return ctx().getVoidTy();// TODO
 }
 
-BlockAST::ScopeManager~BlockAST::ScopeManager() {
+BlockAST::ScopeManager::~ScopeManager() {
     for (auto& var : parent->Vars) {
-    auto it = std::find_if(ctx().VarsInScope.begin(),
-                           ctx().VarsInScope.end(),
-                           [&var](auto& p) {
-                               return p.first == var.first;
-                           });
-    ctx().VarsInScope.erase(it);
+        auto it = std::find_if(ctx.VarsInScope.begin(),
+                               ctx.VarsInScope.end(),
+                               [&var](auto& p) {
+                                   return p.first == var.first;
+                               });
+        ctx.VarsInScope.erase(it);
     }
 }
 

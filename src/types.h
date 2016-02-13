@@ -29,16 +29,6 @@ class BooleanTypeAST;     using BooleanType     = Proxy<BooleanTypeAST>;
 class FunctionTypeAST;    using FunctionType    = Proxy<FunctionTypeAST>;
 class ReferenceTypeAST;   using ReferenceType   = Proxy<ReferenceTypeAST>;
 
-template class Proxy<TypeAST>;
-template class Proxy<PrimitiveTypeAST>;
-template class Proxy<VoidTypeAST>;
-template class Proxy<ArithmeticTypeAST>;
-template class Proxy<IntegerTypeAST>;
-template class Proxy<DoubleTypeAST>;
-template class Proxy<BooleanTypeAST>;
-template class Proxy<FunctionTypeAST>;
-template class Proxy<ReferenceTypeAST>;
-
 Type str2type (std::string s);
 /*
 struct TypeCmp {
@@ -139,6 +129,7 @@ public:
     
     bool equal (const TypeAST& other) const override;
     llvm::Type* toLLVMs () const override;
+    llvm::FunctionType* FuntoLLVMs () const;
     
     Type returnType () const { return operand(0); }
     // Mind you -- one-based argument list

@@ -305,7 +305,7 @@ protected:
 
 
 // I really hate having to add this operator, but maphoon insists on printing all token arguments...
-inline std::ostream& operator<<(std::ostream& s, const std::list</*std::shared_ptr<ExprAST>*/Expr>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::list<Expr>& l){
     s << "A list of " << l.size() << " statements." << std::endl;
     return s;
 }
@@ -317,10 +317,26 @@ inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,Typ
     s << "Identifier " << l.first << "and its type." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::vector</*std::shared_ptr<ExprAST>*/Expr>& l){
+
+inline std::ostream& operator<<(std::ostream& s, const std::vector<Expr>& l){
     s << "List of  " << l.size() << " arguments for a function call." << std::endl;
     return s;
 }
+
+inline std::ostream& operator<<(std::ostream& s, const Expr& l){
+    s << "Expression" << std::endl;
+    return s;
+}
+
+inline std::ostream& operator<<(std::ostream& s, const Type& l){
+    s << "Type" << std::endl;
+    return s;
+}
+/*
+inline std::ostream& operator<<(std::ostream& s, CodegenContext& l){
+    s << "Context" << std::endl;
+    return s;
+}*/
 
 }
 

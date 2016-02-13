@@ -6,6 +6,15 @@
 
 namespace ccoscope {
 
+template class Proxy<TypeAST>;
+template class Proxy<PrimitiveTypeAST>;
+template class Proxy<VoidTypeAST>;
+template class Proxy<ArithmeticTypeAST>;
+template class Proxy<IntegerTypeAST>;
+template class Proxy<DoubleTypeAST>;
+template class Proxy<BooleanTypeAST>;
+template class Proxy<FunctionTypeAST>;
+template class Proxy<ReferenceTypeAST>;
 
 /*
 bool TypeCmp::operator() (const Type& lhs, const Type& rhs) const {
@@ -69,12 +78,25 @@ llvm::Type* BooleanTypeAST::toLLVMs () const {
 }
 
 llvm::Type* FunctionTypeAST::toLLVMs () const {
+    return nullptr; // llvm::Type* and llvm::FunctionType* incompatibility?
+    /*
+    std::vector<llvm::Type*> argsTypes;
+    for (size_t i = 1; i < size(); i++)
+        argsTypes.push_back(operands_[i]->toLLVMs());
+    
+    return llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);*/
+}
+
+llvm::FunctionType* FunctionTypeAST::FuntoLLVMs () const {
+    // llvm::Type* and llvm::FunctionType* incompatibility?
+    
     std::vector<llvm::Type*> argsTypes;
     for (size_t i = 1; i < size(); i++)
         argsTypes.push_back(operands_[i]->toLLVMs());
     
     return llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
 }
+
 llvm::Type* ReferenceTypeAST::toLLVMs () const {
     // will that be a pointer to of->toLLVMs() ? or just the of->toLLVMs()?
     // let's assume for now it's not a pointer

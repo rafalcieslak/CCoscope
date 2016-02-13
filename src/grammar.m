@@ -30,10 +30,10 @@
 %attribute id            std::string
 %attribute reason        std::string
  /* This is an aux used by StatementList and Block */
-%attribute statement_list std::list</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>
+%attribute statement_list std::list<ccoscope::Expr>
  /* This is an aux used by ProtoArgList and ProtoArgListL */
 %attribute protoarglist std::vector<std::pair<std::string,ccoscope::Type>>
-%attribute arglist std::vector</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>
+%attribute arglist std::vector<ccoscope::Expr>
  /* This is an aux used by TypedIdentifier */
 %attribute typedident std::pair<std::string, ccoscope::Type>
 %attribute returntype       ccoscope::Type
@@ -75,6 +75,7 @@
 
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
+%intokenheader #include "types.h"
 
 // %global prototypes  std::list<std::shared_ptr<PrototypeAST>>
 // %global definitions std::list<std::shared_ptr<FunctionAST>>
@@ -84,7 +85,8 @@
 #define ASSERT( X ) { assert( ( X ) ); }
 #include <cstdio>
 #include "tree.h"
-#include "typechecking.h"
+#include "types.h"
+#include "codegencontext.h"
 #include <memory>
 
 % Start : Module
@@ -105,7 +107,7 @@
          ReturnType7->returntype.front()
          );
 
-    ctx.prototypes.push_back(Prototype);
+    ctx.prototypes.insert(Prototype);
 }
 %          ;
 
@@ -122,7 +124,7 @@
          Block7->tree.front()
          );
 
-    ctx.definitions.push_back(Function);
+    ctx.definitions.insert(Function);
 }
 %         ;
 
@@ -130,12 +132,12 @@
 // The return type of a function
 % ReturnType : COLON TYPE
 {   token t(tkn_ReturnType);
-    t.returntype.push_back(stodatatype(TYPE2->id.front()));
+    t.returntype.push_back(ccoscope::str2type(TYPE2->id.front()));
     return t;
 }
 %            |
 {   token t(tkn_ReturnType);
-    t.returntype.push_back(CCVoidType());
+    t.returntype.push_back(ctx.getVoidTy());
     return t;
 }
 %            ;
@@ -144,7 +146,7 @@
 % TypedIdentifier : IDENTIFIER COLON TYPE
 {  token t(tkn_TypedIdentifier);
    t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(),
-    stodatatype(TYPE3->id.front())));
+    ccoscope::str2type(TYPE3->id.front())));
    return t;
 }
 %                 ;
@@ -186,7 +188,7 @@
 }
 %               |
 {   token t(tkn_StatementList);
-    t.statement_list.push_back( std::list</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>() );
+    t.statement_list.push_back( std::list<ccoscope::Expr>() );
     return t;
 }
 %               ;
@@ -224,14 +226,14 @@
 %           | KEYWORD_BREAK SEMICOLON
 {   token t(tkn_Statement);
     t.tree.push_back(ctx.makeKeyword(
-          keyword::Break
+          ccoscope::keyword::Break
           ));
     return t;
 }
 %           | KEYWORD_CONTINUE SEMICOLON
 {   token t(tkn_Statement);
     t.tree.push_back(ctx.makeKeyword(
-          keyword::Continue
+          ccoscope::keyword::Continue
           ));
     return t;
 }
@@ -503,7 +505,7 @@
 }
 %          |
 {   token t(tkn_ArgList);
-    t.arglist.push_back( std::vector</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>() );
+    t.arglist.push_back( std::vector<ccoscope::Expr>() );
     return t;
 }
 %          ;
@@ -514,7 +516,7 @@
 }
 %              |
 {   token t(tkn_ArgListL);
-    t.arglist.push_back( std::vector</*std::shared_ptr<*/ccoscope::Expr/*AST>*/>() );
+    t.arglist.push_back( std::vector<ccoscope::Expr>() );
     return t;
 }
 %              ;

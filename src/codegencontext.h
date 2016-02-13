@@ -15,9 +15,17 @@
 
 namespace ccoscope {
 
+class CodegenContext;
+
+/// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
+/// the function.  This is used for mutable variables etc.
 static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
                                           const std::string &VarName,
-                                          llvm::Type* type);
+                                          llvm::Type* type) {
+  llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+                 TheFunction->getEntryBlock().begin());
+  return TmpB.CreateAlloca(type, 0, (VarName + "_addr").c_str());
+}
 
 llvm::Constant* CreateI8String(char const* str, CodegenContext& ctx);
 
