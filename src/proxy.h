@@ -70,6 +70,17 @@ private:
     const T* node_;
 };
 
+template<class T>
+const T* Proxy<T>::deref() const {
+    if (node_ == nullptr) return nullptr;
+
+    const T* target = node_;
+    for (; target->is_proxy(); target = target->representative_->template as<T>())
+        assert(target != nullptr);
+    
+    return target->template as<T>();
+}
+
 }
 
 #endif

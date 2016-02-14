@@ -18,111 +18,114 @@ CodegenContext::CodegenContext()
     , gid_(0)
 {
     // Operators on integers
+    auto intgid = getIntegerTy()->gid();
+    auto doublegid = getDoubleTy()->gid();
+    auto boolgid = getBooleanTy()->gid();
+    
+    BinOpCreator[std::make_tuple("ADD", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateAdd(LHS, RHS, "addtmp");
+        }, getIntegerTy());
+    BinOpCreator[std::make_tuple("SUB", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateSub(LHS, RHS, "subtmp");
+        }, getIntegerTy());
+    BinOpCreator[std::make_tuple("MULT", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateMul(LHS, RHS, "multmp");
+        }, getIntegerTy());
+    BinOpCreator[std::make_tuple("DIV", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateSDiv(LHS, RHS, "divtmp");
+        }, getIntegerTy());
+    BinOpCreator[std::make_tuple("MOD", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateSRem(LHS, RHS, "modtmp");
+        }, getIntegerTy());
 
-    BinOpCreator[std::make_tuple("ADD", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateAdd(LHS, RHS, "addtmp"), getIntegerTy());
-        };
-    BinOpCreator[std::make_tuple("SUB", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateSub(LHS, RHS, "subtmp"), getIntegerTy());
-        };
-    BinOpCreator[std::make_tuple("MULT", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateMul(LHS, RHS, "multmp"), getIntegerTy());
-        };
-    BinOpCreator[std::make_tuple("DIV", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateSDiv(LHS, RHS, "divtmp"), getIntegerTy());
-        };
-    BinOpCreator[std::make_tuple("MOD", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateSRem(LHS, RHS, "modtmp"), getIntegerTy());
-        };
+    BinOpCreator[std::make_tuple("EQUAL", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateICmpEQ(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("NEQUAL", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateICmpNE(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
 
-    BinOpCreator[std::make_tuple("EQUAL", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateICmpEQ(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("NEQUAL", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateICmpNE(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
+    BinOpCreator[std::make_tuple("GREATER", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateICmpSGT(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("GREATEREQ", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateICmpSGE(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("LESS", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateICmpSLT(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("LESSEQ", intgid, intgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateICmpSLE(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
 
-    BinOpCreator[std::make_tuple("GREATER", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateICmpSGT(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("GREATEREQ", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateICmpSGE(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("LESS", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateICmpSLT(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("LESSEQ", getIntegerTy(), getIntegerTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateICmpSLE(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
-
-    BinOpCreator[std::make_tuple("LOGICAL_AND", getBooleanTy(), getBooleanTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateAnd(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("LOGICAL_OR", getBooleanTy(), getBooleanTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateOr(LHS, RHS, "cmptmp"), getBooleanTy());
-        };
+    BinOpCreator[std::make_tuple("LOGICAL_AND", boolgid, boolgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateAnd(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("LOGICAL_OR", boolgid, boolgid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateOr(LHS, RHS, "cmptmp");
+        }, getBooleanTy());
 
     // Operators on doubles
 
-    BinOpCreator[std::make_tuple("ADD", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFAdd(LHS, RHS, "faddtmp"), getDoubleTy());
-        };
-    BinOpCreator[std::make_tuple("SUB", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFSub(LHS, RHS, "fsubtmp"), getDoubleTy());
-        };
-    BinOpCreator[std::make_tuple("MULT", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFMul(LHS, RHS, "fmultmp"), getDoubleTy());
-        };
-    BinOpCreator[std::make_tuple("DIV", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFDiv(LHS, RHS, "fdivtmp"), getDoubleTy());
-        };
-    BinOpCreator[std::make_tuple("MOD", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFRem(LHS, RHS, "fmodtmp"), getDoubleTy());
-        };
+    BinOpCreator[std::make_tuple("ADD", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFAdd(LHS, RHS, "faddtmp");
+        }, getDoubleTy());
+    BinOpCreator[std::make_tuple("SUB", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFSub(LHS, RHS, "fsubtmp");
+        }, getDoubleTy());
+    BinOpCreator[std::make_tuple("MULT", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFMul(LHS, RHS, "fmultmp");
+        }, getDoubleTy());
+    BinOpCreator[std::make_tuple("DIV", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFDiv(LHS, RHS, "fdivtmp");
+        }, getDoubleTy());
+    BinOpCreator[std::make_tuple("MOD", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFRem(LHS, RHS, "fmodtmp");
+        }, getDoubleTy());
 
-    BinOpCreator[std::make_tuple("EQUAL", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFCmpOEQ(LHS, RHS, "fcmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("NEQUAL", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFCmpONE(LHS, RHS, "fcmptmp"), getBooleanTy());
-        };
+    BinOpCreator[std::make_tuple("EQUAL", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFCmpOEQ(LHS, RHS, "fcmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("NEQUAL", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFCmpONE(LHS, RHS, "fcmptmp");
+        }, getBooleanTy());
 
-    BinOpCreator[std::make_tuple("GREATER", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFCmpOGT(LHS, RHS, "fcmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("GREATEREQ", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFCmpOGE(LHS, RHS, "fcmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("LESS", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFCmpOLT(LHS, RHS, "fcmptmp"), getBooleanTy());
-        };
-    BinOpCreator[std::make_tuple("LESSEQ", getDoubleTy(), getDoubleTy())] =
-        [this] (Value* LHS, Value* RHS) {
-            return std::make_pair(this->Builder.CreateFCmpOLE(LHS, RHS, "fcmptmp"), getBooleanTy());
-        };    
+    BinOpCreator[std::make_tuple("GREATER", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFCmpOGT(LHS, RHS, "fcmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("GREATEREQ", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFCmpOGE(LHS, RHS, "fcmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("LESS", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFCmpOLT(LHS, RHS, "fcmptmp");
+        }, getBooleanTy());
+    BinOpCreator[std::make_tuple("LESSEQ", doublegid, doublegid)] =
+        std::make_pair([this] (Value* LHS, Value* RHS) {
+            return this->Builder.CreateFCmpOLE(LHS, RHS, "fcmptmp");
+        }, getBooleanTy());  
 }
 /*
 /// Deprecated

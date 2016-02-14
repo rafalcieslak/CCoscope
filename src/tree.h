@@ -281,7 +281,8 @@ public:
     llvm::Function* codegen() const override;
     Type maintype () const override;
 
-protected:
+//protected:
+public:
     std::string Name;
     std::vector<std::pair<std::string, Type>> Args;
     Type ReturnType;

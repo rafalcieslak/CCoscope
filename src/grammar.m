@@ -101,7 +101,7 @@
 // Function declaration
 % FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType SEMICOLON
 {
-    auto Prototype = ctx.makePrototype(
+    ctx.makePrototype(
          IDENTIFIER3->id.front(),
          ProtoArgList5->protoarglist.front(),
          ReturnType7->returntype.front()
@@ -118,7 +118,7 @@
          ProtoArgList4->protoarglist.front(),
          ReturnType6->returntype.front()
          );
-    auto Function = ctx.makeFunction(
+     ctx.makeFunction(
          Prototype,
          Block7->tree.front()
          );

@@ -23,17 +23,17 @@ template class Proxy<ForExprAST>;
 template class Proxy<KeywordAST>;
 template class Proxy<PrototypeAST>;
 template class Proxy<FunctionAST>;
-
+/*
 template<class T>
 const T* Proxy<T>::deref() const {
     if (node_ == nullptr) return nullptr;
 
-    const ExprAST* target = node_;
-    for (; target->is_proxy(); target = target->representative_)
+    const T* target = node_;
+    for (; target->is_proxy(); target = target->representative_->template as<T>())
         assert(target != nullptr);
     
     return target->template as<T>();
-}
+}*/
 
 bool ExprAST::equal(const ExprAST& other) const {
     return gid() == other.gid();
@@ -94,7 +94,7 @@ llvm::Value* BinaryExprAST::codegen() const {
     // TODO: implicit conversions and a cost function related to it
 
     auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 
-        LHS->maintype(), RHS->maintype()));
+        LHS->maintype()->gid(), RHS->maintype()->gid()));
 
     if(fitit != ctx().BinOpCreator.end())
         return (fitit->second.first)(valL, valR);
@@ -423,7 +423,7 @@ llvm::Value* KeywordAST::codegen() const {
 llvm::Function* PrototypeAST::codegen() const {
 
     auto F =
-      llvm::Function::Create(this->maintype()->FuntoLLVMs(),
+      llvm::Function::Create(this->maintype().as<FunctionType>()->FuntoLLVMs(),
         llvm::Function::ExternalLinkage, Name, ctx().TheModule.get()
     );
 
@@ -520,9 +520,9 @@ Type VariableExprAST::maintype() const {
 
 Type BinaryExprAST::maintype() const {
     auto fitit = ctx().BinOpCreator.find(std::make_tuple(
-        Opcode, LHS->maintype(), RHS->maintype()));
+        Opcode, LHS->maintype()->gid(), RHS->maintype()->gid()));
     if(fitit != ctx().BinOpCreator.end())
-        return fitit->second;
+        return fitit->second.second;
     ctx().AddError("Binary op " + Opcode + " doesn't have appropriate overload");
     return ctx().getVoidTy();
 }
@@ -535,7 +535,7 @@ Type AssignmentAST::maintype() const {
 Type CallExprAST::maintype() const {
     // TODO! 
     auto CalleeFit = ctx().prototypesMap.find(Callee);
-    if(CalleeFit != ctx().prototypes.end())
+    if(CalleeFit != ctx().prototypesMap.end())
         return CalleeFit->second->ReturnType;
     ctx().AddError("Call to undefined function " + Callee);
     return ctx().getVoidTy();
