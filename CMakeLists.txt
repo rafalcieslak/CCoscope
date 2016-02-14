@@ -16,6 +16,7 @@ add_definitions(
   -Wno-unused-parameter # Maphoon's fault
   -Wno-sign-compare     # Maphoon's fault
   -g
+  -rdynamic
  # -fno-rtti
   )
 

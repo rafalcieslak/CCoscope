@@ -115,10 +115,10 @@ public:
      * to size_t which is __always__ assumed to be gid() of
      * corresponding type
      */ 
-    std::map<std::tuple<std::string, size_t, size_t>,//Type, Type>, 
+    std::map<std::tuple<std::string, Type, Type>, 
             std::pair<std::function<llvm::Value*(llvm::Value*, llvm::Value*)>,
-                      Type>/*,
-            TTypeCmp*/> BinOpCreator;
+                      Type>,
+            TTypeCmp> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB

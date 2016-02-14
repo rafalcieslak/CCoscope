@@ -94,7 +94,7 @@ llvm::Value* BinaryExprAST::codegen() const {
     // TODO: implicit conversions and a cost function related to it
 
     auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 
-        LHS->maintype()->gid(), RHS->maintype()->gid()));
+        LHS->maintype(), RHS->maintype()));
 
     if(fitit != ctx().BinOpCreator.end())
         return (fitit->second.first)(valL, valR);
@@ -520,7 +520,7 @@ Type VariableExprAST::maintype() const {
 
 Type BinaryExprAST::maintype() const {
     auto fitit = ctx().BinOpCreator.find(std::make_tuple(
-        Opcode, LHS->maintype()->gid(), RHS->maintype()->gid()));
+        Opcode, LHS->maintype(), RHS->maintype()));
     if(fitit != ctx().BinOpCreator.end())
         return fitit->second.second;
     ctx().AddError("Binary op " + Opcode + " doesn't have appropriate overload");
