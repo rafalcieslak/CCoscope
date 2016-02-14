@@ -71,14 +71,11 @@
 %constraint TypedIdentifier typedident 1 2
 %constraint VarDef typedident 1 2
 %constraint ReturnType returntype 1 2
-/* %constraint KeywordType keywordtype 1 2 */
 
 %intokenheader #include <memory>
 %intokenheader #include "tree.h"
 %intokenheader #include "types.h"
 
-// %global prototypes  std::list<std::shared_ptr<PrototypeAST>>
-// %global definitions std::list<std::shared_ptr<FunctionAST>>
 %global ctx ccoscope::CodegenContext
 
 #include <cassert>

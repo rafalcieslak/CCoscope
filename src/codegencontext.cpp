@@ -146,8 +146,11 @@ CodegenContext::~CodegenContext() {
 
 bool TTypeCmp::operator () (const std::tuple<std::string, Type, Type>& lhs,
                       const std::tuple<std::string, Type, Type>& rhs) const {
-    return std::get<1>(lhs)->gid() < std::get<1>(rhs)->gid() ||
-           (std::get<1>(lhs)->gid() == std::get<1>(rhs)->gid() &&
+    return  std::get<0>(lhs) < std::get<0>(rhs) ||
+           (std::get<0>(lhs) == std::get<0>(rhs) &&
+            std::get<1>(lhs)->gid() < std::get<1>(rhs)->gid()) ||
+           (std::get<0>(lhs) == std::get<0>(rhs) &&
+            std::get<1>(lhs)->gid() == std::get<1>(rhs)->gid() &&
             std::get<2>(lhs)->gid() < std::get<2>(rhs)->gid()
            );
 }

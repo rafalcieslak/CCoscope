@@ -72,8 +72,14 @@ llvm::Value* VariableExprAST::codegen() const {
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
+    std::cerr << "variable " << Name << std::endl;
     AllocaInst* alloca = ctx().VarsInScope[Name].first;
+    std::cerr << "alloca to" << std::endl;
+    alloca->dump();
     Value* V = ctx().Builder.CreateLoad(alloca, Name.c_str());
+    std::cerr << " a load to " << std::endl;
+    V->dump();
+    std::cerr << std::endl;
     return V;
 }
 
@@ -92,12 +98,18 @@ llvm::Value* BinaryExprAST::codegen() const {
     // conversion cost and lookup them one by one.
     // <-----
     // TODO: implicit conversions and a cost function related to it
-
+    
+    std::cerr << "binop "<< Opcode << std::endl;
     auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 
         LHS->maintype(), RHS->maintype()));
 
-    if(fitit != ctx().BinOpCreator.end())
+    if(fitit != ctx().BinOpCreator.end()) {
+        auto r = (fitit->second.first)(valL, valR);
+        std::cerr << "res to ";
+        r->dump();
+        std::cerr << "restype to " << std::endl;
         return (fitit->second.first)(valL, valR);
+    }
     else {
         ctx().AddError("Operator's '" + Opcode + "' codegen is not implemented!");
         return nullptr;
@@ -152,13 +164,18 @@ llvm::Value* BlockAST::codegen() const {
             Value* zero = var.second->defaultLLVMsValue();
             ctx().Builder.CreateStore(zero, Alloca);
             ctx().VarsInScope[var.first] = std::make_pair(Alloca, var.second);
+            std::cerr << "block var do scopeu: " << var.first << std::endl;
+            Alloca->dump();
+            std::cerr << std::endl;
         }
 
         // Generate statements inside the block
         Value* last = nullptr;
         bool errors = false;
+        std::cerr << "codegen statementow w bloku " << std::endl;
         for(const auto& stat : Statements){
             last = stat->codegen();
+            std::cerr << "i kolejny " << std::endl;
             if(!last) errors = true;
         }
         
@@ -178,7 +195,13 @@ llvm::Value* AssignmentAST::codegen() const {
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
+    
+    std::cerr << "assignment to " << Name << std::endl;
     AllocaInst* alloca = ctx().VarsInScope[Name].first;
+    alloca->dump();
+    std::cerr << "to bylo alloca, a Val to ";
+    Val->dump();
+    std::cerr << std::endl;
     ctx().Builder.CreateStore(Val, alloca);
     return Val;
 }

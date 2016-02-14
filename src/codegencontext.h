@@ -120,11 +120,6 @@ public:
     llvm::Function* CurrentFunc;
     mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
     
-    /* Ad-hoc solution here! I don't know how to make this map declaration
-     * compile when `Type` appears in the key type, so I exchanged it
-     * to size_t which is __always__ assumed to be gid() of
-     * corresponding type
-     */ 
     std::map<std::tuple<std::string, Type, Type>, 
             std::pair<std::function<llvm::Value*(llvm::Value*, llvm::Value*)>,
                       Type>,

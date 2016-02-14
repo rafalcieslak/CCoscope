@@ -88,7 +88,8 @@ llvm::Type* BooleanTypeAST::toLLVMs () const {
 }
 
 llvm::Type* FunctionTypeAST::toLLVMs () const {
-    return nullptr; // llvm::Type* and llvm::FunctionType* incompatibility?
+    return FuntoLLVMs();
+    //return nullptr; // llvm::Type* and llvm::FunctionType* incompatibility?
     /*
     std::vector<llvm::Type*> argsTypes;
     for (size_t i = 1; i < size(); i++)
