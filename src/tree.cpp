@@ -534,7 +534,7 @@ Type AssignmentAST::maintype() const {
 
 Type CallExprAST::maintype() const {
     // TODO! 
-    auto CalleeFit = ctx().prototypes.find(Callee);
+    auto CalleeFit = ctx().prototypesMap.find(Callee);
     if(CalleeFit != ctx().prototypes.end())
         return CalleeFit->second->ReturnType;
     ctx().AddError("Call to undefined function " + Callee);

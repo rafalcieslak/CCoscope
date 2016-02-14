@@ -277,7 +277,7 @@ const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
     return node;
 }
 
-const TypeAST* CodegenContext::introduce_expr(const TypeAST* node) {
+const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
     /* This look ridiculously simple now, but in the future we can
      * make CSE optimization here
      */ 
@@ -285,18 +285,19 @@ const TypeAST* CodegenContext::introduce_expr(const TypeAST* node) {
     return node;
 }
 
-const PrototypeAST* introduce_prototype(const PrototypeAST* node) {
-    if(auto pit = prototypesMap.find(node->Name) != prototypesMap.end()) {
+const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node) {
+    auto pit = prototypesMap.find(node->getName());
+    if(pit != prototypesMap.end()) {
         delete node;
         return pit->second;
     }
 
     prototypes.insert(node);
-    prototypesMap[node->Name] = node;
+    prototypesMap[node->getName()] = node;
     return node;
 }
 
-const FunctionAST* introduce_function(const FunctionAST* node) {
+const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) {
     definitions.insert(node);
     return node;
 }
