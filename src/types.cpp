@@ -31,10 +31,6 @@ const T* Proxy<T>::deref() const {
     return target->template as<T>();
 }*/
 
-bool ExprAST::equal(const ExprAST& other) const {
-    return gid() == other.gid();
-}
-
 using namespace llvm;
 
 Type str2type (CodegenContext& ctx, std::string s) {

@@ -29,7 +29,7 @@ class BooleanTypeAST;     using BooleanType     = Proxy<BooleanTypeAST>;
 class FunctionTypeAST;    using FunctionType    = Proxy<FunctionTypeAST>;
 class ReferenceTypeAST;   using ReferenceType   = Proxy<ReferenceTypeAST>;
 
-Type str2type (std::string s);
+Type str2type (CodegenContext& ctx, std::string s);
 /*
 struct TypeCmp {
     bool operator () (const Type& lhs, const Type& rhs) const;

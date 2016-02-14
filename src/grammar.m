@@ -130,7 +130,7 @@
 // The return type of a function
 % ReturnType : COLON TYPE
 {   token t(tkn_ReturnType);
-    t.returntype.push_back(ccoscope::str2type(TYPE2->id.front()));
+    t.returntype.push_back(ccoscope::str2type(ctx, TYPE2->id.front()));
     return t;
 }
 %            |
@@ -144,7 +144,7 @@
 % TypedIdentifier : IDENTIFIER COLON TYPE
 {  token t(tkn_TypedIdentifier);
    t.typedident.push_back(std::make_pair(IDENTIFIER1->id.front(),
-    ccoscope::str2type(TYPE3->id.front())));
+    ccoscope::str2type(ctx, TYPE3->id.front())));
    return t;
 }
 %                 ;
