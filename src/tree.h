@@ -2,8 +2,9 @@
 #ifndef __TREE_H__
 #define __TREE_H__
 
-#include "codegencontext.h"
-#include "typechecking.h"
+#include "cast.h"
+#include "types.h"
+#include "proxy.h"
 
 #include <string>
 #include <memory>
@@ -12,245 +13,329 @@
 #include <list>
 #include <iostream>
 
-using namespace llvm;
+namespace ccoscope {
+
+class CodegenContext; // forward declaration needed
 
 enum class keyword {
     Break,
     Continue
 };
 
-// Forward declaration for BlockAST <-> ForExprAST dependency
-class ForExprAST;
-class ExprAST; 
-
-using ExprType = std::pair<std::shared_ptr<ExprAST>, datatype/*CCType*/>;
+class ExprAST;             using Expr                = Proxy<ExprAST>;
+template<typename T> class PrimitiveExprAST;
+template<typename T> using PrimitiveExpr = Proxy<PrimitiveExprAST<T>>;
+class VariableExprAST;     using VariableExpr        = Proxy<VariableExprAST>;
+class BinaryExprAST;       using BinaryExpr          = Proxy<BinaryExprAST>;
+class ReturnExprAST;       using ReturnExpr          = Proxy<ReturnExprAST>;
+class BlockAST;            using Block               = Proxy<BlockAST>;
+class AssignmentAST;       using Assignment          = Proxy<AssignmentAST>;
+class CallExprAST;         using CallExpr            = Proxy<CallExprAST>;
+class IfExprAST;           using IfExpr              = Proxy<IfExprAST>;
+class WhileExprAST;        using WhileExpr           = Proxy<WhileExprAST>;
+class ForExprAST;          using ForExpr             = Proxy<ForExprAST>;
+class KeywordAST;          using Keyword             = Proxy<KeywordAST>;
+class PrototypeAST;        using Prototype           = Proxy<PrototypeAST>;
+class FunctionAST;         using Function            = Proxy<FunctionAST>;
 
 /// ExprAST - Base class for all expression nodes.
-class ExprAST {
+class ExprAST : public MagicCast<ExprAST> {
 public:
+    ExprAST(CodegenContext& ctx, size_t gid)
+        : ctx_(ctx)
+        , gid_(gid)
+        , representative_(this)
+    {}
+    
     virtual ~ExprAST() {}
-    virtual Value* codegen(CodegenContext& ctx) const = 0;
-    virtual ExprType maintype(CodegenContext& ctx) const;
+    
+    virtual llvm::Value* codegen() const = 0;
+    virtual Type maintype() const;
+    
+    size_t gid () const { return gid_; }
+    CodegenContext& ctx () const { return ctx_; }
+    bool equal(const ExprAST& other) const;
+    bool is_proxy () const { return representative_ != this; }
+    
+protected:
+    CodegenContext& ctx_;
+    size_t gid_;
+    mutable const ExprAST* representative_;
 
+    template<class T> friend class Proxy;
 };
 
 /// PrimitiveExprAST - Expression class for numeric literals like "1.0"
 /// as well as boolean constants
 template<typename T>
 class PrimitiveExprAST : public ExprAST {
+public:
+    PrimitiveExprAST(CodegenContext& ctx, size_t gid, T v) 
+        : ExprAST(ctx, gid) 
+        , Val(v)
+    {}
+    
+    llvm::Value* codegen() const override;
+    virtual Type maintype () const override;
+
 protected:
     T Val;
-
-public:
-    PrimitiveExprAST(T v) : Val(v) {}
-    
-    Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
 };
-
+/*
 // For some reason putting the implementation below to the .cpp file
-// yields a compiler error.
+// yields a compilation-time error.
 // TODO: understand why :)
 template<typename T>
-ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), DATATYPE_void};//CCVoidType()};
-}
+Type PrimitiveExprAST<T>::maintype() const {
+    return ctx.getVoidTy();
+}*/
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
-    std::string Name;
-
 public:
-    VariableExprAST(const std::string &Name) : Name(Name) {}
+    VariableExprAST(CodegenContext& ctx, size_t gid, const std::string &Name)
+        : ExprAST(ctx, gid)
+        , Name(Name)
+    {}
     
-    Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    llvm::Value* codegen() const override;
+    virtual Type maintype () const override;
+    
+protected:
+    std::string Name;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
-    std::string Opcode;
-    std::shared_ptr<ExprAST> LHS, RHS;
-
 public:
-    BinaryExprAST(std::string Op, std::shared_ptr<ExprAST> LHS,
-                  std::shared_ptr<ExprAST> RHS)
-        : Opcode(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
+    BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
+        : ExprAST(ctx, gid)
+        , Opcode(Op), LHS(LHS), RHS(RHS), bestOverload(nullptr)
+    {}
     
-    Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    llvm::Value* codegen() const override;
+    virtual Type maintype () const override;
+    
+protected:
+    std::string Opcode;
+    Expr LHS, RHS;
+    llvm::Function* bestOverload;
 };
 
 /// ReturnExprAST - Represents a value return expression
 class ReturnExprAST : public ExprAST {
-    std::shared_ptr<ExprAST> Expr;
-
 public:
-    ReturnExprAST(std::shared_ptr<ExprAST> expr)
-        : Expr(std::move(expr)) {}
-    Value* codegen(CodegenContext& ctx) const override;
+    ReturnExprAST(CodegenContext& ctx, size_t gid, Expr expr)
+        : ExprAST(ctx, gid)
+        , Expression(expr)
+    {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    Expr Expression;
 };
 
 /// BlockAST - Represents a list of variable definitions and a list of
 /// statements executed in a particular order
 class BlockAST : public ExprAST {
+protected:
     class ScopeManager {
     public:
         ScopeManager(const BlockAST* parent, CodegenContext& ctx)
             : parent(parent)
             , ctx(ctx)
         {}
-        
-        ~ScopeManager() {
-            for (auto& var : parent->Vars) {
-                auto it = std::find_if(ctx.VarsInScope.begin(),
-                                       ctx.VarsInScope.end(),
-                                       [&var](auto& p) {
-                                           return p.first == var.first;
-                                       });
-                ctx.VarsInScope.erase(it);
-            }
-        }
+        ~ScopeManager();
         
     protected:
         const BlockAST* parent;
         CodegenContext& ctx;
     };
-    
-    std::vector<std::pair<std::string,datatype>> Vars;
-    std::list<std::shared_ptr<ExprAST>> Statements;
 
 public:
-    BlockAST(const std::vector<std::pair<std::string,datatype>> &vars, 
-             const std::list<std::shared_ptr<ExprAST>>& s)
-        : Vars(vars), Statements(s) {}
-    Value* codegen(CodegenContext& ctx) const override;
+    BlockAST(CodegenContext& ctx, size_t gid, 
+             const std::vector<std::pair<std::string, Type>> &vars, 
+             const std::list<Expr>& s)
+        : ExprAST(ctx, gid)
+        , Vars(vars), Statements(s)
+    {}
+    
+    llvm::Value* codegen() const override;
+    
+protected:
+    std::vector<std::pair<std::string, Type>> Vars;
+    std::list<Expr> Statements;
     
     friend ForExprAST;
 };
 
 /// AssignmentAST - Represents an assignment operations
 class AssignmentAST : public ExprAST {
-    std::string Name;
-    std::shared_ptr<ExprAST> Expr;
 public:
-    AssignmentAST(const std::string& Name, std::shared_ptr<ExprAST> Expr) :
-        Name(Name), Expr(Expr) {}
-    Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    AssignmentAST(CodegenContext& ctx, size_t gid,
+                  const std::string& Name, Expr expr)
+        : ExprAST(ctx, gid)
+        , Name(Name), Expression(expr)
+    {}
+    
+    llvm::Value* codegen() const override;
+    virtual Type maintype () const override;
+
+protected:
+    std::string Name;
+    Expr Expression;
 };
 
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
-    std::string Callee;
-    std::vector<std::shared_ptr<ExprAST>> Args;
-
 public:
-    CallExprAST(const std::string &Callee,
-                std::vector<std::shared_ptr<ExprAST>> Args)
-        : Callee(Callee), Args(std::move(Args)) {}
-    Value* codegen(CodegenContext& ctx) const override;
-    virtual ExprType maintype (CodegenContext& ctx) const override;
+    CallExprAST(CodegenContext& ctx, size_t gid, const std::string &Callee,
+                std::vector<Expr> Args)
+        : ExprAST(ctx, gid)
+        , Callee(Callee), Args(std::move(Args))
+    {}
+    
+    llvm::Value* codegen() const override;
+    virtual Type maintype () const override;
+
+protected:
+    std::string Callee;
+    std::vector<Expr> Args;
 };
 
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
-    std::shared_ptr<ExprAST> Cond, Then, Else;
-
 public:
-    IfExprAST(std::shared_ptr<ExprAST> Cond, std::shared_ptr<ExprAST> Then,
-              std::shared_ptr<ExprAST> Else)
-        : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
-    Value* codegen(CodegenContext& ctx) const override;
+    IfExprAST(CodegenContext& ctx, size_t gid, Expr Cond, Expr Then, Expr Else)
+        : ExprAST(ctx, gid)
+        , Cond(Cond), Then(Then), Else(Else)
+    {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    Expr Cond, Then, Else;
 };
 
 /// WhileExprAST - Expression class for while.
 class WhileExprAST : public ExprAST {
-    std::shared_ptr<ExprAST> Cond, Body;
-
 public:
-    WhileExprAST(std::shared_ptr<ExprAST> Cond,
-                 std::shared_ptr<ExprAST> Body)
-        : Cond(std::move(Cond)), Body(std::move(Body)) {}
-    Value* codegen(CodegenContext& ctx) const override;
+    WhileExprAST(CodegenContext& ctx, size_t gid, Expr Cond, Expr Body)
+        : ExprAST(ctx, gid)
+        , Cond(Cond), Body(Body)
+    {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    Expr Cond, Body;
 };
 
 /// ForExprAST - Expression class for for.
 class ForExprAST : public ExprAST {
-    std::shared_ptr<ExprAST> Init, Cond;
-    std::list<std::shared_ptr<ExprAST>> Step;
-    std::shared_ptr<ExprAST> Body;
-
 public:
-    ForExprAST(std::shared_ptr<ExprAST> Init,
-                 std::shared_ptr<ExprAST> Cond,
-                 std::list<std::shared_ptr<ExprAST>> Step,
-                 std::shared_ptr<ExprAST> Body)
-        : Init(std::move(Init)), Cond(std::move(Cond)),
-          Step(std::move(Step)), Body(std::move(Body)) {}
-    Value* codegen(CodegenContext& ctx) const override;
+    ForExprAST(CodegenContext& ctx, size_t gid, Expr Init,
+                 Expr Cond, std::list<Expr> Step, Expr Body)
+        : ExprAST(ctx, gid)
+        , Init(Init), Cond(Cond),
+          Step(Step), Body(Body)
+    {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    Expr Init, Cond;
+    std::list<Expr> Step;
+    Expr Body;
 };
 
 class KeywordAST : public ExprAST {
-    keyword which;
-    
 public:
-    KeywordAST(keyword which) : which(which) {}
-    Value* codegen(CodegenContext& ctx) const override;
+    KeywordAST(CodegenContext& ctx, size_t gid, keyword which)
+        : ExprAST(ctx, gid)
+        , which(which)
+    {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    keyword which;
 };
 
 // --------------------------------------------------------------------------------
 
-class FunctionAST; // forward declaration for PrototypeAST <-> FunctionAST dependency
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes).
-class PrototypeAST {
-    friend class FunctionAST;
-    
-    std::string Name;
-    std::vector<std::pair<std::string, datatype>> Args;
-    datatype ReturnType;
-
+class PrototypeAST : public ExprAST {
 public:
-    PrototypeAST(const std::string &Name, std::vector<std::pair<std::string, datatype>> Args, datatype ReturnType)
-        : Name(Name), Args(std::move(Args)), ReturnType(ReturnType) {}
+    PrototypeAST(CodegenContext& ctx, size_t gid, const std::string &Name, 
+                 std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
+        : ExprAST(ctx, gid)
+        , Name(Name), Args(std::move(Args)), ReturnType(ReturnType)
+    {}
+    
     const std::string &getName() const { return Name; }
-    const std::vector<std::pair<std::string, datatype>>& getArgs() const { return Args; }
-    Function* codegen(CodegenContext& ctx) const;
-    virtual ExprType maintype (CodegenContext& ctx) const;
+    Type getReturnType() const { return ReturnType; }
+    const std::vector<std::pair<std::string, Type>>& getArgs() const { return Args; }
+    llvm::Function* codegen() const override;
+    Type maintype () const override;
+
+protected:
+    std::string Name;
+    std::vector<std::pair<std::string, Type>> Args;
+    Type ReturnType;
+    
+    friend class FunctionAST;
 };
 
 /// FunctionAST - This class represents a function definition itself.
-class FunctionAST {
-    std::shared_ptr<PrototypeAST> Proto;
-    std::shared_ptr<ExprAST> Body;
-
+class FunctionAST : public ExprAST {
 public:
-    FunctionAST(std::shared_ptr<PrototypeAST> Proto,
-                std::shared_ptr<ExprAST> Body)
-        : Proto(std::move(Proto)), Body(std::move(Body)) {}
-    Function* codegen(CodegenContext& ctx) const;
-    virtual ExprType maintype (CodegenContext& ctx) const;
+    FunctionAST(CodegenContext& ctx, size_t gid, Prototype Proto, Expr Body)
+        : ExprAST(ctx, gid)
+        , Proto(Proto), Body(Body)
+    {}
+    
+    llvm::Function* codegen() const override;
+    Type maintype () const override;
+
+protected:
+    Prototype Proto;
+    Expr Body;
 };
 
 
 // I really hate having to add this operator, but maphoon insists on printing all token arguments...
-inline std::ostream& operator<<(std::ostream& s, const std::list<std::shared_ptr<ExprAST>>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::list<Expr>& l){
     s << "A list of " << l.size() << " statements." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std::string,datatype>>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std::string,Type>>& l){
     s << "A list of " << l.size() << " function arguments." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,datatype>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::pair<std::string,Type>& l){
     s << "Identifier " << l.first << "and its type." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::vector<std::shared_ptr<ExprAST>>& l){
+
+inline std::ostream& operator<<(std::ostream& s, const std::vector<Expr>& l){
     s << "List of  " << l.size() << " arguments for a function call." << std::endl;
     return s;
+}
+
+inline std::ostream& operator<<(std::ostream& s, const Expr& l){
+    s << "Expression" << std::endl;
+    return s;
+}
+
+inline std::ostream& operator<<(std::ostream& s, const Type& l){
+    s << "Type" << std::endl;
+    return s;
+}
+
 }
 
 #endif // __TREE_H__

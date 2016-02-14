@@ -1,14 +1,25 @@
+fun gcd (a : int) : int {
+    var c : int;
+    c := 0;
+    while(c < 5) {
+      c := c + 1;
+    }
+    return c;
+}
+
 fun main() : int {
     var i : int;
     var f : double;
     var btrue : bool;
     var bfalse : bool;
+    var k : int;
     i := 10;
     f := 31.4e-1 ;
     btrue := true;
     bfalse := false;
-
+    k := i;
     print(i);
+    print(k);
     print(f);
     print(btrue);
     print(bfalse);

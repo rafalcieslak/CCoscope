@@ -1,0 +1,8 @@
+extern fun abs(num : int) : int;
+extern fun pow(a : double, b : double) : double;
+fun main() : int{
+    print(pow(3.0,2.0));
+    print(abs(25));
+    print(abs(-23));
+    print(abs(28));
+}
