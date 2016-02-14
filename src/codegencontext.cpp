@@ -18,9 +18,6 @@ CodegenContext::CodegenContext()
     , gid_(0)
 {
     // Operators on integers
-    auto intgid = getIntegerTy()->gid();
-    auto doublegid = getDoubleTy()->gid();
-    auto boolgid = getBooleanTy()->gid();
     
     BinOpCreator[std::make_tuple("ADD", getIntegerTy(), getIntegerTy())] =
         std::make_pair([this] (Value* LHS, Value* RHS) {
@@ -292,7 +289,7 @@ const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node
     auto pit = prototypesMap.find(node->getName());
     if(pit != prototypesMap.end()) {
         delete node;
-        return pit->second;
+        return *(pit->second);
     }
 
     prototypes.insert(node);

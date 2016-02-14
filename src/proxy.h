@@ -48,7 +48,7 @@ public:
     // casts
 
     operator bool() const { return node_; }
-    operator const T*() const { return deref(); }
+    //operator const T*() const { return deref(); }
 
     /// Automatic up-cast in the class hierarchy.
     template<class U> operator Proxy<U>() {
