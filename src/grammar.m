@@ -107,7 +107,6 @@
          ReturnType7->returntype.front()
          );
 
-    ctx.prototypes.insert(Prototype);
 }
 %          ;
 
@@ -124,7 +123,6 @@
          Block7->tree.front()
          );
 
-    ctx.definitions.insert(Function);
 }
 %         ;
 

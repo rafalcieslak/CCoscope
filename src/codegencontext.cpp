@@ -211,15 +211,11 @@ Keyword CodegenContext::makeKeyword(keyword which) {
 Prototype CodegenContext::makePrototype(const std::string &Name, 
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
 {
-    auto nprot = new PrototypeAST(*this, gid_++, Name, Args, ReturnType);
-    //prototypes.insert(nprot);
-    return nprot;
+    return introduce_prototype(new PrototypeAST(*this, gid_++, Name, Args, ReturnType));
 }
 
 Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
-    auto nfun = new FunctionAST(*this, gid_++, Proto, Body);
-    //definitions.insert(nfun);
-    return nfun;
+    return introduce_function(new FunctionAST(*this, gid_++, Proto, Body));
 }
 
 // ==---------------------------------------------------------------
@@ -278,6 +274,30 @@ const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
      * make CSE optimization here
      */ 
     expressions.insert(node);
+    return node;
+}
+
+const TypeAST* CodegenContext::introduce_expr(const TypeAST* node) {
+    /* This look ridiculously simple now, but in the future we can
+     * make CSE optimization here
+     */ 
+    types.insert(node);
+    return node;
+}
+
+const PrototypeAST* introduce_prototype(const PrototypeAST* node) {
+    if(auto pit = prototypesMap.find(node->Name) != prototypesMap.end()) {
+        delete node;
+        return pit->second;
+    }
+
+    prototypes.insert(node);
+    prototypesMap[node->Name] = node;
+    return node;
+}
+
+const FunctionAST* introduce_function(const FunctionAST* node) {
+    definitions.insert(node);
     return node;
 }
 

@@ -100,7 +100,8 @@ public:
     
     //mutable GIDSet<PrototypeAST> prototypes;
     mutable GIDSet<FunctionAST> definitions;
-    mutable std::map<std::string, Prototype> prototypes;
+    mutable GIDSet<PrototypeAST> prototypes;
+    mutable std::map<std::string, Prototype> prototypesMap;
     mutable GIDSet<ExprAST> expressions;
     mutable GIDSet<TypeAST> types;
     
@@ -153,6 +154,8 @@ protected:
     const T* introduceT(const T* node) { return introduce_type(node)->template as<T>(); }
     const ExprAST* introduce_expr(const ExprAST*);
     const TypeAST* introduce_type(const TypeAST*);
+    const PrototypeAST* introduce_prototype(const PrototypeAST*);
+    const FunctionAST* introduce_function(const FunctionAST*);
     
     mutable size_t gid_;
 };
