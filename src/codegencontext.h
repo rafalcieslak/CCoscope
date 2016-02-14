@@ -57,7 +57,7 @@ struct TypeEqual {
     } 
 };
 
-using TypeSet = std::unordered_set<const TypeAST*, TypeHash<const TypeAST*>, TypeEqual<const TypeAST*>>;
+using TypeSet = std::unordered_set<const TypeAST*, TypeHash, TypeEqual>;
 
 struct TTypeCmp {
     bool operator () (const std::tuple<std::string, Type, Type>& lhs,
