@@ -38,6 +38,8 @@ public:
     const T* deref() const;
     const T* operator  * () const { return deref(); }
     const T* operator -> () const { return *(*this); }
+    //bool operator < (const Proxy<T>& other) const { return *(this->deref()) < *(other.deref()); }
+    Proxy<T>& operator = (const Proxy<T>& other) { node_ = other.node(); return *this; }
     
     bool is_empty() const { return node_ == nullptr; }
     //void dump(std::ostream& stream) const;

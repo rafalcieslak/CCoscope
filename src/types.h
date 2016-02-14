@@ -56,6 +56,8 @@ public:
     size_t gid () const { return gid_; }
     bool is_proxy () const { return representative_ != this; }
     
+    bool operator < (const TypeAST& other) const { return gid() < other.gid(); }
+    
 protected:
     CodegenContext& ctx_;
     size_t gid_;
