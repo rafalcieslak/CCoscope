@@ -278,9 +278,12 @@ const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
 }
 
 const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
-    /* This look ridiculously simple now, but in the future we can
-     * make CSE optimization here
-     */ 
+    auto it = types.find(node);
+    if(it != types.end() && *it != node) {
+        delete node;
+        return *it;
+    }
+    
     types.insert(node);
     return node;
 }

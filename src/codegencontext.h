@@ -49,6 +49,16 @@ struct GIDCmp {
     }
 };
 
+// naiive for now
+struct TypeHash { size_t operator () (const TypeAST* t) const { return 1; } };
+struct TypeEqual {
+    bool operator () (const TypeAST* t1, const TypeAST* t2) const {
+        return t1->equal(*t2);
+    } 
+};
+
+using TypeSet = std::unordered_set<const TypeAST*, TypeHash<const TypeAST*>, TypeEqual<const TypeAST*>>;
+
 struct TTypeCmp {
     bool operator () (const std::tuple<std::string, Type, Type>& lhs,
                       const std::tuple<std::string, Type, Type>& rhs) const;
@@ -103,7 +113,7 @@ public:
     mutable GIDSet<PrototypeAST> prototypes;
     mutable std::map<std::string, Prototype> prototypesMap;
     mutable GIDSet<ExprAST> expressions;
-    mutable GIDSet<TypeAST> types;
+    mutable /*GIDSet<TypeAST>*/TypeSet types;
     
     std::shared_ptr<llvm::Module> TheModule;
     llvm::IRBuilder<> Builder;
