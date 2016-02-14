@@ -88,9 +88,6 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     tok.prepare(infile);
 
     std::cout << ColorStrings::Color(Color::Cyan, true) << "Parsing " << infile << ColorStrings::Reset() << std::endl;
-
-    //std::list<Prototype> prototypes;
-    //std::list<Function> definitions;
     
     auto ctx = CodegenContext{};
     
@@ -108,9 +105,6 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
 
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
     
-    //std::unique_ptr<World> world(new World(*module, infile));
-    //auto& ctx = world->ctx();
-    //CodegenContext ctx(module, infile);
     ctx.SetModuleAndFile(module, infile);
     
     auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);

@@ -124,14 +124,6 @@ CodegenContext::CodegenContext()
             return this->Builder.CreateFCmpOLE(LHS, RHS, "fcmptmp");
         }, getBooleanTy());  
 }
-/*
-/// Deprecated
-CodegenContext::CodegenContext(std::shared_ptr<Module> module, std::string fname)
-    : CodegenContext()
-    , TheModule(module)
-    , Builder(getGlobalContext())
-    , filename(fname)
-{}*/
 
 CodegenContext::~CodegenContext() {
     for(auto& it : prototypes)

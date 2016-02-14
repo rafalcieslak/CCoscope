@@ -70,9 +70,6 @@ public:
     CodegenContext();
     ~CodegenContext();
     
-    /*/// Deprecated
-    CodegenContext(std::shared_ptr<llvm::Module> module, std::string filename);
-    */
     // ==---------------------------------------------------------------
     // Factory methods for AST nodes
     
@@ -108,12 +105,11 @@ public:
     
     // ==---------------------------------------------------------------
     
-    //mutable GIDSet<PrototypeAST> prototypes;
     mutable GIDSet<FunctionAST> definitions;
     mutable GIDSet<PrototypeAST> prototypes;
     mutable std::map<std::string, Prototype> prototypesMap;
     mutable GIDSet<ExprAST> expressions;
-    mutable /*GIDSet<TypeAST>*/TypeSet types;
+    mutable TypeSet types;
     
     std::shared_ptr<llvm::Module> TheModule;
     llvm::IRBuilder<> Builder;

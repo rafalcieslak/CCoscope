@@ -15,21 +15,6 @@ template class Proxy<DoubleTypeAST>;
 template class Proxy<BooleanTypeAST>;
 template class Proxy<FunctionTypeAST>;
 template class Proxy<ReferenceTypeAST>;
-/*
-bool TypeCmp::operator() (const Type& lhs, const Type& rhs) const {
-    return lhs->gid() < rhs->gid();
-}*/
-/*
-template<class T>
-const T* Proxy<T>::deref() const {
-    if (node_ == nullptr) return nullptr;
-
-    const T* target = node_;
-    for (; target->is_proxy(); target = target->representative_->template as<T>())
-        assert(target != nullptr);
-    
-    return target->template as<T>();
-}*/
 
 using namespace llvm;
 
@@ -87,20 +72,7 @@ llvm::Type* BooleanTypeAST::toLLVMs () const {
     return llvm::Type::getInt1Ty(getGlobalContext());
 }
 
-llvm::Type* FunctionTypeAST::toLLVMs () const {
-    return FuntoLLVMs();
-    //return nullptr; // llvm::Type* and llvm::FunctionType* incompatibility?
-    /*
-    std::vector<llvm::Type*> argsTypes;
-    for (size_t i = 1; i < size(); i++)
-        argsTypes.push_back(operands_[i]->toLLVMs());
-    
-    return llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);*/
-}
-
-llvm::FunctionType* FunctionTypeAST::FuntoLLVMs () const {
-    // llvm::Type* and llvm::FunctionType* incompatibility?
-    
+llvm::FunctionType* FunctionTypeAST::toLLVMs () const {
     std::vector<llvm::Type*> argsTypes;
     for (size_t i = 1; i < size(); i++)
         argsTypes.push_back(operands_[i]->toLLVMs());

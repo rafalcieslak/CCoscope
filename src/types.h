@@ -30,10 +30,6 @@ class FunctionTypeAST;    using FunctionType    = Proxy<FunctionTypeAST>;
 class ReferenceTypeAST;   using ReferenceType   = Proxy<ReferenceTypeAST>;
 
 Type str2type (CodegenContext& ctx, std::string s);
-/*
-struct TypeCmp {
-    bool operator () (const Type& lhs, const Type& rhs) const;
-};*/
 
 class TypeAST : public MagicCast<TypeAST> { 
 public:
@@ -131,8 +127,7 @@ public:
     }
     
     bool equal (const TypeAST& other) const override;
-    llvm::Type* toLLVMs () const override;
-    llvm::FunctionType* FuntoLLVMs () const;
+    llvm::FunctionType* toLLVMs () const override;
     
     Type returnType () const { return operand(0); }
     // Mind you -- one-based argument list

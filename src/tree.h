@@ -277,12 +277,12 @@ public:
     {}
     
     const std::string &getName() const { return Name; }
+    Type getReturnType() const { return ReturnType; }
     const std::vector<std::pair<std::string, Type>>& getArgs() const { return Args; }
     llvm::Function* codegen() const override;
     Type maintype () const override;
 
-//protected:
-public:
+protected:
     std::string Name;
     std::vector<std::pair<std::string, Type>> Args;
     Type ReturnType;
