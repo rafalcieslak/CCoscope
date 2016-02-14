@@ -24,6 +24,17 @@ template class Proxy<KeywordAST>;
 template class Proxy<PrototypeAST>;
 template class Proxy<FunctionAST>;
 
+template<class T>
+const T* Proxy<T>::deref() const {
+    if (node_ == nullptr) return nullptr;
+
+    const ExprAST* target = node_;
+    for (; target->is_proxy(); target = target->representative_)
+        assert(target != nullptr);
+    
+    return target->template as<T>();
+}
+
 bool ExprAST::equal(const ExprAST& other) const {
     return gid() == other.gid();
 }
@@ -80,23 +91,18 @@ llvm::Value* BinaryExprAST::codegen() const {
     // various combinations types, which would yield a set of possible operators. Or we could order them by their
     // conversion cost and lookup them one by one.
     // <-----
-    //       I think we can reuse the types that LLVM gives to us
-    //       and this approach is applied in current implementation
     // TODO: implicit conversions and a cost function related to it
 
-    auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 1, 2));
-    
-   /* if (LHS->maintype() == ctx().getIn
-        fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, ctx().getIntegerTy(), ctx().getIntegerTy()));
-    else if (valL->getType()->isDoubleTy() && valR->getType()->isDoubleTy())
-        fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, ctx().getDoubleTy(), ctx().getDoubleTy()));
-*/
+    auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 
+        LHS->maintype(), RHS->maintype()));
+
     if(fitit != ctx().BinOpCreator.end())
-        return (fitit->second)(valL, valR);
+        return (fitit->second.first)(valL, valR);
     else {
         ctx().AddError("Operator's '" + Opcode + "' codegen is not implemented!");
         return nullptr;
     }
+    return nullptr;
 }
 
 llvm::Value* ReturnExprAST::codegen() const {
@@ -189,7 +195,7 @@ llvm::Value* CallExprAST::codegen() const {
         std::string formatSpecifier;
         
         // TODO !!!!!!!!!!
-        if(Args[0]->gid() == 2)//maintype() == ctx().getDoubleTy())
+        if(Args[0]->maintype() == ctx().getDoubleTy())
             formatSpecifier = "%f";
         else
             formatSpecifier = "%d";
@@ -214,7 +220,11 @@ llvm::Value* CallExprAST::codegen() const {
 #endif
         return ctx().Builder.CreateCall(ctx().func_printf, ArgsV, "calltmp");
     }
-
+    
+    /* TODO the checks below should probably go into typechecking phase, not
+     * codegen!
+     */
+      
     // Look up the name in the global module table.
     llvm::Function *CalleeF = ctx().TheModule->getFunction(Callee);
     if (!CalleeF){
@@ -345,22 +355,21 @@ llvm::Value* ForExprAST::codegen() const {
      *     }
      * }`
      */
-     return nullptr; // TODO - adjust to changes
-    /* 
-    auto body = std::static_pointer_cast<BlockAST>(Body);
+     
+    auto body = Body->as<BlockAST>();
     auto innerVars = body->Vars;
     auto innerStatements = body->Statements;
     innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
-    auto whileAST = std::make_shared<WhileExprAST>(Cond,
-      std::make_shared<BlockAST>(innerVars, innerStatements));
+    auto whileAST = ctx().makeWhile(Cond, 
+        ctx().makeBlock(innerVars, innerStatements));
 
-    auto init = std::static_pointer_cast<BlockAST>(Init);
+    auto init = Init->as<BlockAST>();
     auto outerStatements = init->Statements;
     outerStatements.push_back(whileAST);
 
-    auto block = std::make_shared<BlockAST>(init->Vars, outerStatements);
+    auto block = ctx().makeBlock(init->Vars, outerStatements);
 
-    return block->codegen(ctx);*/
+    return block->codegen();
 }
 
 llvm::Value* KeywordAST::codegen() const {
@@ -392,7 +401,7 @@ llvm::Value* KeywordAST::codegen() const {
         case keyword::Continue:
             if (!ctx().is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
-                // they wrote `break;` outside any loop
+                // they wrote `continue;` outside any loop
                 ctx().AddError("'continue' keyword outside any loop");
                 return nullptr;
             } else {
@@ -412,76 +421,69 @@ llvm::Value* KeywordAST::codegen() const {
 
 
 llvm::Function* PrototypeAST::codegen() const {
-  // Make the function type:  double(double,double) etc.
 
-    // TODO: Respect argument types.
-  std::vector<Type> argsTypes;
-  for (auto& p : Args) {
-      argsTypes.push_back(p.second);
-  }
+    auto F =
+      llvm::Function::Create(this->maintype()->FuntoLLVMs(),
+        llvm::Function::ExternalLinkage, Name, ctx().TheModule.get()
+    );
 
-  auto FT = ctx().getFunctionTy(ReturnType, argsTypes);
+    // Set names for all arguments.
+    unsigned Idx = 0;
+    for (auto &Arg : F->args())
+        Arg.setName(Args[Idx++].first);
 
-  auto F =
-      llvm::Function::Create(FT->FuntoLLVMs(), llvm::Function::ExternalLinkage, Name, ctx().TheModule.get());
-
-  // Set names for all arguments.
-  unsigned Idx = 0;
-  for (auto &Arg : F->args())
-    Arg.setName(Args[Idx++].first);
-
-  return F;
+    return F;
 }
 
 
 llvm::Function *FunctionAST::codegen() const {
-  using namespace llvm;
-  
-  // First, check for an existing function from a previous 'extern' declaration.
-  auto TheFunction = ctx().TheModule->getFunction(Proto->getName());
+    using namespace llvm;
 
-  // The function was not previously declared with an extern, so we
-  // need to emit the prototype declaration.
-  if (!TheFunction){
-    TheFunction = Proto->codegen();
-  }
+    // First, check for an existing function from a previous 'extern' declaration.
+    auto TheFunction = ctx().TheModule->getFunction(Proto->getName());
 
-  // Set current function
-  ctx().CurrentFunc = TheFunction;
+    // The function was not previously declared with an extern, so we
+    // need to emit the prototype declaration.
+    if (!TheFunction){
+        TheFunction = Proto->codegen();
+    }
 
-  // Create a new basic block to start insertion into.
-  BasicBlock *BB = BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
-  ctx().Builder.SetInsertPoint(BB);
+    // Set current function
+    ctx().CurrentFunc = TheFunction;
 
-  // Clear the scope.
-  ctx().VarsInScope.clear();
+    // Create a new basic block to start insertion into.
+    BasicBlock *BB = BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
+    ctx().Builder.SetInsertPoint(BB);
 
-  size_t i = 0;
-  // Record the function arguments in the VarsInScope map.
-  for (auto &Arg : TheFunction->args()){
-      AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), Arg.getType());
-      ctx().Builder.CreateStore(&Arg,Alloca);
-      ctx().VarsInScope[Arg.getName()] = std::make_pair(Alloca, (Proto->getArgs())[i].second);
-      i++;
-  }
+    // Clear the scope.
+    ctx().VarsInScope.clear();
 
-  // Insert function body into the function insertion point.
-  Value* val = Body->codegen();
+    size_t i = 0;
+    // Record the function arguments in the VarsInScope map.
+    for (auto &Arg : TheFunction->args()){
+        AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), Arg.getType());
+        ctx().Builder.CreateStore(&Arg,Alloca);
+        ctx().VarsInScope[Arg.getName()] = std::make_pair(Alloca, (Proto->getArgs())[i].second);
+        i++;
+    }
 
-  // Before terminating the function, create a default return value, in case the function body does not contain one.
-  // TODO: Default return type.
-  ctx().Builder.CreateRet(Proto->ReturnType->defaultLLVMsValue());
+    // Insert function body into the function insertion point.
+    Value* val = Body->codegen();
 
-  if(val){
+    // Before terminating the function, create a default return value, in case the function body does not contain one.
+    // TODO: Default return type.
+    ctx().Builder.CreateRet(Proto->ReturnType->defaultLLVMsValue());
+
+    if(val){
     // Validate the generated code, checking for consistency.
-    verifyFunction(*TheFunction);
+        verifyFunction(*TheFunction);
 
-    return TheFunction;
-  }
+        return TheFunction;
+    }
 
-  // Codegenning body returned nullptr, so an error was encountered. Remove the function.
-  TheFunction->eraseFromParent();
-  return nullptr;
+    // Codegenning body returned nullptr, so an error was encountered. Remove the function.
+    TheFunction->eraseFromParent();
+    return nullptr;
 }
 
 // --------------------------------------------------
@@ -517,35 +519,39 @@ Type VariableExprAST::maintype() const {
 }
 
 Type BinaryExprAST::maintype() const {
-    return ctx().getVoidTy(); // TODO!
+    auto fitit = ctx().BinOpCreator.find(std::make_tuple(
+        Opcode, LHS->maintype(), RHS->maintype()));
+    if(fitit != ctx().BinOpCreator.end())
+        return fitit->second;
+    ctx().AddError("Binary op " + Opcode + " doesn't have appropriate overload");
+    return ctx().getVoidTy();
 }
 
 Type AssignmentAST::maintype() const {
-    // TODO
+    // TODO -- maybe a ReferenceType ?
     return Expression->maintype();
 }
 
 Type CallExprAST::maintype() const {
     // TODO! 
-    auto CalleeF = ctx().TheModule->getFunction(Callee);
-    // ad-hoc solution :(
-    // the more I create such solutions, the more I think
-    // we should stick to the LLVM's type system
-    // as much as we can
-    if(CalleeF->getReturnType()->isIntegerTy())
-        return ctx().getIntegerTy();
-    else if(CalleeF->getReturnType()->isDoubleTy())
-        return ctx().getDoubleTy();
-    else
-        return ctx().getVoidTy();
+    auto CalleeFit = ctx().prototypes.find(Callee);
+    if(CalleeFit != ctx().prototypes.end())
+        return CalleeFit->second->ReturnType;
+    ctx().AddError("Call to undefined function " + Callee);
+    return ctx().getVoidTy();
 }
 
 Type PrototypeAST::maintype() const {
-    return ctx().getVoidTy(); // TODO
+    std::vector<Type> argsTypes;
+    for (auto& p : Args) {
+        argsTypes.push_back(p.second);
+    }
+
+    return ctx().getFunctionTy(ReturnType, argsTypes);
 }
 
 Type FunctionAST::maintype() const {
-    return ctx().getVoidTy();// TODO
+    return Proto->maintype();
 }
 
 BlockAST::ScopeManager::~ScopeManager() {

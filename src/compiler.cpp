@@ -120,7 +120,7 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     bool errors = false;
 
     for(const auto& protoAST : ctx.prototypes){
-        llvm::Function* func = protoAST->codegen();
+        llvm::Function* func = protoAST.second->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // func->dump();
     }

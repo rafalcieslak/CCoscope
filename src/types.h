@@ -54,6 +54,7 @@ public:
     
     CodegenContext& ctx () const { return ctx_; }
     size_t gid () const { return gid_; }
+    bool is_proxy () const { return representative_ != this; }
     
 protected:
     CodegenContext& ctx_;

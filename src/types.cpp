@@ -15,11 +15,21 @@ template class Proxy<DoubleTypeAST>;
 template class Proxy<BooleanTypeAST>;
 template class Proxy<FunctionTypeAST>;
 template class Proxy<ReferenceTypeAST>;
-
 /*
 bool TypeCmp::operator() (const Type& lhs, const Type& rhs) const {
     return lhs->gid() < rhs->gid();
 }*/
+
+template<class T>
+const T* Proxy<T>::deref() const {
+    if (node_ == nullptr) return nullptr;
+
+    const TypeAST* target = node_;
+    for (; target->is_proxy(); target = target->representative_)
+        assert(target != nullptr);
+    
+    return target->template as<T>();
+}
 
 using namespace llvm;
 

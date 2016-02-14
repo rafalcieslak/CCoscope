@@ -58,6 +58,7 @@ class CodegenContext
 {
 public:
     CodegenContext();
+    ~CodegenContext();
     
     /*/// Deprecated
     CodegenContext(std::shared_ptr<llvm::Module> module, std::string filename);
@@ -97,28 +98,30 @@ public:
     
     // ==---------------------------------------------------------------
     
-    GIDSet<PrototypeAST> prototypes;
-    GIDSet<FunctionAST> definitions;
-    GIDSet<ExprAST> expressions;
-    GIDSet<TypeAST> types;
+    //mutable GIDSet<PrototypeAST> prototypes;
+    mutable GIDSet<FunctionAST> definitions;
+    mutable std::map<std::string, Prototype> prototypes;
+    mutable GIDSet<ExprAST> expressions;
+    mutable GIDSet<TypeAST> types;
     
     std::shared_ptr<llvm::Module> TheModule;
     llvm::IRBuilder<> Builder;
     llvm::Function* CurrentFunc;
-    std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
+    mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
     
     /* Ad-hoc solution here! I don't know how to make this map declaration
      * compile when `Type` appears in the key type, so I exchanged it
      * to size_t which is __always__ assumed to be gid() of
      * corresponding type
      */ 
-    std::map<std::tuple<std::string, /*Type, Type*/size_t, size_t>, 
-            std::function<llvm::Value*(llvm::Value*, llvm::Value*)>//,
-            /*TTypeCmp*/> BinOpCreator;
+    std::map<std::tuple<std::string, Type, Type>, 
+            std::pair<std::function<llvm::Value*(llvm::Value*, llvm::Value*)>,
+                      Type>,
+            TTypeCmp> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB
-    std::list<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> LoopsBBHeaderPost;
+    mutable std::list<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> LoopsBBHeaderPost;
 
     bool is_inside_loop () const { return !LoopsBBHeaderPost.empty(); }
 
@@ -138,7 +141,7 @@ public:
 
 protected:
     // Storage for error messages.
-    std::list<std::pair<std::string, std::string>> errors;
+    mutable std::list<std::pair<std::string, std::string>> errors;
 
     // The base input source file for this module
     std::string filename;

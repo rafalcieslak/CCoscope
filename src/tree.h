@@ -55,6 +55,7 @@ public:
     size_t gid () const { return gid_; }
     CodegenContext& ctx () const { return ctx_; }
     bool equal(const ExprAST& other) const;
+    bool is_proxy () const { return representative_ != this; }
     
 protected:
     CodegenContext& ctx_;
@@ -109,7 +110,7 @@ class BinaryExprAST : public ExprAST {
 public:
     BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
         : ExprAST(ctx, gid)
-        , Opcode(Op), LHS(LHS), RHS(RHS)
+        , Opcode(Op), LHS(LHS), RHS(RHS), bestOverload(nullptr)
     {}
     
     llvm::Value* codegen() const override;
@@ -118,6 +119,7 @@ public:
 protected:
     std::string Opcode;
     Expr LHS, RHS;
+    llvm::Function* bestOverload;
 };
 
 /// ReturnExprAST - Represents a value return expression
@@ -332,11 +334,6 @@ inline std::ostream& operator<<(std::ostream& s, const Type& l){
     s << "Type" << std::endl;
     return s;
 }
-/*
-inline std::ostream& operator<<(std::ostream& s, CodegenContext& l){
-    s << "Context" << std::endl;
-    return s;
-}*/
 
 }
 
