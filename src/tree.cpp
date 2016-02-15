@@ -141,7 +141,6 @@ llvm::Value* BlockAST::codegen() const {
             Value* zero = var.second->defaultLLVMsValue();
             ctx().Builder.CreateStore(zero, Alloca);
             ctx().VarsInScope[var.first] = std::make_pair(Alloca, var.second);
-            std::cerr << std::endl;
         }
 
         // Generate statements inside the block
