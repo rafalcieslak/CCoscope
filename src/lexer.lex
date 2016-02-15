@@ -95,6 +95,8 @@ continue        PUTTOK(tkn_KEYWORD_CONTINUE);
 
 {identifier}    PUTTOK(tkn_IDENTIFIER); TOKADD(id, yytext);
 {whitespace}    {}
+
+.*              PUTTOK(tkn_UNKNOWN);
 %%
 
 
