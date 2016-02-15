@@ -3,8 +3,8 @@
 
 #include "llvm/IR/Verifier.h"
 
-#define NDEBUG
-//#undef NDEBUG
+#define DEBUG 0
+
 namespace ccoscope {
 
 template class Proxy<ExprAST>;
@@ -55,7 +55,7 @@ llvm::Value* PrimitiveExprAST<T>::codegen() const {
 
 llvm::Value* VariableExprAST::codegen() const {
     using namespace llvm;
-    
+
     if(ctx().VarsInScope.count(Name) < 1){
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
@@ -66,8 +66,8 @@ llvm::Value* VariableExprAST::codegen() const {
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
-    using namespace llvm; 
-    
+    using namespace llvm;
+
     Value* valL = LHS->codegen();
     Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
@@ -80,8 +80,8 @@ llvm::Value* BinaryExprAST::codegen() const {
     // conversion cost and lookup them one by one.
     // <-----
     // TODO: implicit conversions and a cost function related to it
-    
-    auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode, 
+
+    auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode,
         LHS->maintype(), RHS->maintype()));
 
     if(fitit != ctx().BinOpCreator.end()) {
@@ -96,7 +96,7 @@ llvm::Value* BinaryExprAST::codegen() const {
 
 llvm::Value* ReturnExprAST::codegen() const {
     using namespace llvm;
-    
+
     Value* val = Expression->codegen();
     if(!val) return nullptr;
 
@@ -117,7 +117,7 @@ llvm::Value* ReturnExprAST::codegen() const {
 
 llvm::Value* BlockAST::codegen() const {
     using namespace llvm;
-    
+
     if(Statements.size() == 0){
         // Aah, an empty block. That seems like a special case,
         // because this results in no Value, and there would be
@@ -151,7 +151,7 @@ llvm::Value* BlockAST::codegen() const {
             last = stat->codegen();
             if(!last) errors = true;
         }
-        
+
         if(errors) return nullptr;
         return last;
     }
@@ -159,7 +159,7 @@ llvm::Value* BlockAST::codegen() const {
 
 llvm::Value* AssignmentAST::codegen() const {
     using namespace llvm;
-    
+
     Value* Val = Expression->codegen();
     if(!Val) return nullptr;
 
@@ -168,7 +168,7 @@ llvm::Value* AssignmentAST::codegen() const {
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
-    
+
     AllocaInst* alloca = ctx().VarsInScope[Name].first;
     ctx().Builder.CreateStore(Val, alloca);
     return Val;
@@ -184,7 +184,7 @@ llvm::Value* CallExprAST::codegen() const {
         }
         std::vector<llvm::Value*> ArgsV;
         std::string formatSpecifier;
-        
+
         // TODO !!!!!!!!!!
         if(Args[0]->maintype() == ctx().getDoubleTy())
             formatSpecifier = "%f";
@@ -192,7 +192,7 @@ llvm::Value* CallExprAST::codegen() const {
             formatSpecifier = "%d";
 
         ArgsV.push_back( CreateI8String((formatSpecifier + "\n").c_str(), ctx()) );
-#ifndef NDEBUG
+#if DEBUG
         std::cerr << "in call will codegen arg" << std::endl;
 #endif
         auto temp = Args[0]->codegen();
@@ -200,22 +200,22 @@ llvm::Value* CallExprAST::codegen() const {
       //  if(vare != nullptr) {
       //      std::cerr << "codegening var
       //  }
-#ifndef NDEBUG
+#if DEBUG
         std::cerr << "in call after codegen arg" << std::endl;
 #endif
         ArgsV.push_back( temp ); //Args[0]->codegen(ctx) );
-#ifndef NDEBUG
+#if DEBUG
         std::cerr << "printing: " << formatSpecifier << " : ";
         temp->dump();
         std::cerr << std::endl;
 #endif
         return ctx().Builder.CreateCall(ctx().func_printf, ArgsV, "calltmp");
     }
-    
+
     /* TODO the checks below should probably go into typechecking phase, not
      * codegen!
      */
-      
+
     // Look up the name in the global module table.
     llvm::Function *CalleeF = ctx().TheModule->getFunction(Callee);
     if (!CalleeF){
@@ -241,7 +241,7 @@ llvm::Value* CallExprAST::codegen() const {
 
 llvm::Value* IfExprAST::codegen() const {
     using namespace llvm;
-    
+
     Value* cond = Cond->codegen();
     if(!cond) return nullptr;
 
@@ -295,8 +295,8 @@ llvm::Value* IfExprAST::codegen() const {
 }
 
 llvm::Value* WhileExprAST::codegen() const {
-    using namespace llvm; 
-    
+    using namespace llvm;
+
     auto parent = ctx().CurrentFunc;
 
     BasicBlock* HeaderBB = BasicBlock::Create(llvm::getGlobalContext(), "header");
@@ -346,12 +346,12 @@ llvm::Value* ForExprAST::codegen() const {
      *     }
      * }`
      */
-     
+
     auto body = Body->as<BlockAST>();
     auto innerVars = body->Vars;
     auto innerStatements = body->Statements;
     innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
-    auto whileAST = ctx().makeWhile(Cond, 
+    auto whileAST = ctx().makeWhile(Cond,
         ctx().makeBlock(innerVars, innerStatements));
 
     auto init = Init->as<BlockAST>();
@@ -365,7 +365,7 @@ llvm::Value* ForExprAST::codegen() const {
 
 llvm::Value* KeywordAST::codegen() const {
     using namespace llvm;
-    
+
     auto parent = ctx().CurrentFunc;
     switch(which) {
         case keyword::Break:
@@ -524,7 +524,7 @@ Type AssignmentAST::maintype() const {
 }
 
 Type CallExprAST::maintype() const {
-    // TODO! 
+    // TODO!
     auto CalleeFit = ctx().prototypesMap.find(Callee);
     if(CalleeFit != ctx().prototypesMap.end())
         return CalleeFit->second->getReturnType();
