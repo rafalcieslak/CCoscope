@@ -72,26 +72,9 @@ llvm::Value* BinaryExprAST::codegen() const {
     Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
 
-    // TODO: Operator overloading is necessary in order to respect types!
-    // I believe it would make sense if we simply returned, from every codegen, a pair: datatype, value.
-    // Then we might lookup viable operators in a global map   (name, datatype1, datatype2) -> codegen function ptr
-    // and use that mapped function to generate code. As implicit conversions are possible, we would lookup
-    // various combinations types, which would yield a set of possible operators. Or we could order them by their
-    // conversion cost and lookup them one by one.
-    // <-----
-    // TODO: implicit conversions and a cost function related to it
-
-    auto fitit = ctx().BinOpCreator.find(std::make_tuple(Opcode,
-        LHS->maintype(), RHS->maintype()));
-
-    if(fitit != ctx().BinOpCreator.end()) {
-        return (fitit->second.first)(valL, valR);
-    }
-    else {
-        ctx().AddError("Operator's '" + Opcode + "' codegen is not implemented!");
-        return nullptr;
-    }
-    return nullptr;
+    auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
+    if(!match) return nullptr; // The matcher already reported an error.
+    return match->creator_function(valL, valR);
 }
 
 llvm::Value* ReturnExprAST::codegen() const {
@@ -509,12 +492,9 @@ Type VariableExprAST::maintype() const {
 }
 
 Type BinaryExprAST::maintype() const {
-    auto fitit = ctx().BinOpCreator.find(std::make_tuple(
-        Opcode, LHS->maintype(), RHS->maintype()));
-    if(fitit != ctx().BinOpCreator.end())
-        return fitit->second.second;
-    ctx().AddError("Binary op " + Opcode + " doesn't have appropriate overload");
-    return ctx().getVoidTy();
+    auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
+    if(!match) return ctx().getVoidTy();
+    return match->return_type;
 }
 
 Type AssignmentAST::maintype() const {
