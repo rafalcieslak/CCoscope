@@ -176,39 +176,32 @@ llvm::Value* AssignmentAST::codegen() const {
 llvm::Value* CallExprAST::codegen() const {
     // Special case for print
     if(Callee == "print"){
-        // Translate the call into a call to cstdlibs' printf.
+        // Translate the call into a call to stdlibs function.
         if(Args.size() != 1){
             ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
             return nullptr;
         }
         std::vector<llvm::Value*> ArgsV;
-        std::string formatSpecifier;
+        llvm::Function* print_function = nullptr;
 
         // TODO !!!!!!!!!!
-        if(Args[0]->maintype() == ctx().getDoubleTy())
-            formatSpecifier = "%f";
-        else
-            formatSpecifier = "%d";
+        if(Args[0]->maintype() == ctx().getIntegerTy())
+            print_function = ctx().GetStdFunction("print_int");
+        else if(Args[0]->maintype() == ctx().getDoubleTy())
+            print_function = ctx().GetStdFunction("print_double");
+        else if(Args[0]->maintype() == ctx().getBooleanTy())
+            print_function = ctx().GetStdFunction("print_bool");
 
-        ArgsV.push_back( CreateI8String((formatSpecifier + "\n").c_str(), ctx()) );
-#if DEBUG
-        std::cerr << "in call will codegen arg" << std::endl;
-#endif
+        if(print_function == nullptr){
+            // TODO: Print out type name
+            ctx().AddError("Printing values of this type is unimplemented!");
+            return nullptr;
+        }
+
         auto temp = Args[0]->codegen();
-       // auto vare = dynamic_cast<VariableExprAST*>(Args[0]);
-      //  if(vare != nullptr) {
-      //      std::cerr << "codegening var
-      //  }
-#if DEBUG
-        std::cerr << "in call after codegen arg" << std::endl;
-#endif
-        ArgsV.push_back( temp ); //Args[0]->codegen(ctx) );
-#if DEBUG
-        std::cerr << "printing: " << formatSpecifier << " : ";
-        temp->dump();
-        std::cerr << std::endl;
-#endif
-        return ctx().Builder.CreateCall(ctx().func_printf, ArgsV, "calltmp");
+        ArgsV.push_back( temp );
+
+        return ctx().Builder.CreateCall(print_function, ArgsV);
     }
 
     /* TODO the checks below should probably go into typechecking phase, not

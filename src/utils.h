@@ -6,6 +6,8 @@
 
 bool FileExists(std::string name);
 std::string GetTmpFile(std::string suffix = "");
+// Returns the path to CCoscope executable
+std::string GetExecutablePath();
 
 void CopyFile(std::string src, std::string dest);
 std::string SubstFileExt(std::string filename, std::string ext);

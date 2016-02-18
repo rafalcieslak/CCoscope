@@ -36,22 +36,9 @@ bool WasParserSuccessful(tokenizer& tok){\
     }
 }
 
-void DeclareCFunctions(CodegenContext& ctx){
-    using namespace llvm;
-    
-    std::vector<llvm::Type *> putchar_args = {llvm::Type::getInt32Ty(getGlobalContext())};
-    auto putchar_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(getGlobalContext()), putchar_args, false);
-    llvm::Function::Create(putchar_type, llvm::Function::ExternalLinkage, "putchar", ctx.TheModule.get());
-
-
-    auto printf_type = TypeBuilder<int(char *, ...), false>::get(getGlobalContext());
-    auto f = llvm::Function::Create(printf_type, llvm::Function::ExternalLinkage, "printf", ctx.TheModule.get());
-    ctx.func_printf = f;
-}
-
 std::shared_ptr<llvm::legacy::FunctionPassManager> PreparePassManager(llvm::Module * m, unsigned int lvl){
     using namespace llvm;
-    
+
     // Create a new pass manager attached to it.
     auto TheFPM = std::make_shared<legacy::FunctionPassManager>(m);
 
@@ -78,7 +65,7 @@ std::shared_ptr<llvm::legacy::FunctionPassManager> PreparePassManager(llvm::Modu
 
 int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     using namespace llvm;
-    
+
     if(!FileExists(infile)){
         std::cout << "File " << infile << " does not exist." << std::endl;
         return -1;
@@ -88,11 +75,11 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     tok.prepare(infile);
 
     std::cout << ColorStrings::Color(Color::Cyan, true) << "Parsing " << infile << ColorStrings::Reset() << std::endl;
-    
+
     auto ctx = CodegenContext{};
-    
+
     parser(tok, ctx, /*prototypes,definitions, */tkn_Start, 0);
-    
+
     // Instead of returning an exit status, the parser returns
     // nothing, and we need to determine if parsing was successful by
     // examining the lookahead buffer.
@@ -104,12 +91,10 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     std::cout << "Found " << ctx.prototypes.size() << " prototypes and " << ctx.definitions.size() << " function definitions. " << std::endl;
 
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
-    
-    ctx.SetModuleAndFile(module, infile);
-    
-    auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);
 
-    DeclareCFunctions(ctx);
+    ctx.SetModuleAndFile(module, infile);
+
+    auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);
 
     bool errors = false;
 

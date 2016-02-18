@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
 
 bool FileExists(std::string name)
 {
@@ -17,6 +18,16 @@ std::string GetTmpFile(std::string suffix){
      * file descriptor.  And I need a file name to pass to
      * subprocesses. There is no other way to get such name.  */
     return tmpnam(nullptr) + suffix;
+}
+
+std::string GetExecutablePath(){
+    // The trick is to read what file the link /proc/self/exe points to.
+    // This is obviously not portable.
+    char buffer[260];
+    readlink("/proc/self/exe",buffer,260);
+    std::string path(buffer);
+    auto pos = path.rfind('/');
+    return path.substr(0,pos+1);
 }
 
 void CopyFile(std::string src, std::string dest){
