@@ -1,7 +1,11 @@
 include(ExternalProject)
 
-# Helper function
+add_definitions(
+  -std=c++14
+ # -fno-rtti
+  )
 
+# Helper function
 function(prepend list prefix)
    set(tmpvar "")
    foreach(x ${ARGN})
