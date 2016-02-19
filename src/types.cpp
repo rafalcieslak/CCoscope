@@ -104,4 +104,9 @@ llvm::Value* ReferenceTypeAST::defaultLLVMsValue () const {
     return of()->defaultLLVMsValue();
 }
 
+bool TypeCmp::operator () (const Type& lhs,
+                           const Type& rhs) const {
+    return  lhs->gid() < rhs->gid();
+}
+
 }

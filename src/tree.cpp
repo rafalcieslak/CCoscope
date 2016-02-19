@@ -73,8 +73,8 @@ llvm::Value* BinaryExprAST::codegen() const {
     if(!valL || !valR) return nullptr;
 
     auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
-    if(!match) return nullptr; // The matcher already reported an error.
-    return match->creator_function(valL, valR);
+    if(!match.found) return nullptr; // The matcher already reported an error.
+    return match.application_function(ctx(), {valL, valR});
 }
 
 llvm::Value* ReturnExprAST::codegen() const {
@@ -493,8 +493,8 @@ Type VariableExprAST::maintype() const {
 
 Type BinaryExprAST::maintype() const {
     auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
-    if(!match) return ctx().getVoidTy();
-    return match->return_type;
+    if(!match.found) return ctx().getVoidTy();
+    return match.return_type;
 }
 
 Type AssignmentAST::maintype() const {

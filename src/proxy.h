@@ -16,11 +16,11 @@ template<class T>
 class Proxy {
 public:
     typedef T BaseType; // using BaseType = T; ?
-   
+
     Proxy()
         : node_(nullptr)
     {}
-    
+
     Proxy(const T* node)
         : node_(node)
     {
@@ -40,11 +40,11 @@ public:
     const T* operator -> () const { return *(*this); }
     //bool operator < (const Proxy<T>& other) const { return *(this->deref()) < *(other.deref()); }
     Proxy<T>& operator = (const Proxy<T>& other) { node_ = other.node(); return *this; }
-    
+
     bool is_empty() const { return node_ == nullptr; }
     //void dump(std::ostream& stream) const;
     //void dump() const { dump(std::cout); std::cout << std::endl; }
-    
+
     // casts
 
     operator bool() const { return node_; }
@@ -77,7 +77,7 @@ const T* Proxy<T>::deref() const {
     const T* target = node_;
     for (; target->is_proxy(); target = target->representative_->template as<T>())
         assert(target != nullptr);
-    
+
     return target->template as<T>();
 }
 

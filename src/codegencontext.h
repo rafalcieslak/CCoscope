@@ -50,22 +50,6 @@ struct GIDCmp {
     }
 };
 
-// naiive for now
-struct TypeHash { size_t operator () (const TypeAST* t) const { return 1; } };
-struct TypeEqual {
-    bool operator () (const TypeAST* t1, const TypeAST* t2) const {
-        return t1->equal(*t2);
-    }
-};
-
-using TypeSet = std::unordered_set<const TypeAST*, TypeHash, TypeEqual>;
-
-struct TTypeCmp {
-    bool operator () (const std::tuple<std::string, Type, Type>& lhs,
-                      const std::tuple<std::string, Type, Type>& rhs) const;
-};
-
-
 typedef std::function<llvm::Value*(llvm::Value*, llvm::Value*)> CreatorFunc;
 struct OperatorEntry{
     Type t1;

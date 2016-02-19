@@ -1,10 +1,6 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
-#include <typeinfo>
-#include <vector>
-#include <string>
-
 #include "llvm/IR/Module.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/TypeBuilder.h"
@@ -14,6 +10,11 @@
 
 #include "proxy.h"
 #include "cast.h"
+
+#include <typeinfo>
+#include <vector>
+#include <string>
+#include <unordered_set>
 
 namespace ccoscope {
 
@@ -53,6 +54,7 @@ public:
     bool is_proxy () const { return representative_ != this; }
 
     bool operator < (const TypeAST& other) const { return gid() < other.gid(); }
+    virtual std::string name() const {return "NoType";}
 
 protected:
     const CodegenContext& ctx_;
@@ -68,6 +70,8 @@ public:
     PrimitiveTypeAST(const CodegenContext& ctx, size_t gid)
         : TypeAST(ctx, gid, {})
     {}
+
+    virtual std::string name() const {return "Primitive";}
 };
 
 class VoidTypeAST : public PrimitiveTypeAST {
@@ -76,6 +80,7 @@ public:
         : PrimitiveTypeAST(ctx, gid)
     {}
 
+    virtual std::string name() const {return "Void";}
     llvm::Type* toLLVMs () const override;
 };
 
@@ -84,6 +89,8 @@ public:
     ArithmeticTypeAST(const CodegenContext& ctx, size_t gid)
         : PrimitiveTypeAST(ctx, gid)
     {}
+
+    virtual std::string name() const {return "Arihmetic";}
 };
 
 class IntegerTypeAST : public ArithmeticTypeAST {
@@ -92,6 +99,7 @@ public:
         : ArithmeticTypeAST(ctx, gid)
     {}
 
+    virtual std::string name() const {return "Integer";}
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 };
@@ -102,6 +110,7 @@ public:
         : ArithmeticTypeAST(ctx, gid)
     {}
 
+    virtual std::string name() const {return "Double";}
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 };
@@ -112,6 +121,7 @@ public:
         : PrimitiveTypeAST(ctx, gid)
     {}
 
+    virtual std::string name() const {return "Boolean";}
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 };
@@ -126,6 +136,7 @@ public:
         operands_ = args;
     }
 
+    virtual std::string name() const {return "Function";}
     bool equal (const TypeAST& other) const override;
     llvm::FunctionType* toLLVMs () const override;
 
@@ -140,12 +151,30 @@ public:
         : TypeAST(ctx, gid, {of})
     {}
 
+    virtual std::string name() const {return "Reference";}
     bool equal (const TypeAST& other) const override;
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 
     Type of () const { return operand(0); }
 };
+
+
+// naiive for now
+struct TypeHash { size_t operator () (const TypeAST* t) const { return 1; } };
+struct TypeEqual {
+    bool operator () (const TypeAST* t1, const TypeAST* t2) const {
+        return t1->equal(*t2);
+    }
+};
+
+using TypeSet = std::unordered_set<const TypeAST*, TypeHash, TypeEqual>;
+
+struct TypeCmp {
+    bool operator () (const Type& lhs,
+                      const Type& rhs) const;
+};
+
 
 }
 

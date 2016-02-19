@@ -73,6 +73,8 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("GREATEREQ",getDoubleTy(), getDoubleTy(), CreateFCmpOGE, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
+
+    typematcher.InitImplicitConversions();
 }
 
 CodegenContext::~CodegenContext() {
@@ -86,16 +88,6 @@ CodegenContext::~CodegenContext() {
         delete it;
 }
 
-bool TTypeCmp::operator () (const std::tuple<std::string, Type, Type>& lhs,
-                      const std::tuple<std::string, Type, Type>& rhs) const {
-    return  std::get<0>(lhs) < std::get<0>(rhs) ||
-           (std::get<0>(lhs) == std::get<0>(rhs) &&
-            std::get<1>(lhs)->gid() < std::get<1>(rhs)->gid()) ||
-           (std::get<0>(lhs) == std::get<0>(rhs) &&
-            std::get<1>(lhs)->gid() == std::get<1>(rhs)->gid() &&
-            std::get<2>(lhs)->gid() < std::get<2>(rhs)->gid()
-           );
-}
 
 // ==---------------------------------------------------------------
 // Factory methods for AST nodes
