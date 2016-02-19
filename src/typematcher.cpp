@@ -71,8 +71,7 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
     );
     // If no combinations remain, fail.
     if(combinations.size() == 0){
-        //TODO: Print type names
-        ctx.AddError("No matching operator '" + name + "' found to call with these types.");
+        ctx.AddError("No matching operator '" + name + "' found to call with types: " + t1.deref()->name() + ", " + t2.deref()->name() + ".");
         return Result();
     }
     // Summarize conversion costs for each combination
@@ -95,7 +94,7 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
     }else if(combinations_with_total_costs.size() > 1){
         //TODO: Print type names
         //TODO: Use combinations_with_total_costs to inform the user about possible candidates
-        ctx.AddError("Multiple candidates for operator '" + name + "' and these types.");
+        ctx.AddError("Multiple candidates for operator '" + name + "' and types: " + t1.deref()->name() + ", " + t2.deref()->name() + ".");
         return Result();
     }
     // We have confirmed that there is indeed just one match. Let's unwrap it:

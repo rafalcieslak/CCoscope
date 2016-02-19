@@ -178,6 +178,7 @@ llvm::Value* CallExprAST::codegen() const {
         std::cerr << "in call will codegen arg" << std::endl;
 #endif
         auto temp = Args[0]->codegen();
+        if(!temp) return nullptr;
        // auto vare = dynamic_cast<VariableExprAST*>(Args[0]);
       //  if(vare != nullptr) {
       //      std::cerr << "codegening var
@@ -493,6 +494,7 @@ Type VariableExprAST::maintype() const {
 
 Type BinaryExprAST::maintype() const {
     auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
+    // TODO: If no match found, stop codegenning.
     if(!match.found) return ctx().getVoidTy();
     return match.return_type;
 }
