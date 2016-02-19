@@ -168,27 +168,27 @@ Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
 // ==---------------------------------------------------------------
 // Factory methods for Types
 
-VoidType CodegenContext::getVoidTy() {
+VoidType CodegenContext::getVoidTy() const{
     return introduceT(new VoidTypeAST(*this, gid_++));
 }
 
-IntegerType CodegenContext::getIntegerTy() {
+IntegerType CodegenContext::getIntegerTy() const{
     return introduceT(new IntegerTypeAST(*this, gid_++));
 }
 
-DoubleType CodegenContext::getDoubleTy() {
+DoubleType CodegenContext::getDoubleTy() const{
     return introduceT(new DoubleTypeAST(*this, gid_++));
 }
 
-BooleanType CodegenContext::getBooleanTy() {
+BooleanType CodegenContext::getBooleanTy() const{
     return introduceT(new BooleanTypeAST(*this, gid_++));
 }
 
-FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) {
+FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) const{
     return introduceT(new FunctionTypeAST(*this, gid_++, ret, args));
 }
 
-ReferenceType CodegenContext::getReferenceTy(Type of) {
+ReferenceType CodegenContext::getReferenceTy(Type of) const{
     return introduceT(new ReferenceTypeAST(*this, gid_++, of));
 }
 
@@ -214,7 +214,7 @@ void CodegenContext::DisplayErrors(){
     }
 }
 
-const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
+const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) const{
     /* This look ridiculously simple now, but in the future we can
      * make CSE optimization here
      */
@@ -222,7 +222,7 @@ const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
     return node;
 }
 
-const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
+const TypeAST* CodegenContext::introduce_type(const TypeAST* node) const{
     auto it = types.find(node);
     if(it != types.end() && *it != node) {
         delete node;
@@ -233,7 +233,7 @@ const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
     return node;
 }
 
-const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node) {
+const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node) const{
     auto pit = prototypesMap.find(node->getName());
     if(pit != prototypesMap.end()) {
         delete node;
@@ -245,7 +245,7 @@ const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node
     return node;
 }
 
-const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) {
+const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) const{
     definitions.insert(node);
     return node;
 }

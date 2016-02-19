@@ -18,7 +18,7 @@ template class Proxy<ReferenceTypeAST>;
 
 using namespace llvm;
 
-Type str2type (CodegenContext& ctx, std::string s) {
+Type str2type (const CodegenContext& ctx, std::string s) {
     if (s == "int")
         return ctx.getIntegerTy();
     else if (s == "double")
@@ -36,7 +36,7 @@ bool TypeAST::equal (const TypeAST& other) const {
 bool FunctionTypeAST::equal (const TypeAST& other) const {
     if(size() != other.size())
         return false;
-    
+
     if(auto otherfun = other.isa<FunctionTypeAST>()) {
         for(size_t i = 0; i < size(); i++) {
             if(operand(i) != otherfun->operands_[i])
@@ -56,7 +56,7 @@ llvm::Type* TypeAST::toLLVMs () const {
     return nullptr;
 }
 
-llvm::Type* VoidTypeAST::toLLVMs () const { 
+llvm::Type* VoidTypeAST::toLLVMs () const {
     return llvm::Type::getVoidTy(getGlobalContext());
 }
 
@@ -68,7 +68,7 @@ llvm::Type* DoubleTypeAST::toLLVMs () const {
     return llvm::Type::getDoubleTy(getGlobalContext());
 }
 
-llvm::Type* BooleanTypeAST::toLLVMs () const { 
+llvm::Type* BooleanTypeAST::toLLVMs () const {
     return llvm::Type::getInt1Ty(getGlobalContext());
 }
 
@@ -76,7 +76,7 @@ llvm::FunctionType* FunctionTypeAST::toLLVMs () const {
     std::vector<llvm::Type*> argsTypes;
     for (size_t i = 1; i < size(); i++)
         argsTypes.push_back(operands_[i]->toLLVMs());
-    
+
     return llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
 }
 

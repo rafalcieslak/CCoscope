@@ -106,12 +106,12 @@ public:
     // ==---------------------------------------------------------------
     // Factory methods for Types
 
-    VoidType getVoidTy();
-    IntegerType getIntegerTy();
-    DoubleType getDoubleTy();
-    BooleanType getBooleanTy();
-    FunctionType getFunctionTy(Type ret, std::vector<Type> args);
-    ReferenceType getReferenceTy(Type of);
+    VoidType getVoidTy() const;
+    IntegerType getIntegerTy() const;
+    DoubleType getDoubleTy() const;
+    BooleanType getBooleanTy() const;
+    FunctionType getFunctionTy(Type ret, std::vector<Type> args) const;
+    ReferenceType getReferenceTy(Type of) const;
 
     // ==---------------------------------------------------------------
 
@@ -159,13 +159,13 @@ protected:
 
     // Is there a way to merge these two "introduces"? TODO: find a way!
     template<class T>
-    const T* introduceE(const T* node) { return introduce_expr(node)->template as<T>(); }
+    const T* introduceE(const T* node) const { return introduce_expr(node)->template as<T>(); }
     template<class T>
-    const T* introduceT(const T* node) { return introduce_type(node)->template as<T>(); }
-    const ExprAST* introduce_expr(const ExprAST*);
-    const TypeAST* introduce_type(const TypeAST*);
-    const PrototypeAST* introduce_prototype(const PrototypeAST*);
-    const FunctionAST* introduce_function(const FunctionAST*);
+    const T* introduceT(const T* node) const { return introduce_type(node)->template as<T>(); }
+    const ExprAST* introduce_expr(const ExprAST*) const;
+    const TypeAST* introduce_type(const TypeAST*) const;
+    const PrototypeAST* introduce_prototype(const PrototypeAST*) const;
+    const FunctionAST* introduce_function(const FunctionAST*) const;
 
     mutable size_t gid_;
 };
