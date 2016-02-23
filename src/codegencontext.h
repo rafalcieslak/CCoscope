@@ -100,6 +100,7 @@ public:
     std::shared_ptr<llvm::Module> TheModule;
     llvm::IRBuilder<> Builder;
     llvm::Function* CurrentFunc;
+    Type CurrentFuncReturnType;
     mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
 
     std::map<std::string, std::list<MatchCandidateEntry>> BinOpCreator;

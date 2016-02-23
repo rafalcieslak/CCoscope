@@ -102,22 +102,55 @@ llvm::Value* BinaryExprAST::codegen() const {
 llvm::Value* ReturnExprAST::codegen() const {
     using namespace llvm;
 
-    Value* val = Expression->codegen();
-    if(!val) return nullptr;
+    // TODO: This looks VERY similar to assignmentAST cogeden. Is there some wise way to unify these (and related?)
 
-    llvm::Function* parent = ctx().CurrentFunc;
-    BasicBlock* returnBB    = BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
-    BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
+    Type target_type = ctx().CurrentFuncReturnType;
 
-    ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
-    parent->getBasicBlockList().push_back(returnBB);
-    ctx().Builder.SetInsertPoint(returnBB);
-    ctx().Builder.CreateRet(val);
+    auto return_m = MatchCandidateEntry{
+        {target_type},
+        [this](std::vector<llvm::Value*> v){
+            auto val = v[0];
+            llvm::Function* parent = this->ctx().CurrentFunc;
+            BasicBlock* returnBB    = BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
+            BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
 
-    parent->getBasicBlockList().push_back(discardBB);
-    ctx().Builder.SetInsertPoint(discardBB);
+            this->ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
+            parent->getBasicBlockList().push_back(returnBB);
+            this->ctx().Builder.SetInsertPoint(returnBB);
+            this->ctx().Builder.CreateRet(val);
 
-    return val;
+            parent->getBasicBlockList().push_back(discardBB);
+            this->ctx().Builder.SetInsertPoint(discardBB);
+
+            return val;
+
+        },
+        ctx().getVoidTy()
+    };
+    Type expr_type = Expression->maintype();
+    auto match = ctx().typematcher.Match({return_m}, {expr_type});
+
+
+    if(match.type == TypeMatcher::Result::NONE){
+        ctx().AddError("Return statement failed, type mismatch: Cannot implicitly convert a " +
+                       expr_type->name() + " to " + target_type->name());
+        return nullptr;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Return statement failed, type mismatch: Multiple equally viable implicit conversions from " +
+                       expr_type->name() + " to " + target_type->name() + " are available");
+        return nullptr;
+    }else{
+
+        Value* Val = Expression->codegen();
+        if(!Val) return nullptr;
+
+        // First perform conversions
+        auto converted = match.converter_function(ctx(), {Val});
+        // Then perform the assignment
+        return match.match.associated_function(converted);
+    }
+
+
 }
 
 llvm::Value* BlockAST::codegen() const {
@@ -501,6 +534,7 @@ llvm::Function *FunctionAST::codegen() const {
 
     // Set current function
     ctx().CurrentFunc = TheFunction;
+    ctx().CurrentFuncReturnType = Proto->ReturnType;
 
     // Create a new basic block to start insertion into.
     BasicBlock *BB = BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
