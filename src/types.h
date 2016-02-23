@@ -158,12 +158,14 @@ public:
         : TypeAST(ctx, gid, {of})
     {}
 
-    virtual std::string name() const {return "Reference";}
+    virtual std::string name() const {return "ref(" + of().deref()->name() + ")";}
     bool equal (const TypeAST& other) const override;
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 
     Type of () const { return operand(0); }
+
+    virtual std::list<Conversion> ListConversions() const override;
 };
 
 

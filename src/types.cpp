@@ -126,4 +126,18 @@ std::list<Conversion> IntegerTypeAST::ListConversions() const{
     };
 }
 
+std::list<Conversion> ReferenceTypeAST::ListConversions() const{
+    return {
+        Conversion{
+            of(),                // Conversion to the inner type
+            1,                   // -- costs 1
+            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{
+                AllocaInst* alloca = dynamic_cast<AllocaInst*>(v);
+                if(!alloca) return nullptr;
+                return ctx.Builder.CreateLoad(alloca, v->getName() + "_load");
+            }
+        }
+    };
+}
+
 }

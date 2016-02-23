@@ -61,8 +61,9 @@ llvm::Value* VariableExprAST::codegen() const {
         return nullptr;
     }
     AllocaInst* alloca = ctx().VarsInScope[Name].first;
-    Value* V = ctx().Builder.CreateLoad(alloca, Name.c_str());
-    return V;
+    //Value* V = ctx().Builder.CreateLoad(alloca, Name.c_str());
+    //return V;
+    return alloca;
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
@@ -167,11 +168,15 @@ llvm::Value* CallExprAST::codegen() const {
         std::vector<llvm::Value*> ArgsV;
         std::string formatSpecifier;
 
-        // TODO !!!!!!!!!!
-        if(Args[0]->maintype() == ctx().getDoubleTy())
+        auto mt = Args[0]->maintype();
+        if(mt == ctx().getDoubleTy())
             formatSpecifier = "%f";
-        else
+        else if(mt == ctx().getIntegerTy())
             formatSpecifier = "%d";
+        else{
+            ctx().AddError("Unable to print a variable of type " + mt.deref()->name());
+            return nullptr;
+        }
 
         ArgsV.push_back( CreateI8String((formatSpecifier + "\n").c_str(), ctx()) );
 #if DEBUG
@@ -489,7 +494,7 @@ Type PrimitiveExprAST<double>::maintype() const {
 }
 
 Type VariableExprAST::maintype() const {
-    return ctx().VarsInScope[Name].second;
+    return ctx().getReferenceTy( ctx().VarsInScope[Name].second );
 }
 
 Type BinaryExprAST::maintype() const {
