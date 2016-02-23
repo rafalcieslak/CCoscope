@@ -109,4 +109,21 @@ bool TypeCmp::operator () (const Type& lhs,
     return  lhs->gid() < rhs->gid();
 }
 
+// ---------------------------------------------------------
+
+
+std::list<Conversion> IntegerTypeAST::ListConversions() const{
+    return {
+        Conversion{
+            ctx_.getDoubleTy(),   // Conversion to a double
+            10,                   // -- costs 10
+            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{  // Note: The CodegenContext is passed again. We
+                                                                     // cannot reuse the parent context, because we
+                                                                     // need a non-const context.
+                return ctx.Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
+            }
+        }
+    };
+}
+
 }

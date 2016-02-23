@@ -9,10 +9,11 @@
 #include "llvm/IR/Module.h"
 
 #include "proxy.h"
-#include "cast.h"
+#include "conversions.h"
 
 #include <typeinfo>
 #include <vector>
+#include <list>
 #include <string>
 #include <unordered_set>
 
@@ -55,6 +56,10 @@ public:
 
     bool operator < (const TypeAST& other) const { return gid() < other.gid(); }
     virtual std::string name() const {return "NoType";}
+
+    virtual std::list<Conversion> ListConversions() const {
+        return std::list<Conversion>();
+    };
 
 protected:
     const CodegenContext& ctx_;
@@ -102,6 +107,8 @@ public:
     virtual std::string name() const {return "Integer";}
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
+
+    virtual std::list<Conversion> ListConversions() const override;
 };
 
 class DoubleTypeAST : public ArithmeticTypeAST {

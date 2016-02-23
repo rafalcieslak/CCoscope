@@ -3,17 +3,16 @@
 #define __TYPEMATCHER_H__
 
 #include "conversions.h"
+#include "types.h"
 #include <string>
 #include <list>
+#include <vector>
 
 namespace ccoscope{
 
 class TypeMatcher{
 public:
     TypeMatcher(const CodegenContext& c) : ctx(c) {}
-
-    void InitImplicitConversions();
-
 
     struct Result{
         bool found; // false if no match was found at all
@@ -41,11 +40,6 @@ private:
     // Reference to parent, used to get types.
     const CodegenContext& ctx;
 
-    // Storage for implicit conversions lists (graph?)
-    std::map<Type, std::list<Conversion>, TypeCmp> implicit_conversions;
-
-    // For a given type, returns a list of possible conversions
-    std::list<Conversion> ListConversions(Type) const;
     // For a given type, returns a list of possible conversions, including an
     // identity conversion and an transitive conversions
     std::list<Conversion> ListTransitiveConversions(Type) const;

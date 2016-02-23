@@ -4,27 +4,6 @@
 
 namespace ccoscope{
 
-void TypeMatcher::InitImplicitConversions(){
-    implicit_conversions[ctx.getIntegerTy()] = { // Conversions from int
-        Conversion{
-            ctx.getIntegerTy(),
-            ctx.getDoubleTy(),                   // --- to double
-            1,                                   // ----- costs 1
-            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{  // Note: The CodegenContext is passed again. We
-                                                                     // canot reuse the parent context, because we
-                                                                     // need a non-const context.
-                return ctx.Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
-            }
-        }
-    };
-
-    //TODO: Is there any other conversion we should use? I really
-    // dislike implicit conversions from/to boolean types, and
-    // implicit conversion double->int seems ugly. So until we have
-    // more types, this is probably the only implicit conversion we
-    // use...
-}
-
 // Helper function for calcluating a sum of conversion costs
 static ConversionCost Summarize(const std::vector<Conversion>& v){
     ConversionCost sum = 0;
@@ -104,10 +83,8 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
         if(oe.t1 != best_match[0].target_type || oe.t2 != best_match[1].target_type) continue;
 #if DEBUG
         std::cout << "Operator '" + name  + "' variant used: " << oe.t1.deref()->name() << " " << oe.t2.deref()->name() << std::endl;
-        std::cout << "Conversion 1 is from " << best_match[0].orig_type.deref()->name()
-                  << " to " << best_match[0].target_type.deref()->name() << std::endl;
-        std::cout << "Conversion 2 is from " << best_match[1].orig_type.deref()->name()
-                  << " to " << best_match[1].target_type.deref()->name() << std::endl;
+        std::cout << "Conversion 1 is to " << best_match[0].target_type.deref()->name() << std::endl;
+        std::cout << "Conversion 2 is to " << best_match[1].target_type.deref()->name() << std::endl;
 #endif
 
         // At this point, oe is the matching operator variant.
@@ -132,12 +109,7 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
     ctx.AddError("Internal error: Match was found, but it has no corresponding operator variant.");
     return Result();
 }
-std::list<Conversion> TypeMatcher::ListConversions(Type t) const{
-    // Look up possible conversions from requested type
-    auto it = implicit_conversions.find(t);
-    if(it != implicit_conversions.end()) return it->second;
-    else return std::list<Conversion>();
-}
+
 std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
     // TODO: Support transitive implicit conversions!  It does not matter now,
     // as we only have a int->double conversion, but at somepoint we may want to
@@ -151,10 +123,10 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
 
     // std::cout << "Inflating a " << t.deref()->name() << std::endl;
 
-    std::list<Conversion> result = ListConversions(t);
+    std::list<Conversion> result = t.deref()->ListConversions();
 
     // Identity conversion
-    Conversion id{t,t,0,
+    Conversion id{t,0,
             [](CodegenContext&, llvm::Value* v){return v;}
     };
     result.push_front(id);

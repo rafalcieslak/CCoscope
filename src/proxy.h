@@ -1,6 +1,9 @@
 #ifndef __PROXY_H__
 #define __PROXY_H__
 
+#include "cast.h"
+#include <assert.h>
+
 namespace ccoscope {
 
 //template<typename WORLD>
