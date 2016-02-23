@@ -85,11 +85,11 @@ llvm::Value* BinaryExprAST::codegen() const {
 
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
-                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+                     Ltype->name() + ", " + Rtype->name() + ".");
         return nullptr;
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
-                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+                     Ltype->name() + ", " + Rtype->name() + ".");
         return nullptr;
     }else{
         // First, perform the conversion.
@@ -187,11 +187,11 @@ llvm::Value* AssignmentAST::codegen() const {
 
     if(match.type == TypeMatcher::Result::NONE){
         ctx().AddError("Assignment failed, type mismatch: Cannot implicitly convert a " +
-                       expr_type.deref()->name() + " to " + target_type.deref()->name());
+                       expr_type->name() + " to " + target_type->name());
         return nullptr;
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Assignment failed, type mismatch: Multiple equally viable implicit conversions from " +
-                       expr_type.deref()->name() + " to " + target_type.deref()->name() + " are available");
+                       expr_type->name() + " to " + target_type->name() + " are available");
         return nullptr;
     }else{
 
@@ -222,7 +222,7 @@ llvm::Value* CallExprAST::codegen() const {
         else if(mt == ctx().getIntegerTy())
             formatSpecifier = "%d";
         else{
-            ctx().AddError("Unable to print a variable of type " + mt.deref()->name());
+            ctx().AddError("Unable to print a variable of type " + mt->name());
             return nullptr;
         }
 
@@ -560,11 +560,11 @@ Type BinaryExprAST::maintype() const {
 
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
-                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+                     Ltype->name() + ", " + Rtype->name() + ".");
         return ctx().getVoidTy();
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
-                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+                     Ltype->name() + ", " + Rtype->name() + ".");
         return ctx().getVoidTy();
     }else
         return match.match.return_type;

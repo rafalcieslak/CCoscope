@@ -113,9 +113,9 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
     // stay with this simple implementation that does not consider transitive
     // conversions.
 
-    // std::cout << "Inflating a " << t.deref()->name() << std::endl;
+    // std::cout << "Inflating a " << t->name() << std::endl;
 
-    std::list<Conversion> result = t.deref()->ListConversions();
+    std::list<Conversion> result = t->ListConversions();
 
     // Identity conversion
     Conversion id{t,0,
