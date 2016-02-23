@@ -120,7 +120,7 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
         }
     };
     std::priority_queue<pq_elem,std::vector<pq_elem>,QCmp> naiive_dijkstra_pq;
-    std::map<Type, std::pair<ConversionCost, ConverterFunction>, TypeCmp> visited_vertices;
+    std::map<Type, std::pair<int, ConverterFunction>, TypeCmp> visited_vertices;
 
     // Initial vertex
     naiive_dijkstra_pq.push(pq_elem{0, t, [](CodegenContext&, llvm::Value* v){return v;} });
@@ -135,14 +135,14 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
         if(visited_vertices.count(current_type) > 0) continue;
 
         // Store optimal distance to this vertex
-        visited_vertices[current_type] = {ConversionCost(-1*current_mcost), current_convf};
+        visited_vertices[current_type] = {current_mcost, current_convf};
         // Get a list of its neighbours
         std::list<Conversion> neigh = current_type->ListConversions();
 
         // Add all elements as search candidates
         for(Conversion conv : neigh){ // Cannot be a reference, a copy is needed to be captured in lambda
             naiive_dijkstra_pq.push(pq_elem{
-                current_mcost - (-1)*conv.cost,
+                current_mcost - conv.cost,
                 conv.target_type,
                 [current_convf, conv](CodegenContext& ctx, llvm::Value* v){
                     // Join path functions
@@ -155,7 +155,7 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
 
     std::list<Conversion> result;
     for(const auto &elem : visited_vertices){
-        result.push_back(Conversion{elem.first, elem.second.first, elem.second.second});
+        result.push_back(Conversion{elem.first, ConversionCost( - elem.second.first), elem.second.second});
     }
     return result;
 }

@@ -235,10 +235,21 @@ llvm::Value* CallExprAST::codegen() const {
             },
             ctx().getVoidTy()
         };
+        auto print_variant_boolean = MatchCandidateEntry{
+            {ctx().getBooleanTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().func_printf, std::vector<llvm::Value*>{
+                        CreateI8String("%d\n", ctx()),
+                        v[0]
+                }, "calltmp");
+            },
+            ctx().getVoidTy()
+        };
 
         auto expr_type = Args[0]->maintype();
         auto match = ctx().typematcher.Match({print_variant_int,
-                                              print_variant_double},
+                                              print_variant_double,
+                                              print_variant_boolean},
                                              {expr_type}
             );
 
