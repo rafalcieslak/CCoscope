@@ -50,14 +50,6 @@ struct GIDCmp {
     }
 };
 
-typedef std::function<llvm::Value*(llvm::Value*, llvm::Value*)> CreatorFunc;
-struct OperatorEntry{
-    Type t1;
-    Type t2;
-    CreatorFunc creator_function;
-    Type return_type;
-};
-
 class CodegenContext
 {
 public:
@@ -110,7 +102,7 @@ public:
     llvm::Function* CurrentFunc;
     mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
 
-    std::map<std::string, std::list<OperatorEntry>> BinOpCreator;
+    std::map<std::string, std::list<MatchCandidateEntry>> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB

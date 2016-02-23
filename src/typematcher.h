@@ -10,34 +10,42 @@
 
 namespace ccoscope{
 
+struct MatchCandidateEntry{
+    std::vector<Type> input_types;
+    std::function<llvm::Value*(std::vector<llvm::Value*>)> associated_function;
+    Type return_type;
+};
+
 class TypeMatcher{
 public:
     TypeMatcher(const CodegenContext& c) : ctx(c) {}
 
     struct Result{
-        bool found; // false if no match was found at all
-        Type return_type;
-        // This function performs matched conversion AND applies the corresponding operator.
-        typedef std::function<llvm::Value*(CodegenContext&, std::vector<llvm::Value*>)> ApplicationFunction;
-        ApplicationFunction application_function;
+        typedef enum{
+            NONE,
+            UNIQUE,
+            MULTIPLE
+        } ResultType;
+        ResultType type; // false if no match was found at all
+        MatchCandidateEntry match;
+        // This function performs matched conversion
+        typedef std::function<std::vector<llvm::Value*>(CodegenContext&, std::vector<llvm::Value*> input)> BatchConverterFunction;
+        BatchConverterFunction converter_function;
     private:
         friend class TypeMatcher; // Only a TypeMatcher can construct results
-        Result() : found(false) {}
-        Result(const bool& f, const Type& r, ApplicationFunction af) :
-            found(f), return_type(r), application_function(af) {}
+        Result(ResultType t) : type(t) {}
+        Result(const ResultType& r, const MatchCandidateEntry& e, BatchConverterFunction func) :
+            type(r), match(e), converter_function(func) {}
     };
 
-    // Returns a TypemMatcher::Result, and writes corresponding errors to the
+    // Returns a TypeMatcher::Result, and writes corresponding errors to the
     // parent context.
-    const Result MatchOperator(std::string name, Type t1, Type t2) const;
-
-    // TODO: Implement function overloading, very similar to operator
-    // resolution, but needs some kind of name-mangling first
-    // const Result MatchFunction(std::string name, std::vector<Type> argtypes) const;
+    const Result Match(std::list<MatchCandidateEntry> candidates, std::vector<Type> input_signature) const;
 
 
 private:
     // Reference to parent, used to get types.
+    // TODO: Is this even used?
     const CodegenContext& ctx;
 
     // For a given type, returns a list of possible conversions, including an

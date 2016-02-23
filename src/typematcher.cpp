@@ -11,35 +11,39 @@ static ConversionCost Summarize(const std::vector<Conversion>& v){
     return sum;
 }
 
-const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, Type t2) const{
+// Returns true IFF both vectors have the same type at their corresonding elements
+static bool TestCandidateMatch(const MatchCandidateEntry& m, const std::vector<Conversion>& v) __attribute__((pure));
+static bool TestCandidateMatch(const MatchCandidateEntry& m, const std::vector<Conversion>& v){
+    const std::vector<Type>& matchtypes = m.input_types;
+    if(matchtypes.size() != v.size()) return false;
+
+    // TODO: Is it possible to do this with a ranged based form or an
+    // adapter from std algorithms?
+    for(unsigned int i = 0; i < matchtypes.size(); i++){
+        if(matchtypes[i] != v[i].target_type)
+            return false;
+    }
+    return true;
+}
+
+const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> candidates, std::vector<Type> input_signature) const{
     // Currently the matcher does a first fit search, and it ignores possible implicit conversions.
 
-    // Get the list of operator variants under this name
-    auto opit = ctx.BinOpCreator.find(name);
-    if(opit == ctx.BinOpCreator.end()) {
-        ctx.AddError("Operator's '" + name + "' codegen is not implemented!");
-        return Result();
-    }
-    const std::list<OperatorEntry>& operator_variants = opit->second;
-
-    // Prepare type signature
-    std::vector<Type> signature = {t1, t2};
     // Generate possible conversions for each input type
-    std::vector<std::list<Conversion>> inflated = InflateTypes(signature);
+    std::vector<std::list<Conversion>> inflated = InflateTypes(input_signature);
     // Generate all combinations of conversions
     std::list<std::vector<Conversion>> combinations = CombinationWalker(inflated);
     // Filter out those that match some operator
     combinations.remove_if(
         [&](const std::vector<Conversion> v){
-            Type target_1 = v[0].target_type;
-            Type target_2 = v[1].target_type;
             // Search for a matching OperatorEntry. This is not O(1)! It could
             // be if operator_variants was a map instead of a list... but then
             // the BinOpCreator would be a
             //   map(string -> map( (type,type) -> (type,function) )
             // and that seems just mad. We might use that approach once there is A LOT of possible conversions.
-            for(const OperatorEntry& oe : operator_variants){
-                if(oe.t1 == target_1 && oe.t2 == target_2){
+            for(const MatchCandidateEntry& mce : candidates){
+                // Check if all targets match.
+                if(TestCandidateMatch(mce, v)){
                     // Match! Do not remove this conversion combination
                     return false;
                 }
@@ -49,10 +53,8 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
         }
     );
     // If no combinations remain, fail.
-    if(combinations.size() == 0){
-        ctx.AddError("No matching operator '" + name + "' found to call with types: " + t1.deref()->name() + ", " + t2.deref()->name() + ".");
-        return Result();
-    }
+    if(combinations.size() == 0) return Result(Result::NONE);
+
     // Summarize conversion costs for each combination
     std::list<std::pair<ConversionCost, std::vector<Conversion>>> combinations_with_total_costs;
     for(const std::vector<Conversion> v : combinations)
@@ -68,46 +70,36 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
         });
     // At this point, exactly one match should be left.
     if(combinations_with_total_costs.size() == 0){
-        ctx.AddError("Internal error: the above operations should not have emptied the combination list.");
-        return Result();
+        std::cerr << "Internal error: the above operations should not have emptied the combination list." << std::endl;
+        return Result(Result::NONE);
     }else if(combinations_with_total_costs.size() > 1){
-        //TODO: Print type names
-        //TODO: Use combinations_with_total_costs to inform the user about possible candidates
-        ctx.AddError("Multiple candidates for operator '" + name + "' and types: " + t1.deref()->name() + ", " + t2.deref()->name() + ".");
-        return Result();
+        //TODO: Somehow embed the information about viable candidates in the result returned
+        return Result(Result::MULTIPLE);
     }
     // We have confirmed that there is indeed just one match. Let's unwrap it:
     std::vector<Conversion> best_match = combinations_with_total_costs.front().second;
-    // Now find the operator variant for this match.
-    for(const OperatorEntry& oe : operator_variants){
-        if(oe.t1 != best_match[0].target_type || oe.t2 != best_match[1].target_type) continue;
-#if DEBUG
-        std::cout << "Operator '" + name  + "' variant used: " << oe.t1.deref()->name() << " " << oe.t2.deref()->name() << std::endl;
-        std::cout << "Conversion 1 is to " << best_match[0].target_type.deref()->name() << std::endl;
-        std::cout << "Conversion 2 is to " << best_match[1].target_type.deref()->name() << std::endl;
-#endif
+    // Now find the candidate for this match.
+    for(const MatchCandidateEntry& mce : candidates){
+        if(!TestCandidateMatch(mce, best_match)) continue;
 
         // At this point, oe is the matching operator variant.
         // Finally, we can prepare the application function.
-        ConverterFunction cf1 = best_match[0].converter;
-        ConverterFunction cf2 = best_match[1].converter;
-        CreatorFunc op_function = oe.creator_function;
-        Result::ApplicationFunction af = [cf1, cf2,op_function](CodegenContext& ctx, std::vector<llvm::Value*> v) -> llvm::Value*{
-            // Note: This function assumes that v.size() == 2. This is always
-            // the case for binary operators, but it could be generalized for
-            // different operators and overladed functions so that it would
-            // support any-sized vector.
+        Result::BatchConverterFunction bcf = [best_match](CodegenContext& ctx, std::vector<llvm::Value*> v) -> std::vector<llvm::Value*>{
+            std::vector<llvm::Value*> result;
+            if(v.size() != best_match.size()) return result;
+            result.resize(v.size(), nullptr);
+
             // Conversions...
-            llvm::Value* c1 = cf1(ctx, v[0]);
-            llvm::Value* c2 = cf2(ctx, v[1]);
-            // Operator...
-            return op_function(c1, c2);
+            for(unsigned int i = 0; i < v.size(); i++){
+                result[i] = best_match[i].converter( ctx, v[i] );
+            }
+            return result;
         };
-        return Result(true, oe.return_type, af);
+        return Result(Result::UNIQUE, mce, bcf);
     }
     // assert(false)
-    ctx.AddError("Internal error: Match was found, but it has no corresponding operator variant.");
-    return Result();
+    std::cout << "Internal error: Match was found, but it has no corresponding operator variant." << std::endl;
+    return Result(Result::NONE);
 }
 
 std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{

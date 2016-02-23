@@ -61,21 +61,42 @@ llvm::Value* VariableExprAST::codegen() const {
         return nullptr;
     }
     AllocaInst* alloca = ctx().VarsInScope[Name].first;
-    //Value* V = ctx().Builder.CreateLoad(alloca, Name.c_str());
-    //return V;
     return alloca;
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
     using namespace llvm;
 
+    // Get the list of operator variants under this name
+    auto opit = ctx().BinOpCreator.find(opcode);
+    if(opit == ctx().BinOpCreator.end()) {
+        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
+        return nullptr;
+    }
+    const std::list<MatchCandidateEntry>& operator_variants = opit->second;
+
+    Type Ltype = LHS->maintype();
+    Type Rtype = RHS->maintype();;
+    auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
+
     Value* valL = LHS->codegen();
     Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
 
-    auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
-    if(!match.found) return nullptr; // The matcher already reported an error.
-    return match.application_function(ctx(), {valL, valR});
+    if(match.type == TypeMatcher::Result::NONE) {
+        ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
+                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+        return nullptr;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
+                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+        return nullptr;
+    }else{
+        // First, perform the conversion.
+        auto converted = match.converter_function(ctx(), {valL, valR});
+        // Then, call the operator performer
+        return match.match.associated_function(converted);
+    }
 }
 
 llvm::Value* ReturnExprAST::codegen() const {
@@ -143,8 +164,7 @@ llvm::Value* BlockAST::codegen() const {
 llvm::Value* AssignmentAST::codegen() const {
     using namespace llvm;
 
-    Value* Val = Expression->codegen();
-    if(!Val) return nullptr;
+    // TODO: The assignment should really be implemented as a binary operator.
 
     // Look up the target var name.
     if (ctx().VarsInScope.count(Name) < 1){
@@ -153,8 +173,36 @@ llvm::Value* AssignmentAST::codegen() const {
     }
 
     AllocaInst* alloca = ctx().VarsInScope[Name].first;
-    ctx().Builder.CreateStore(Val, alloca);
-    return Val;
+    Type target_type = ctx().VarsInScope[Name].second;
+
+    auto assignment = MatchCandidateEntry{
+        {target_type},
+        [this, alloca](std::vector<Value*> v){
+            return this->ctx().Builder.CreateStore(v[0], alloca);
+        },
+        ctx().getVoidTy()
+    };
+    Type expr_type = Expression->maintype();
+    auto match = ctx().typematcher.Match({assignment}, {expr_type});
+
+    if(match.type == TypeMatcher::Result::NONE){
+        ctx().AddError("Assignment failed, type mismatch: Cannot implicitly convert a " +
+                       expr_type.deref()->name() + " to " + target_type.deref()->name());
+        return nullptr;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Assignment failed, type mismatch: Multiple equally viable implicit conversions from " +
+                       expr_type.deref()->name() + " to " + target_type.deref()->name() + " are available");
+        return nullptr;
+    }else{
+
+        Value* Val = Expression->codegen();
+        if(!Val) return nullptr;
+
+        // First perform conversions
+        auto converted = match.converter_function(ctx(), {Val});
+        // Then perform the assignment
+        return match.match.associated_function(converted);
+    }
 }
 
 llvm::Value* CallExprAST::codegen() const {
@@ -498,10 +546,28 @@ Type VariableExprAST::maintype() const {
 }
 
 Type BinaryExprAST::maintype() const {
-    auto match = ctx().typematcher.MatchOperator(Opcode, LHS->maintype(), RHS->maintype());
-    // TODO: If no match found, stop codegenning.
-    if(!match.found) return ctx().getVoidTy();
-    return match.return_type;
+    // Get the list of operator variants under this name
+    auto opit = ctx().BinOpCreator.find(opcode);
+    if(opit == ctx().BinOpCreator.end()) {
+        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
+        return ctx().getVoidTy();
+    }
+    const std::list<MatchCandidateEntry>& operator_variants = opit->second;
+
+    Type Ltype = LHS->maintype();
+    Type Rtype = RHS->maintype();;
+    auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
+
+    if(match.type == TypeMatcher::Result::NONE) {
+        ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
+                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+        return ctx().getVoidTy();
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
+                     Ltype.deref()->name() + ", " + Rtype.deref()->name() + ".");
+        return ctx().getVoidTy();
+    }else
+        return match.match.return_type;
 }
 
 Type AssignmentAST::maintype() const {

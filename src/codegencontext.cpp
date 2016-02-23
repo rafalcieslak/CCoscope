@@ -21,13 +21,13 @@ CodegenContext::CodegenContext()
     // Operators on integers
 
 
-#define INIT_OP(name) BinOpCreator[name] = std::list<OperatorEntry>()
+#define INIT_OP(name) BinOpCreator[name] = std::list<MatchCandidateEntry>()
 
-#define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname)\
-    BinOpCreator[name].push_back(OperatorEntry{t1, t2,           \
-       [this] (Value* LHS, Value* RHS) {                         \
-           return this->Builder.builderfunc(LHS, RHS, retname);  \
-       }, rettype                                                \
+#define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname) \
+    BinOpCreator[name].push_back(MatchCandidateEntry{{t1, t2},    \
+       [this] (std::vector<Value*> v){                            \
+            return this->Builder.builderfunc(v[0], v[1], retname);\
+       }, rettype                                                 \
     })
 
     // We wouldn't need that if STL provided a `defaultdict`.

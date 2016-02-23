@@ -46,17 +46,17 @@ public:
         , gid_(gid)
         , representative_(this)
     {}
-    
+
     virtual ~ExprAST() {}
-    
+
     virtual llvm::Value* codegen() const = 0;
     virtual Type maintype() const;
-    
+
     size_t gid () const { return gid_; }
     CodegenContext& ctx () const { return ctx_; }
     bool equal(const ExprAST& other) const;
     bool is_proxy () const { return representative_ != this; }
-    
+
 protected:
     CodegenContext& ctx_;
     size_t gid_;
@@ -70,11 +70,11 @@ protected:
 template<typename T>
 class PrimitiveExprAST : public ExprAST {
 public:
-    PrimitiveExprAST(CodegenContext& ctx, size_t gid, T v) 
-        : ExprAST(ctx, gid) 
+    PrimitiveExprAST(CodegenContext& ctx, size_t gid, T v)
+        : ExprAST(ctx, gid)
         , Val(v)
     {}
-    
+
     llvm::Value* codegen() const override;
     virtual Type maintype () const override;
 
@@ -97,10 +97,10 @@ public:
         : ExprAST(ctx, gid)
         , Name(Name)
     {}
-    
+
     llvm::Value* codegen() const override;
     virtual Type maintype () const override;
-    
+
 protected:
     std::string Name;
 };
@@ -110,14 +110,14 @@ class BinaryExprAST : public ExprAST {
 public:
     BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
         : ExprAST(ctx, gid)
-        , Opcode(Op), LHS(LHS), RHS(RHS), bestOverload(nullptr)
+        , opcode(Op), LHS(LHS), RHS(RHS), bestOverload(nullptr)
     {}
-    
+
     llvm::Value* codegen() const override;
     virtual Type maintype () const override;
-    
+
 protected:
-    std::string Opcode;
+    std::string opcode;
     Expr LHS, RHS;
     llvm::Function* bestOverload;
 };
@@ -129,7 +129,7 @@ public:
         : ExprAST(ctx, gid)
         , Expression(expr)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
@@ -147,26 +147,26 @@ protected:
             , ctx(ctx)
         {}
         ~ScopeManager();
-        
+
     protected:
         const BlockAST* parent;
         CodegenContext& ctx;
     };
 
 public:
-    BlockAST(CodegenContext& ctx, size_t gid, 
-             const std::vector<std::pair<std::string, Type>> &vars, 
+    BlockAST(CodegenContext& ctx, size_t gid,
+             const std::vector<std::pair<std::string, Type>> &vars,
              const std::list<Expr>& s)
         : ExprAST(ctx, gid)
         , Vars(vars), Statements(s)
     {}
-    
+
     llvm::Value* codegen() const override;
-    
+
 protected:
     std::vector<std::pair<std::string, Type>> Vars;
     std::list<Expr> Statements;
-    
+
     friend ForExprAST;
 };
 
@@ -178,7 +178,7 @@ public:
         : ExprAST(ctx, gid)
         , Name(Name), Expression(expr)
     {}
-    
+
     llvm::Value* codegen() const override;
     virtual Type maintype () const override;
 
@@ -195,7 +195,7 @@ public:
         : ExprAST(ctx, gid)
         , Callee(Callee), Args(std::move(Args))
     {}
-    
+
     llvm::Value* codegen() const override;
     virtual Type maintype () const override;
 
@@ -211,7 +211,7 @@ public:
         : ExprAST(ctx, gid)
         , Cond(Cond), Then(Then), Else(Else)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
@@ -225,7 +225,7 @@ public:
         : ExprAST(ctx, gid)
         , Cond(Cond), Body(Body)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
@@ -241,7 +241,7 @@ public:
         , Init(Init), Cond(Cond),
           Step(Step), Body(Body)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
@@ -256,7 +256,7 @@ public:
         : ExprAST(ctx, gid)
         , which(which)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
@@ -270,12 +270,12 @@ protected:
 /// of arguments the function takes).
 class PrototypeAST : public ExprAST {
 public:
-    PrototypeAST(CodegenContext& ctx, size_t gid, const std::string &Name, 
+    PrototypeAST(CodegenContext& ctx, size_t gid, const std::string &Name,
                  std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
         : ExprAST(ctx, gid)
         , Name(Name), Args(std::move(Args)), ReturnType(ReturnType)
     {}
-    
+
     const std::string &getName() const { return Name; }
     Type getReturnType() const { return ReturnType; }
     const std::vector<std::pair<std::string, Type>>& getArgs() const { return Args; }
@@ -286,7 +286,7 @@ protected:
     std::string Name;
     std::vector<std::pair<std::string, Type>> Args;
     Type ReturnType;
-    
+
     friend class FunctionAST;
 };
 
@@ -297,7 +297,7 @@ public:
         : ExprAST(ctx, gid)
         , Proto(Proto), Body(Body)
     {}
-    
+
     llvm::Function* codegen() const override;
     Type maintype () const override;
 
