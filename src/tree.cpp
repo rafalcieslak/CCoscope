@@ -213,40 +213,53 @@ llvm::Value* CallExprAST::codegen() const {
             ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
             return nullptr;
         }
-        std::vector<llvm::Value*> ArgsV;
         std::string formatSpecifier;
 
-        auto mt = Args[0]->maintype();
-        if(mt == ctx().getDoubleTy())
-            formatSpecifier = "%f";
-        else if(mt == ctx().getIntegerTy())
-            formatSpecifier = "%d";
-        else{
-            ctx().AddError("Unable to print a variable of type " + mt->name());
+        auto print_variant_int = MatchCandidateEntry{
+            {ctx().getIntegerTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().func_printf, std::vector<llvm::Value*>{
+                        CreateI8String("%d\n", ctx()),
+                        v[0]
+                }, "calltmp");
+            },
+            ctx().getVoidTy()
+        };
+        auto print_variant_double = MatchCandidateEntry{
+            {ctx().getDoubleTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().func_printf, std::vector<llvm::Value*>{
+                        CreateI8String("%f\n", ctx()),
+                        v[0]
+                }, "calltmp");
+            },
+            ctx().getVoidTy()
+        };
+
+        auto expr_type = Args[0]->maintype();
+        auto match = ctx().typematcher.Match({print_variant_int,
+                                              print_variant_double},
+                                             {expr_type}
+            );
+
+        if(match.type == TypeMatcher::Result::NONE){
+            ctx().AddError("Unable to print a variable of type " + expr_type->name());
             return nullptr;
+        }else if(match.type == TypeMatcher::Result::MULTIPLE){
+            ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name());
+            return nullptr;
+        }else{
+            auto Val = Args[0]->codegen();
+            if(!Val) return nullptr;
+
+            // First perform conversions
+            auto converted = match.converter_function(ctx(), {Val});
+
+            // Then perform the print call
+            return match.match.associated_function(converted);
         }
 
-        ArgsV.push_back( CreateI8String((formatSpecifier + "\n").c_str(), ctx()) );
-#if DEBUG
-        std::cerr << "in call will codegen arg" << std::endl;
-#endif
-        auto temp = Args[0]->codegen();
-        if(!temp) return nullptr;
-       // auto vare = dynamic_cast<VariableExprAST*>(Args[0]);
-      //  if(vare != nullptr) {
-      //      std::cerr << "codegening var
-      //  }
-#if DEBUG
-        std::cerr << "in call after codegen arg" << std::endl;
-#endif
-        ArgsV.push_back( temp ); //Args[0]->codegen(ctx) );
-#if DEBUG
-        std::cerr << "printing: " << formatSpecifier << " : ";
-        temp->dump();
-        std::cerr << std::endl;
-#endif
-        return ctx().Builder.CreateCall(ctx().func_printf, ArgsV, "calltmp");
-    }
+    } // if callee == print
 
     /* TODO the checks below should probably go into typechecking phase, not
      * codegen!

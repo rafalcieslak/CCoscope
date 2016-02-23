@@ -3,6 +3,6 @@ fun main() : int{
     var y : int;
     x := 5;
     y := x;
-    //print(x);
+    print(y);
     return 0;
 }
