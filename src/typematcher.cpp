@@ -1,6 +1,7 @@
 #include "typematcher.h"
 #include "codegencontext.h"
 #include <algorithm>
+#include <queue>
 
 namespace ccoscope{
 
@@ -103,26 +104,59 @@ const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> cand
 }
 
 std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
-    // TODO: Support transitive implicit conversions!  It does not matter now,
-    // as we only have a int->double conversion, but at somepoint we may want to
-    // use multi-step conversions, like int->float->double. I believe the
-    // support can be implemented by modifying only this function - this will
-    // require walking a Dijkstra on the conversion graph, summing the costs on
-    // our way, and joining the conversion functions. Should be pretty
-    // straight-forward, but as we currently have no tools to test this, I'll
-    // stay with this simple implementation that does not consider transitive
-    // conversions.
 
-    // std::cout << "Inflating a " << t->name() << std::endl;
-
-    std::list<Conversion> result = t->ListConversions();
-
-    // Identity conversion
-    Conversion id{t,0,
-            [](CodegenContext&, llvm::Value* v){return v;}
+    //                   ---  Dijkstra candidate distance ( conversioncost * -1)
+    //                  /     --- Target type (search graph vertex)
+    //                  |    /       ---- Candidate conversion function
+    //                  |    |      /
+    typedef std::tuple<int, Type, ConverterFunction> pq_elem;
+    struct QCmp{
+        bool operator()(const pq_elem &a,const pq_elem &b){
+            if(std::get<0>(a) != std::get<0>(b)) return std::get<0>(a) < std::get<0>(b);
+            if(std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) < std::get<1>(b);
+            return false; // has to be false, so that two different
+                          // routes to the same element with the same
+                          // cost are considered the same regardless of the conversion function
+        }
     };
-    result.push_front(id);
+    std::priority_queue<pq_elem,std::vector<pq_elem>,QCmp> naiive_dijkstra_pq;
+    std::map<Type, std::pair<ConversionCost, ConverterFunction>, TypeCmp> visited_vertices;
 
+    // Initial vertex
+    naiive_dijkstra_pq.push(pq_elem{0, t, [](CodegenContext&, llvm::Value* v){return v;} });
+
+    while(!naiive_dijkstra_pq.empty()){
+        auto current = naiive_dijkstra_pq.top();
+        naiive_dijkstra_pq.pop();
+        int current_mcost = std::get<0>(current);
+        auto current_type = std::get<1>(current);
+        auto current_convf = std::get<2>(current);
+
+        if(visited_vertices.count(current_type) > 0) continue;
+
+        // Store optimal distance to this vertex
+        visited_vertices[current_type] = {ConversionCost(-1*current_mcost), current_convf};
+        // Get a list of its neighbours
+        std::list<Conversion> neigh = current_type->ListConversions();
+
+        // Add all elements as search candidates
+        for(Conversion conv : neigh){ // Cannot be a reference, a copy is needed to be captured in lambda
+            naiive_dijkstra_pq.push(pq_elem{
+                current_mcost - (-1)*conv.cost,
+                conv.target_type,
+                [current_convf, conv](CodegenContext& ctx, llvm::Value* v){
+                    // Join path functions
+                    return conv.converter(ctx, current_convf(ctx,v));
+                }
+            });
+        }
+
+    }
+
+    std::list<Conversion> result;
+    for(const auto &elem : visited_vertices){
+        result.push_back(Conversion{elem.first, elem.second.first, elem.second.second});
+    }
     return result;
 }
 
