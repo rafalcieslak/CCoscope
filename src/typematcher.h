@@ -2,25 +2,11 @@
 #ifndef __TYPEMATCHER_H__
 #define __TYPEMATCHER_H__
 
-#include "types.h"
+#include "conversions.h"
 #include <string>
 #include <list>
 
 namespace ccoscope{
-
-class OperatorEntry;
-class CodegenContext;
-
-typedef std::function<llvm::Value*(CodegenContext&, llvm::Value*)> ConverterFunction;
-typedef unsigned int ConversionCost;
-
-struct Conversion{
-    Type orig_type;
-    Type target_type;
-    ConversionCost cost;
-    ConverterFunction converter;
-};
-
 
 class TypeMatcher{
 public:
@@ -58,9 +44,11 @@ private:
     // Storage for implicit conversions lists (graph?)
     std::map<Type, std::list<Conversion>, TypeCmp> implicit_conversions;
 
-    // For a given type, returns a list of possible conversions (including an
-    // identity conversion)
-    std::list<Conversion> Inflate(Type) const;
+    // For a given type, returns a list of possible conversions
+    std::list<Conversion> ListConversions(Type) const;
+    // For a given type, returns a list of possible conversions, including an
+    // identity conversion and an transitive conversions
+    std::list<Conversion> ListTransitiveConversions(Type) const;
     // Replaces each type on the list with all possible conversions
     std::vector<std::list<Conversion>> InflateTypes(std::vector<Type>) const;
 };

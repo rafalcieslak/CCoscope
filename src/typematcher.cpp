@@ -132,8 +132,13 @@ const TypeMatcher::Result TypeMatcher::MatchOperator(std::string name, Type t1, 
     ctx.AddError("Internal error: Match was found, but it has no corresponding operator variant.");
     return Result();
 }
-
-std::list<Conversion> TypeMatcher::Inflate(Type t) const{
+std::list<Conversion> TypeMatcher::ListConversions(Type t) const{
+    // Look up possible conversions from requested type
+    auto it = implicit_conversions.find(t);
+    if(it != implicit_conversions.end()) return it->second;
+    else return std::list<Conversion>();
+}
+std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
     // TODO: Support transitive implicit conversions!  It does not matter now,
     // as we only have a int->double conversion, but at somepoint we may want to
     // use multi-step conversions, like int->float->double. I believe the
@@ -146,25 +151,20 @@ std::list<Conversion> TypeMatcher::Inflate(Type t) const{
 
     // std::cout << "Inflating a " << t.deref()->name() << std::endl;
 
-    std::list<Conversion> result;
+    std::list<Conversion> result = ListConversions(t);
+
     // Identity conversion
     Conversion id{t,t,0,
             [](CodegenContext&, llvm::Value* v){return v;}
     };
-    result.push_back(id);
-
-    // Look up possible conversions from requested type
-    auto it = implicit_conversions.find(t);
-    if(it != implicit_conversions.end()){
-        result.insert(result.end(), it->second.begin(), it->second.end());
-    }
+    result.push_front(id);
 
     return result;
 }
 
 std::vector<std::list<Conversion>> TypeMatcher::InflateTypes(std::vector<Type> v) const{
     std::vector<std::list<Conversion>> result(v.size());
-    std::transform(v.begin(), v.end(), result.begin(), [&](Type t){return Inflate(t);});
+    std::transform(v.begin(), v.end(), result.begin(), [&](Type t){return ListTransitiveConversions(t);});
     return result;
 }
 
