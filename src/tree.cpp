@@ -309,27 +309,64 @@ llvm::Value* CallExprAST::codegen() const {
      * codegen!
      */
 
+    // Find a a coressponding candidate.
+    auto it = ctx().prototypesMap.find(Callee);
+    if(it == ctx().prototypesMap.end()){
+        ctx().AddError("Function " + Callee + " was not declared");
+        return nullptr;
+    }
+    Prototype proto = it->second;
+    std::vector<Type> signature = proto->GetSignature();
+
     // Look up the name in the global module table.
     llvm::Function *CalleeF = ctx().TheModule->getFunction(Callee);
     if (!CalleeF){
-        ctx().AddError("Function " + Callee + " was not declared");
+        ctx().AddError("Internal error: Function " + Callee + " is present in prototypes map but was not declared in the module");
         return nullptr;
     }
 
     // If argument mismatch error.
-    if (CalleeF->arg_size() != Args.size()){
-        ctx().AddError("Function " + Callee + " takes " + std::to_string(CalleeF->arg_size()) + " arguments, " + std::to_string(Args.size()) + " given.");
+    if (signature.size() != Args.size()){
+        ctx().AddError("Function " + Callee + " takes " + std::to_string(signature.size()) + " arguments, " +
+                       std::to_string(Args.size()) + " given.");
         return nullptr;
     }
 
-    std::vector<llvm::Value *> ArgsV;
-    for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-        ArgsV.push_back(Args[i]->codegen());
-        if (!ArgsV.back())
-            return nullptr;
+    // TODO: When function overloading is implemented, there will be multiple variants to call.
+    auto call_variant = MatchCandidateEntry{
+        {signature},
+        [this, CalleeF](std::vector<llvm::Value*> v){
+            return this->ctx().Builder.CreateCall(CalleeF, v, "calltmp");
+        },
+        proto->GetReturnType()
+    };
+
+    std::vector<Type> argtypes;
+    for (unsigned i = 0, e = Args.size(); i != e; ++i)
+        argtypes.push_back(Args[i]->maintype());
+
+    auto match = ctx().typematcher.Match({call_variant}, argtypes);
+
+    if(match.type == TypeMatcher::Result::NONE){
+        ctx().AddError("Unable to call `" + Callee + "`: argument type mismatch");
+        return nullptr;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Multiple viable implicit conversions available for calling " + Callee);
+        return nullptr;
+    }else{
+        // Codegen arguments
+        std::vector<llvm::Value *> ArgsV;
+        for (unsigned i = 0, e = Args.size(); i != e; ++i) {
+            ArgsV.push_back(Args[i]->codegen());
+            if (!ArgsV.back())
+                return nullptr;
+        }
+        // Perform conversion
+        auto converted = match.converter_function(ctx(), ArgsV);
+        // Perform the call
+        return match.match.associated_function(converted);
     }
 
-  return ctx().Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
 llvm::Value* IfExprAST::codegen() const {
@@ -519,6 +556,11 @@ llvm::Function* PrototypeAST::codegen() const {
     return F;
 }
 
+std::vector<Type> PrototypeAST::GetSignature() const{
+    std::vector<Type> result;
+    for(const auto& p : Args) result.push_back(p.second);
+    return result;
+}
 
 llvm::Function *FunctionAST::codegen() const {
     using namespace llvm;

@@ -282,6 +282,9 @@ public:
     llvm::Function* codegen() const override;
     Type maintype () const override;
 
+    std::vector<Type> GetSignature() const;
+    Type GetReturnType() const {return ReturnType;}
+
 protected:
     std::string Name;
     std::vector<std::pair<std::string, Type>> Args;
