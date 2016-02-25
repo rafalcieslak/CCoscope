@@ -11,16 +11,15 @@ add_definitions(
   -Wall
   -Wextra
   -Werror
-  -std=c++14
   -Wno-unused-function # Stupid flex.
   -Wno-unused-parameter # Maphoon's fault
   -Wno-sign-compare     # Maphoon's fault
   -g
   -rdynamic
- # -fno-rtti
   )
 
 find_package(FLEX REQUIRED)
 find_package(LLVM REQUIRED)
 
 add_subdirectory(src)
+add_subdirectory(libcco)

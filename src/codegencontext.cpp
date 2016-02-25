@@ -18,7 +18,7 @@ CodegenContext::CodegenContext()
     , gid_(0)
 {
     // Operators on integers
-    
+
     BinOpCreator[std::make_tuple("ADD", getIntegerTy(), getIntegerTy())] =
         std::make_pair([this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateAdd(LHS, RHS, "addtmp");
@@ -122,7 +122,8 @@ CodegenContext::CodegenContext()
     BinOpCreator[std::make_tuple("LESSEQ", getDoubleTy(), getDoubleTy())] =
         std::make_pair([this] (Value* LHS, Value* RHS) {
             return this->Builder.CreateFCmpOLE(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());  
+        }, getBooleanTy());
+
 }
 
 CodegenContext::~CodegenContext() {
@@ -174,7 +175,7 @@ ReturnExpr CodegenContext::makeReturn(Expr expr) {
     return introduceE(new ReturnExprAST(*this, gid_++, expr));
 }
 
-Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, Type>> &vars, 
+Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
                                 const std::list<Expr>& s) {
     return introduceE(new BlockAST(*this, gid_++, vars, s));
 }
@@ -203,7 +204,7 @@ Keyword CodegenContext::makeKeyword(keyword which) {
     return introduceE(new KeywordAST(*this, gid_++, which));
 }
 
-Prototype CodegenContext::makePrototype(const std::string &Name, 
+Prototype CodegenContext::makePrototype(const std::string &Name,
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
 {
     return introduce_prototype(new PrototypeAST(*this, gid_++, Name, Args, ReturnType));
@@ -247,6 +248,7 @@ ReferenceType CodegenContext::getReferenceTy(Type of) {
 void CodegenContext::SetModuleAndFile(std::shared_ptr<llvm::Module> module, std::string infile) {
     TheModule = module;
     filename = infile;
+    PrepareStdFunctionPrototypes();
 }
 
 void CodegenContext::AddError(std::string text){
@@ -267,7 +269,7 @@ void CodegenContext::DisplayErrors(){
 const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
     /* This look ridiculously simple now, but in the future we can
      * make CSE optimization here
-     */ 
+     */
     expressions.insert(node);
     return node;
 }
@@ -278,7 +280,7 @@ const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
         delete node;
         return *it;
     }
-    
+
     types.insert(node);
     return node;
 }
@@ -299,5 +301,29 @@ const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) {
     definitions.insert(node);
     return node;
 }
+
+
+llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
+    auto it = stdlib_functions.find(name);
+    if(it == stdlib_functions.end()) return nullptr;
+    else return it->second;
+}
+
+void CodegenContext::PrepareStdFunctionPrototypes(){
+    // Prepare prototypes of standard library functions.
+    llvm::Function* f;
+    llvm::FunctionType* ftype;
+// ---
+#define ADD_STDPROTO(name, typesig) do{                                 \
+        ftype = TypeBuilder<typesig, false>::get(getGlobalContext());   \
+        f = llvm::Function::Create(ftype, llvm::Function::ExternalLinkage, "__cco_" name, TheModule.get()); \
+        stdlib_functions[name] = f;                                     \
+    }while(0)
+// ---
+    ADD_STDPROTO("print_int",void(int));
+    ADD_STDPROTO("print_double",void(double));
+    ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
+}
+
 
 }
