@@ -1,0 +1,14 @@
+fun do_sth_with_double(x : double) : double{
+    var p : int;
+    print(x);
+    p := 10;
+    return p; // Implicit conversion in return statement
+}
+fun main() : int{
+    var a : int;
+    var b : double;
+    a := 4;
+    b := do_sth_with_double(a); // Implicit conversion within call
+    print(b);
+    return 0;
+}
