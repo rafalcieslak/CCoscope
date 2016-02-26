@@ -5,6 +5,7 @@
 #include "cast.h"
 #include "types.h"
 #include "proxy.h"
+#include "typematcher.h"
 
 #include <string>
 #include <memory>
@@ -65,6 +66,19 @@ protected:
     template<class T> friend class Proxy;
 };
 
+/// Base class for expression nodes that perform type resolution.
+class Resolvable{
+protected:
+    // --- Cache for operator resolution result
+    mutable bool resolved = false;
+    // Returns false if resolution failed. Returns true if resolution was
+    // successful. In such case it's safe to assume that match_result type is
+    // unique.
+    virtual bool Resolve() const = 0;
+    // Stored resolution result.
+    mutable TypeMatcher::Result match_result;
+};
+
 /// PrimitiveExprAST - Expression class for numeric literals like "1.0"
 /// as well as boolean constants
 template<typename T>
@@ -106,7 +120,7 @@ protected:
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
-class BinaryExprAST : public ExprAST {
+class BinaryExprAST : public ExprAST, protected Resolvable {
 public:
     BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
         : ExprAST(ctx, gid)
@@ -120,10 +134,12 @@ protected:
     std::string opcode;
     Expr LHS, RHS;
     llvm::Function* bestOverload;
+
+    bool Resolve() const override;
 };
 
 /// ReturnExprAST - Represents a value return expression
-class ReturnExprAST : public ExprAST {
+class ReturnExprAST : public ExprAST, protected Resolvable {
 public:
     ReturnExprAST(CodegenContext& ctx, size_t gid, Expr expr)
         : ExprAST(ctx, gid)
@@ -134,6 +150,8 @@ public:
 
 protected:
     Expr Expression;
+
+    bool Resolve() const override;
 };
 
 /// BlockAST - Represents a list of variable definitions and a list of
@@ -171,7 +189,7 @@ protected:
 };
 
 /// AssignmentAST - Represents an assignment operations
-class AssignmentAST : public ExprAST {
+class AssignmentAST : public ExprAST, protected Resolvable {
 public:
     AssignmentAST(CodegenContext& ctx, size_t gid,
                   const std::string& Name, Expr expr)
@@ -185,10 +203,12 @@ public:
 protected:
     std::string Name;
     Expr Expression;
+
+    bool Resolve() const;
 };
 
 /// CallExprAST - Expression class for function calls.
-class CallExprAST : public ExprAST {
+class CallExprAST : public ExprAST, protected Resolvable {
 public:
     CallExprAST(CodegenContext& ctx, size_t gid, const std::string &Callee,
                 std::vector<Expr> Args)
@@ -202,6 +222,8 @@ public:
 protected:
     std::string Callee;
     std::vector<Expr> Args;
+
+    bool Resolve() const override;
 };
 
 /// IfExprAST - Expression class for if/then/else.

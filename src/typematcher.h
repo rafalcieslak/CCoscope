@@ -31,9 +31,8 @@ public:
         // This function performs matched conversion
         typedef std::function<std::vector<llvm::Value*>(CodegenContext&, std::vector<llvm::Value*> input)> BatchConverterFunction;
         BatchConverterFunction converter_function;
-    private:
-        friend class TypeMatcher; // Only a TypeMatcher can construct results
-        Result(ResultType t) : type(t) {}
+
+        Result(ResultType t = NONE) : type(t) {}
         Result(const ResultType& r, const MatchCandidateEntry& e, BatchConverterFunction func) :
             type(r), match(e), converter_function(func) {}
     };

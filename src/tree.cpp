@@ -65,92 +65,33 @@ llvm::Value* VariableExprAST::codegen() const {
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
-    using namespace llvm;
+    // If already resolved - OK. Otherwise try to resolve, if failed - return.
+    // TODO: Remember that resolution failed in order no to redo it.
+    if(!resolved && !Resolve()) return nullptr;
 
-    // Get the list of operator variants under this name
-    auto opit = ctx().BinOpCreator.find(opcode);
-    if(opit == ctx().BinOpCreator.end()) {
-        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
-        return nullptr;
-    }
-    const std::list<MatchCandidateEntry>& operator_variants = opit->second;
-
-    Type Ltype = LHS->maintype();
-    Type Rtype = RHS->maintype();;
-    auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
-
-    Value* valL = LHS->codegen();
-    Value* valR = RHS->codegen();
+    // First, codegen both children
+    llvm::Value* valL = LHS->codegen();
+    llvm::Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
 
-    if(match.type == TypeMatcher::Result::NONE) {
-        ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
-                     Ltype->name() + ", " + Rtype->name() + ".");
-        return nullptr;
-    }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
-                     Ltype->name() + ", " + Rtype->name() + ".");
-        return nullptr;
-    }else{
-        // First, perform the conversion.
-        auto converted = match.converter_function(ctx(), {valL, valR});
-        // Then, call the operator performer
-        return match.match.associated_function(converted);
-    }
+    // Then, perform the conversion.
+    auto converted = match_result.converter_function(ctx(), {valL, valR});
+    // Finally, call the operator performer
+    return match_result.match.associated_function(converted);
 }
 
 llvm::Value* ReturnExprAST::codegen() const {
-    using namespace llvm;
+    // If already resolved - OK. Otherwise try to resolve, if failed - return.
+    // TODO: Remember that resolution failed in order no to redo it.
+    if(!resolved && !Resolve()) return nullptr;
 
-    // TODO: This looks VERY similar to assignmentAST cogeden. Is there some wise way to unify these (and related?)
+    llvm::Value* Val = Expression->codegen();
+    if(!Val) return nullptr;
 
-    Type target_type = ctx().CurrentFuncReturnType;
-
-    auto return_m = MatchCandidateEntry{
-        {target_type},
-        [this](std::vector<llvm::Value*> v){
-            auto val = v[0];
-            llvm::Function* parent = this->ctx().CurrentFunc;
-            BasicBlock* returnBB    = BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
-            BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
-
-            this->ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
-            parent->getBasicBlockList().push_back(returnBB);
-            this->ctx().Builder.SetInsertPoint(returnBB);
-            this->ctx().Builder.CreateRet(val);
-
-            parent->getBasicBlockList().push_back(discardBB);
-            this->ctx().Builder.SetInsertPoint(discardBB);
-
-            return val;
-
-        },
-        ctx().getVoidTy()
-    };
-    Type expr_type = Expression->maintype();
-    auto match = ctx().typematcher.Match({return_m}, {expr_type});
-
-
-    if(match.type == TypeMatcher::Result::NONE){
-        ctx().AddError("Return statement failed, type mismatch: Cannot implicitly convert a " +
-                       expr_type->name() + " to " + target_type->name());
-        return nullptr;
-    }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Return statement failed, type mismatch: Multiple equally viable implicit conversions from " +
-                       expr_type->name() + " to " + target_type->name() + " are available");
-        return nullptr;
-    }else{
-
-        Value* Val = Expression->codegen();
-        if(!Val) return nullptr;
-
-        // First perform conversions
-        auto converted = match.converter_function(ctx(), {Val});
-        // Then perform the assignment
-        return match.match.associated_function(converted);
-    }
-
-
+    // First perform conversions
+    auto converted = match_result.converter_function(ctx(), {Val});
+    // Then perform the assignment
+    return match_result.match.associated_function(converted);
 }
 
 llvm::Value* BlockAST::codegen() const {
@@ -195,155 +136,35 @@ llvm::Value* BlockAST::codegen() const {
 }
 
 llvm::Value* AssignmentAST::codegen() const {
-    using namespace llvm;
+    // If already resolved - OK. Otherwise try to resolve, if failed - return.
+    // TODO: Remember that resolution failed in order no to redo it.
+    if(!resolved && !Resolve()) return nullptr;
 
-    // TODO: The assignment should really be implemented as a binary operator.
+    llvm::Value* Val = Expression->codegen();
+    if(!Val) return nullptr;
 
-    // Look up the target var name.
-    if (ctx().VarsInScope.count(Name) < 1){
-        ctx().AddError("Variable '" + Name + "' is not available in this scope.");
-        return nullptr;
-    }
-
-    AllocaInst* alloca = ctx().VarsInScope[Name].first;
-    Type target_type = ctx().VarsInScope[Name].second;
-
-    auto assignment = MatchCandidateEntry{
-        {target_type},
-        [this, alloca](std::vector<Value*> v){
-            return this->ctx().Builder.CreateStore(v[0], alloca);
-        },
-        ctx().getVoidTy()
-    };
-    Type expr_type = Expression->maintype();
-    auto match = ctx().typematcher.Match({assignment}, {expr_type});
-
-    if(match.type == TypeMatcher::Result::NONE){
-        ctx().AddError("Assignment failed, type mismatch: Cannot implicitly convert a " +
-                       expr_type->name() + " to " + target_type->name());
-        return nullptr;
-    }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Assignment failed, type mismatch: Multiple equally viable implicit conversions from " +
-                       expr_type->name() + " to " + target_type->name() + " are available");
-        return nullptr;
-    }else{
-
-        Value* Val = Expression->codegen();
-        if(!Val) return nullptr;
-
-        // First perform conversions
-        auto converted = match.converter_function(ctx(), {Val});
-        // Then perform the assignment
-        return match.match.associated_function(converted);
-    }
+    // First perform conversions
+    auto converted = match_result.converter_function(ctx(), {Val});
+    // Then perform the assignment
+    return match_result.match.associated_function(converted);
 }
 
 llvm::Value* CallExprAST::codegen() const {
+    // If already resolved - OK. Otherwise try to resolve, if failed - return.
+    // TODO: Remember that resolution failed in order no to redo it.
+    if(!resolved && !Resolve()) return nullptr;
+
     // Special case for print
     if(Callee == "print"){
-        // Translate the call into a call to stdlibs function.
-        if(Args.size() != 1){
-            ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
-            return nullptr;
-        }
-        std::string formatSpecifier;
+        // Codegen arguments
+        auto Val = Args[0]->codegen();
+        if(!Val) return nullptr;
 
-        auto print_variant_int = MatchCandidateEntry{
-            {ctx().getIntegerTy()},
-            [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_int"), v);
-            },
-            ctx().getVoidTy()
-        };
-        auto print_variant_double = MatchCandidateEntry{
-            {ctx().getDoubleTy()},
-            [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_double"), v);
-            },
-            ctx().getVoidTy()
-        };
-        auto print_variant_boolean = MatchCandidateEntry{
-            {ctx().getBooleanTy()},
-            [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_bool"), v);
-            },
-            ctx().getVoidTy()
-        };
+        // Then perform conversions
+        auto converted = match_result.converter_function(ctx(), {Val});
+        // Finally generate the call
+        return match_result.match.associated_function(converted);
 
-        auto expr_type = Args[0]->maintype();
-        auto match = ctx().typematcher.Match({print_variant_int,
-                                              print_variant_double,
-                                              print_variant_boolean},
-                                             {expr_type}
-            );
-
-        if(match.type == TypeMatcher::Result::NONE){
-            ctx().AddError("Unable to print a variable of type " + expr_type->name());
-            return nullptr;
-        }else if(match.type == TypeMatcher::Result::MULTIPLE){
-            ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name());
-            return nullptr;
-        }else{
-            auto Val = Args[0]->codegen();
-            if(!Val) return nullptr;
-
-            // First perform conversions
-            auto converted = match.converter_function(ctx(), {Val});
-
-            // Then perform the print call
-            return match.match.associated_function(converted);
-        }
-
-    } // if callee == print
-
-    /* TODO the checks below should probably go into typechecking phase, not
-     * codegen!
-     */
-
-    // Find a a coressponding candidate.
-    auto it = ctx().prototypesMap.find(Callee);
-    if(it == ctx().prototypesMap.end()){
-        ctx().AddError("Function " + Callee + " was not declared");
-        return nullptr;
-    }
-    Prototype proto = it->second;
-    std::vector<Type> signature = proto->GetSignature();
-
-    // Look up the name in the global module table.
-    llvm::Function *CalleeF = ctx().TheModule->getFunction(Callee);
-    if (!CalleeF){
-        ctx().AddError("Internal error: Function " + Callee + " is present in prototypes map but was not declared in the module");
-        return nullptr;
-    }
-
-    // If argument mismatch error.
-    if (signature.size() != Args.size()){
-        ctx().AddError("Function " + Callee + " takes " + std::to_string(signature.size()) + " arguments, " +
-                       std::to_string(Args.size()) + " given.");
-        return nullptr;
-    }
-
-    // TODO: When function overloading is implemented, there will be multiple variants to call.
-    auto call_variant = MatchCandidateEntry{
-        {signature},
-        [this, CalleeF](std::vector<llvm::Value*> v){
-            return this->ctx().Builder.CreateCall(CalleeF, v, "calltmp");
-        },
-        proto->GetReturnType()
-    };
-
-    std::vector<Type> argtypes;
-    for (unsigned i = 0, e = Args.size(); i != e; ++i)
-        argtypes.push_back(Args[i]->maintype());
-
-    auto match = ctx().typematcher.Match({call_variant}, argtypes);
-
-    if(match.type == TypeMatcher::Result::NONE){
-        ctx().AddError("Unable to call `" + Callee + "`: argument type mismatch");
-        return nullptr;
-    }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Multiple viable implicit conversions available for calling " + Callee);
-        return nullptr;
     }else{
         // Codegen arguments
         std::vector<llvm::Value *> ArgsV;
@@ -352,12 +173,12 @@ llvm::Value* CallExprAST::codegen() const {
             if (!ArgsV.back())
                 return nullptr;
         }
-        // Perform conversion
-        auto converted = match.converter_function(ctx(), ArgsV);
-        // Perform the call
-        return match.match.associated_function(converted);
-    }
 
+        // Perform conversion
+        auto converted = match_result.converter_function(ctx(), ArgsV);
+        // Perform the call
+        return match_result.match.associated_function(converted);
+    }
 }
 
 llvm::Value* IfExprAST::codegen() const {
@@ -637,42 +458,24 @@ Type VariableExprAST::maintype() const {
 }
 
 Type BinaryExprAST::maintype() const {
-    // Get the list of operator variants under this name
-    auto opit = ctx().BinOpCreator.find(opcode);
-    if(opit == ctx().BinOpCreator.end()) {
-        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
-        return ctx().getVoidTy();
-    }
-    const std::list<MatchCandidateEntry>& operator_variants = opit->second;
+    // If already resolved - OK. Otherwise try to resolve, if failed - return.
+    // TODO: Remember that resolution failed in order no to redo it.
+    if(!resolved && !Resolve()) return ctx().getVoidTy();
 
-    Type Ltype = LHS->maintype();
-    Type Rtype = RHS->maintype();;
-    auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
-
-    if(match.type == TypeMatcher::Result::NONE) {
-        ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
-                     Ltype->name() + ", " + Rtype->name() + ".");
-        return ctx().getVoidTy();
-    }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
-                     Ltype->name() + ", " + Rtype->name() + ".");
-        return ctx().getVoidTy();
-    }else
-        return match.match.return_type;
+    return match_result.match.return_type;
 }
 
 Type AssignmentAST::maintype() const {
     // TODO -- maybe a ReferenceType ?
-    return Expression->maintype();
+    return ctx().getVoidTy();
 }
 
 Type CallExprAST::maintype() const {
-    // TODO!
-    auto CalleeFit = ctx().prototypesMap.find(Callee);
-    if(CalleeFit != ctx().prototypesMap.end())
-        return CalleeFit->second->getReturnType();
-    ctx().AddError("Call to undefined function " + Callee);
-    return ctx().getVoidTy();
+    // If already resolved - OK. Otherwise try to resolve, if failed - return.
+    // TODO: Remember that resolution failed in order no to redo it.
+    if(!resolved && !Resolve()) return ctx().getVoidTy();
+
+    return match_result.match.return_type;
 }
 
 Type PrototypeAST::maintype() const {
@@ -698,5 +501,222 @@ BlockAST::ScopeManager::~ScopeManager() {
         ctx.VarsInScope.erase(it);
     }
 }
+
+// =================================
+
+bool BinaryExprAST::Resolve() const{
+    // Get the list of operator variants under this name
+    auto opit = ctx().BinOpCreator.find(opcode);
+    if(opit == ctx().BinOpCreator.end()) {
+        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
+        return false;
+    }
+    const std::list<MatchCandidateEntry>& operator_variants = opit->second;
+
+    Type Ltype = LHS->maintype();
+    Type Rtype = RHS->maintype();;
+    auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
+
+    if(match.type == TypeMatcher::Result::NONE) {
+        ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
+                     Ltype->name() + ", " + Rtype->name() + ".");
+        return false;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
+                     Ltype->name() + ", " + Rtype->name() + ".");
+        return false;
+    }else{
+        resolved = true;
+        match_result = match;
+        return true;
+    }
+}
+
+bool ReturnExprAST::Resolve() const{
+    // TODO: This looks VERY similar to assignmentAST cogeden. Is there some wise way to unify these (and related?)
+
+    Type target_type = ctx().CurrentFuncReturnType;
+
+    auto return_m = MatchCandidateEntry{
+        {target_type},
+        [this](std::vector<llvm::Value*> v){
+            auto val = v[0];
+            llvm::Function* parent = this->ctx().CurrentFunc;
+            llvm::BasicBlock* returnBB    = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
+            llvm::BasicBlock* discardBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
+
+            this->ctx().Builder.CreateCondBr(llvm::ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
+            parent->getBasicBlockList().push_back(returnBB);
+            this->ctx().Builder.SetInsertPoint(returnBB);
+            this->ctx().Builder.CreateRet(val);
+
+            parent->getBasicBlockList().push_back(discardBB);
+            this->ctx().Builder.SetInsertPoint(discardBB);
+
+            return val;
+
+        },
+        ctx().getVoidTy()
+    };
+    Type expr_type = Expression->maintype();
+    auto match = ctx().typematcher.Match({return_m}, {expr_type});
+
+
+    if(match.type == TypeMatcher::Result::NONE){
+        ctx().AddError("Return statement failed, type mismatch: Cannot implicitly convert a " +
+                       expr_type->name() + " to " + target_type->name());
+        return false;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Return statement failed, type mismatch: Multiple equally viable implicit conversions from " +
+                       expr_type->name() + " to " + target_type->name() + " are available");
+        return false;
+    }else{
+        resolved = true;
+        match_result = match;
+        return true;
+    }
+}
+
+bool AssignmentAST::Resolve() const{
+
+    // TODO: The assignment should really be implemented as a binary operator.
+
+    // Look up the target var name.
+    if (ctx().VarsInScope.count(Name) < 1){
+        ctx().AddError("Variable '" + Name + "' is not available in this scope.");
+        return false;
+    }
+
+    llvm::AllocaInst* alloca = ctx().VarsInScope[Name].first;
+    Type target_type = ctx().VarsInScope[Name].second;
+
+    auto assignment = MatchCandidateEntry{
+        {target_type},
+        [this, alloca](std::vector<llvm::Value*> v){
+            return this->ctx().Builder.CreateStore(v[0], alloca);
+        },
+        ctx().getVoidTy()
+    };
+    Type expr_type = Expression->maintype();
+    auto match = ctx().typematcher.Match({assignment}, {expr_type});
+
+    if(match.type == TypeMatcher::Result::NONE){
+        ctx().AddError("Assignment failed, type mismatch: Cannot implicitly convert a " +
+                       expr_type->name() + " to " + target_type->name());
+        return true;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Assignment failed, type mismatch: Multiple equally viable implicit conversions from " +
+                       expr_type->name() + " to " + target_type->name() + " are available");
+        return true;
+    }else{
+        resolved = true;
+        match_result = match;
+        return true;
+    }
+}
+
+bool CallExprAST::Resolve() const{
+    // Special case for print
+    if(Callee == "print"){
+        // Translate the call into a call to stdlibs function.
+        if(Args.size() != 1){
+            ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
+            return false;
+        }
+
+        auto print_variant_int = MatchCandidateEntry{
+            {ctx().getIntegerTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_int"), v);
+            },
+            ctx().getVoidTy()
+        };
+        auto print_variant_double = MatchCandidateEntry{
+            {ctx().getDoubleTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_double"), v);
+            },
+            ctx().getVoidTy()
+        };
+        auto print_variant_boolean = MatchCandidateEntry{
+            {ctx().getBooleanTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_bool"), v);
+            },
+            ctx().getVoidTy()
+        };
+
+        auto expr_type = Args[0]->maintype();
+        auto match = ctx().typematcher.Match({print_variant_int,
+                                              print_variant_double,
+                                              print_variant_boolean},
+                                             {expr_type}
+            );
+
+        if(match.type == TypeMatcher::Result::NONE){
+            ctx().AddError("Unable to print a variable of type " + expr_type->name());
+            return false;
+        }else if(match.type == TypeMatcher::Result::MULTIPLE){
+            ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name());
+            return false;
+        }else{
+            resolved = true;
+            match_result = match;
+            return true;
+        }
+
+    } // if callee == print
+
+    // Find a a coressponding candidate.
+    auto it = ctx().prototypesMap.find(Callee);
+    if(it == ctx().prototypesMap.end()){
+        ctx().AddError("Function " + Callee + " was not declared");
+        return false;
+    }
+    Prototype proto = it->second;
+    std::vector<Type> signature = proto->GetSignature();
+
+    // Look up the name in the global module table.
+    llvm::Function *CalleeF = ctx().TheModule->getFunction(Callee);
+    if (!CalleeF){
+        ctx().AddError("Internal error: Function " + Callee + " is present in prototypes map but was not declared in the module");
+        return false;
+    }
+
+    // If argument mismatch error.
+    if (signature.size() != Args.size()){
+        ctx().AddError("Function " + Callee + " takes " + std::to_string(signature.size()) + " arguments, " +
+                       std::to_string(Args.size()) + " given.");
+        return false;
+    }
+
+    // TODO: When function overloading is implemented, there will be multiple variants to call.
+    auto call_variant = MatchCandidateEntry{
+        {signature},
+        [this, CalleeF](std::vector<llvm::Value*> v){
+            return this->ctx().Builder.CreateCall(CalleeF, v, "calltmp");
+        },
+        proto->GetReturnType()
+    };
+
+    std::vector<Type> argtypes;
+    for (unsigned i = 0, e = Args.size(); i != e; ++i)
+        argtypes.push_back(Args[i]->maintype());
+
+    auto match = ctx().typematcher.Match({call_variant}, argtypes);
+
+    if(match.type == TypeMatcher::Result::NONE){
+        ctx().AddError("Unable to call `" + Callee + "`: argument type mismatch");
+        return false;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Multiple viable implicit conversions available for calling " + Callee);
+        return false;
+    }else{
+        resolved = true;
+        match_result = match;
+        return true;
+    }
+}
+
 
 }
