@@ -241,7 +241,7 @@ llvm::Value* AssignmentAST::codegen() const {
 llvm::Value* CallExprAST::codegen() const {
     // Special case for print
     if(Callee == "print"){
-        // Translate the call into a call to cstdlibs' printf.
+        // Translate the call into a call to stdlibs function.
         if(Args.size() != 1){
             ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
             return nullptr;
@@ -251,30 +251,21 @@ llvm::Value* CallExprAST::codegen() const {
         auto print_variant_int = MatchCandidateEntry{
             {ctx().getIntegerTy()},
             [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().func_printf, std::vector<llvm::Value*>{
-                        CreateI8String("%d\n", ctx()),
-                        v[0]
-                }, "calltmp");
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_int"), v);
             },
             ctx().getVoidTy()
         };
         auto print_variant_double = MatchCandidateEntry{
             {ctx().getDoubleTy()},
             [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().func_printf, std::vector<llvm::Value*>{
-                        CreateI8String("%f\n", ctx()),
-                        v[0]
-                }, "calltmp");
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_double"), v);
             },
             ctx().getVoidTy()
         };
         auto print_variant_boolean = MatchCandidateEntry{
             {ctx().getBooleanTy()},
             [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().func_printf, std::vector<llvm::Value*>{
-                        CreateI8String("%d\n", ctx()),
-                        v[0]
-                }, "calltmp");
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_bool"), v);
             },
             ctx().getVoidTy()
         };

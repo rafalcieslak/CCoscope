@@ -112,7 +112,7 @@ public:
     bool is_inside_loop () const { return !LoopsBBHeaderPost.empty(); }
 
     // Special function handles
-    llvm::Function* func_printf;
+    llvm::Function* GetStdFunction(std::string name) const;
 
     void SetModuleAndFile(std::shared_ptr<llvm::Module> module, std::string infile);
 
@@ -130,6 +130,11 @@ public:
 protected:
     // Storage for error messages.
     mutable std::list<std::pair<std::string, std::string>> errors;
+
+    // The map storing special function handlers, use GetStdFunctions to search for a handle.
+    std::map<std::string, llvm::Function*> stdlib_functions;
+    // Initializes the above map, called as soon as a module is set.
+    void PrepareStdFunctionPrototypes();
 
     // The base input source file for this module
     std::string filename;

@@ -39,7 +39,7 @@ int AssembleAS(std::string infile, std::string outfile){
 }
 
 int Link(std::vector<std::string> input_files, std::string outfile,
-         std::vector<std::string> linkerlibs, std::vector<std::string> linkerdirs){
+         std::vector<std::string> linkerlibs, std::vector<std::string> linkerdirs, bool disable_stdlib=false){
 
     // Link object file(s) to an executable file
 
@@ -61,9 +61,14 @@ int Link(std::vector<std::string> input_files, std::string outfile,
 
     std::string dirs, libs;
     for(auto dir : linkerdirs)
-        dirs += "-L" + dir;
+        dirs += "-L" + dir + " ";
     for(auto lib : linkerlibs)
-        libs += "-l" + lib;
+        libs += "-l" + lib + " ";
+
+    if(!disable_stdlib){
+        std::string stdlibpath = GetExecutablePath() + "libcco.a";
+        libs += stdlibpath + " ";
+    }
 
     std::string command = clang_path + " " + JoinString(input_files, " ") + " " + dirs + " " + libs + " -o " + outfile;
     std::cout << ColorStrings::Color(Color::Blue) << "Executing:"  << ColorStrings::Reset() << " '" << command << "'..." << std::endl;
@@ -92,16 +97,6 @@ FileType GuessFileType(std::string filename){
     return FileType::Unknown;
 }
 
-static struct option long_opts[] =
-    {
-        {"no-link", no_argument, 0, 'c'},
-        {"no-assemble", no_argument, 0, 'S'},
-        {"opt-level", required_argument,0 , 'O'},
-        {"output", required_argument, 0, 'o'},
-        {"help", no_argument, 0, 'h'},
-        {0,0,0,0}
-    };
-
 void usage(const char* prog){
     std::cout << "Usage: " << prog << " [OPTION]... [FILE]... [-o OUT_FILE] \n";
     std::cout << "\n";
@@ -112,6 +107,7 @@ void usage(const char* prog){
     std::cout << " -l                 Passes additional flags to linker.\n";
     std::cout << " -L                 Passes additional flags to linker.\n";
     std::cout << " -O N               Sets optimisation level, currently 0-3.\n";
+    std::cout << "     --no-stdlib    Disables linking with the CCO standard library\n";
     std::cout << "\n";
     exit(0);
 }
@@ -129,10 +125,24 @@ int main(int argc, char** argv){
 
     std::string config_outfile;
     std::vector<std::string> config_infiles;
+    int config_nostdlib = 0;
 
     std::vector<std::string> config_linkerlibs;
     std::vector<std::string> config_linkerdirs;
     unsigned int config_optlevel = 0;
+
+
+    static struct option long_opts[] =
+        {
+            {"no-link", no_argument, 0, 'c'},
+            {"no-assemble", no_argument, 0, 'S'},
+            {"opt-level", required_argument,0 , 'O'},
+            {"output", required_argument, 0, 'o'},
+            {"help", no_argument, 0, 'h'},
+            {"no-stdlib", no_argument, &config_nostdlib, 1},
+            {0,0,0,0}
+        };
+
 
     // Command-line argument recognition
     int c;
@@ -239,7 +249,7 @@ int main(int argc, char** argv){
 
     if( opmode == CompileAssembleAndLink ){
         // Link o files together
-        res = Link(files_to_be_linked, config_outfile, config_linkerlibs, config_linkerdirs);
+        res = Link(files_to_be_linked, config_outfile, config_linkerlibs, config_linkerdirs, config_nostdlib);
         if(res < 0) return -1;
     }else if( opmode == CompileAndAssemble ){
         // Only one file was processed and it's output name is stored in tmpfile.

@@ -20,7 +20,6 @@ CodegenContext::CodegenContext()
 {
     // Operators on integers
 
-
 #define INIT_OP(name) BinOpCreator[name] = std::list<MatchCandidateEntry>()
 
 #define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname) \
@@ -187,6 +186,7 @@ ReferenceType CodegenContext::getReferenceTy(Type of) const{
 void CodegenContext::SetModuleAndFile(std::shared_ptr<llvm::Module> module, std::string infile) {
     TheModule = module;
     filename = infile;
+    PrepareStdFunctionPrototypes();
 }
 
 void CodegenContext::AddError(std::string text) const{
@@ -239,5 +239,29 @@ const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) c
     definitions.insert(node);
     return node;
 }
+
+
+llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
+    auto it = stdlib_functions.find(name);
+    if(it == stdlib_functions.end()) return nullptr;
+    else return it->second;
+}
+
+void CodegenContext::PrepareStdFunctionPrototypes(){
+    // Prepare prototypes of standard library functions.
+    llvm::Function* f;
+    llvm::FunctionType* ftype;
+// ---
+#define ADD_STDPROTO(name, typesig) do{                                 \
+        ftype = TypeBuilder<typesig, false>::get(getGlobalContext());   \
+        f = llvm::Function::Create(ftype, llvm::Function::ExternalLinkage, "__cco_" name, TheModule.get()); \
+        stdlib_functions[name] = f;                                     \
+    }while(0)
+// ---
+    ADD_STDPROTO("print_int",void(int));
+    ADD_STDPROTO("print_double",void(double));
+    ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
+}
+
 
 }
