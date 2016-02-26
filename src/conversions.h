@@ -10,7 +10,6 @@
 
 namespace ccoscope{
 
-class OperatorEntry;
 class CodegenContext;
 
 typedef std::function<llvm::Value*(CodegenContext&, llvm::Value*)> ConverterFunction;
