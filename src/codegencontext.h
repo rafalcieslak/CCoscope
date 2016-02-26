@@ -149,6 +149,8 @@ protected:
     std::map<std::string, llvm::Function*> stdlib_functions;
     // Initializes the above map, called as soon as a module is set.
     void PrepareStdFunctionPrototypes();
+    template<typename T>
+    void AddStdProto(std::string name);
 
     // The base input source file for this module
     std::string filename;

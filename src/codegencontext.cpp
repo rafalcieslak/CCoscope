@@ -311,19 +311,17 @@ llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
 
 void CodegenContext::PrepareStdFunctionPrototypes(){
     // Prepare prototypes of standard library functions.
-    llvm::Function* f;
-    llvm::FunctionType* ftype;
-// ---
-#define ADD_STDPROTO(name, typesig) do{                                 \
-        ftype = TypeBuilder<typesig, false>::get(getGlobalContext());   \
-        f = llvm::Function::Create(ftype, llvm::Function::ExternalLinkage, "__cco_" name, TheModule.get()); \
-        stdlib_functions[name] = f;                                     \
-    }while(0)
-// ---
-    ADD_STDPROTO("print_int",void(int));
-    ADD_STDPROTO("print_double",void(double));
-    ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
+    
+    AddStdProto<void(int)>("print_int");
+    AddStdProto<void(double)>("print_double");
+    AddStdProto<void(llvm::types::i<1>)>("print_bool");
 }
 
+template<typename T>
+void CodegenContext::AddStdProto(std::string name) {
+    auto ftype = TypeBuilder<T, false>::get(getGlobalContext());
+    auto f = llvm::Function::Create(ftype, llvm::Function::ExternalLinkage, "__cco_" + name, TheModule.get());
+    stdlib_functions[name] = f;
+}
 
 }
