@@ -11,6 +11,7 @@ template class Proxy<ExprAST>;
 template class Proxy<PrimitiveExprAST<int>>;
 template class Proxy<PrimitiveExprAST<double>>;
 template class Proxy<PrimitiveExprAST<bool>>;
+template class Proxy<ComplexValueAST>;
 template class Proxy<VariableExprAST>;
 template class Proxy<BinaryExprAST>;
 template class Proxy<ReturnExprAST>;
@@ -53,6 +54,17 @@ llvm::Value* PrimitiveExprAST<T>::codegen() const {
     return nullptr;
 }
 
+llvm::Value* ComplexValueAST::codegen() const {
+    auto re = ctx().makeDouble(Re);
+    auto im = ctx().makeDouble(Im);
+    auto rev = re->codegen();
+    auto imv = im->codegen();
+    auto rec = dynamic_cast<llvm::Constant*>(rev);
+    auto imc = dynamic_cast<llvm::Constant*>(imv);
+    std::vector<llvm::Constant*> vek{rec, imc};
+    return llvm::ConstantStruct::get(maintype().as<ComplexType>()->toLLVMs(), vek);
+}
+
 llvm::Value* VariableExprAST::codegen() const {
     using namespace llvm;
 
@@ -60,13 +72,12 @@ llvm::Value* VariableExprAST::codegen() const {
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
-    AllocaInst* alloca = ctx().VarsInScope[Name].first;
-    return alloca;
+    return ctx().VarsInScope[Name].first;
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
     // If already resolved - OK. Otherwise try to resolve, if failed - return.
-    // TODO: Remember that resolution failed in order no to redo it.
+    // TODO: Remember that resolution failed in order not to redo it.
     if(!resolved && !Resolve()) return nullptr;
 
     // First, codegen both children
@@ -453,6 +464,10 @@ Type PrimitiveExprAST<double>::maintype() const {
     return ctx().getDoubleTy();
 }
 
+Type ComplexValueAST::maintype() const {
+    return ctx().getComplexTy();
+}
+
 Type VariableExprAST::maintype() const {
     return ctx().getReferenceTy( ctx().VarsInScope[Name].second );
 }
@@ -543,7 +558,7 @@ bool ReturnExprAST::Resolve() const{
             auto val = v[0];
             llvm::Function* parent = this->ctx().CurrentFunc;
             llvm::BasicBlock* returnBB    = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
-            llvm::BasicBlock* discardBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
+            llvm::BasicBlock* discardBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnDiscard");
 
             this->ctx().Builder.CreateCondBr(llvm::ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
             parent->getBasicBlockList().push_back(returnBB);

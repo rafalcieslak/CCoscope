@@ -72,6 +72,90 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("GREATEREQ",getDoubleTy(), getDoubleTy(), CreateFCmpOGE, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
+
+    BinOpCreator["ADD"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+       [this] (std::vector<Value*> v){
+            auto cmplx1 = v[0];
+            auto cmplx2 = v[1];
+            auto c1re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 0);
+            auto c1im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 1);
+            auto c2re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 0);
+            auto c2im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 1);
+            auto reres = this->Builder.CreateFAdd(c1re, c2re, "cmplxaddtmp");
+            auto imres = this->Builder.CreateFAdd(c1im, c2im, "cmplxaddtmp");
+            std::vector<llvm::Constant*> vek{dynamic_cast<llvm::Constant*>(reres), dynamic_cast<llvm::Constant*>(imres)};
+            return llvm::ConstantStruct::get(getComplexTy()->toLLVMs(), vek);
+       }, getComplexTy()
+    });
+
+    BinOpCreator["SUB"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+       [this] (std::vector<Value*> v){
+            auto cmplx1 = v[0];
+            auto cmplx2 = v[1];
+            auto c1re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 0);
+            auto c1im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 1);
+            auto c2re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 0);
+            auto c2im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 1);
+            auto reres = this->Builder.CreateFSub(c1re, c2re, "cmplxsubtmp");
+            auto imres = this->Builder.CreateFSub(c1im, c2im, "cmplxsubtmp");
+            std::vector<llvm::Constant*> vek{dynamic_cast<llvm::Constant*>(reres), dynamic_cast<llvm::Constant*>(imres)};
+            return llvm::ConstantStruct::get(getComplexTy()->toLLVMs(), vek);
+       }, getComplexTy()
+    });
+
+    BinOpCreator["MULT"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+       [this] (std::vector<Value*> v){
+            auto cmplx1 = v[0];
+            auto cmplx2 = v[1];
+            auto c1re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 0);
+            auto c1im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 1);
+            auto c2re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 0);
+            auto c2im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 1);
+            auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
+            auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
+            auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
+            auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
+            auto reres = this->Builder.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
+            auto imres = this->Builder.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
+            std::vector<llvm::Constant*> vek{dynamic_cast<llvm::Constant*>(reres), dynamic_cast<llvm::Constant*>(imres)};
+            return llvm::ConstantStruct::get(getComplexTy()->toLLVMs(), vek);
+       }, getComplexTy()
+    });
+
+    /* TODO:
+    BinOpCreator["DIV"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+       [this] (std::vector<Value*> v){
+            auto cmplx1 = v[0];
+            auto cmplx2 = v[1];
+            auto c1re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 0);
+            auto c1im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 1);
+            auto c2re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 0);
+            auto c2im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 1);
+            auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
+            auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
+            auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
+            auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
+            auto reres = this->Builder.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
+            auto imres = this->Builder.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
+            std::vector<llvm::Constant*> vek{dynamic_cast<llvm::Constant*>(reres), dynamic_cast<llvm::Constant*>(imres)};
+            return llvm::ConstantStruct::get(getComplexTy()->toLLVMs(), vek);
+       }, getComplexTy()
+    });
+    */
+
+    BinOpCreator["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+       [this] (std::vector<Value*> v){
+            auto cmplx1 = v[0];
+            auto cmplx2 = v[1];
+            auto c1re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 0);
+            auto c1im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx1, 1);
+            auto c2re = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 0);
+            auto c2im = this->Builder.CreateStructGEP(getComplexTy()->toLLVMs(), cmplx2, 1);
+            auto c1c2re = this->Builder.CreateFCmpOEQ(c1re, c2re, "cmplxcmptmp");
+            auto c1c2im = this->Builder.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
+            return this->Builder.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
+       }, getBooleanTy()
+    });
 }
 
 CodegenContext::~CodegenContext() {
@@ -103,6 +187,10 @@ PrimitiveExpr<double> CodegenContext::makeDouble(double value) {
 
 PrimitiveExpr<bool> CodegenContext::makeBool(bool value) {
     return introduceE(new PrimitiveExprAST<bool>(*this, gid_++, value));
+}
+
+ComplexValue CodegenContext::makeComplex(Expr re, Expr im) {
+    return introduceE(new ComplexValueAST(*this, gid_++, re, im));
 }
 
 BinaryExpr CodegenContext::makeBinary(std::string Op, Expr LHS, Expr RHS) {
@@ -171,6 +259,10 @@ DoubleType CodegenContext::getDoubleTy() const{
 
 BooleanType CodegenContext::getBooleanTy() const{
     return introduceT(new BooleanTypeAST(*this, gid_++));
+}
+
+ComplexType CodegenContext::getComplexTy() const{
+    return introduceT(new ComplexTypeAST(*this, gid_++));
 }
 
 FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) const{
@@ -261,6 +353,18 @@ void CodegenContext::PrepareStdFunctionPrototypes(){
     ADD_STDPROTO("print_int",void(int));
     ADD_STDPROTO("print_double",void(double));
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
+    
+    auto blafun = makeFunction(makePrototype(
+        "bla", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getDoubleTy()),
+        makeReturn((makeVariable("Re")))
+        );
+    blafun->codegen();
+    
+    auto complexfun = makeFunction(makePrototype(
+        "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy()),
+        makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))
+        );
+    complexfun->codegen();
 }
 
 

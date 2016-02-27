@@ -1,0 +1,13 @@
+
+fun main() : int {
+    var i : int;
+    var f1 : double;
+    var f2 : double;
+    var c : complex;
+    
+    f1 := 3.14;
+    f2 := -2;
+    c := newComplex(f1, f2);
+    print(f1);
+    print(f2);
+}

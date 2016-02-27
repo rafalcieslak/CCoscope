@@ -63,6 +63,7 @@ public:
     PrimitiveExpr<int> makeInt(int value);
     PrimitiveExpr<double> makeDouble(double value);
     PrimitiveExpr<bool> makeBool(bool value);
+    ComplexValue makeComplex(Expr re, Expr im);
     BinaryExpr makeBinary(std::string Op, Expr LHS, Expr RHS);
     ReturnExpr makeReturn(Expr expr);
     Block makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
@@ -86,6 +87,7 @@ public:
     IntegerType getIntegerTy() const;
     DoubleType getDoubleTy() const;
     BooleanType getBooleanTy() const;
+    ComplexType getComplexTy() const;
     FunctionType getFunctionTy(Type ret, std::vector<Type> args) const;
     ReferenceType getReferenceTy(Type of) const;
 

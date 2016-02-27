@@ -1,5 +1,6 @@
 
 #include <typeinfo>
+#include <sstream>
 
 #include "types.h"
 #include "codegencontext.h"
@@ -13,6 +14,7 @@ template class Proxy<ArithmeticTypeAST>;
 template class Proxy<IntegerTypeAST>;
 template class Proxy<DoubleTypeAST>;
 template class Proxy<BooleanTypeAST>;
+template class Proxy<ComplexTypeAST>;
 template class Proxy<FunctionTypeAST>;
 template class Proxy<ReferenceTypeAST>;
 
@@ -25,6 +27,8 @@ Type str2type (const CodegenContext& ctx, std::string s) {
         return ctx.getDoubleTy();
     else if (s == "bool")
         return ctx.getBooleanTy();
+    else if (s == "complex")
+        return ctx.getComplexTy();
     else
         return ctx.getVoidTy();
 }
@@ -52,38 +56,81 @@ bool ReferenceTypeAST::equal (const TypeAST &other) const {
 
 // ---------------------------------------------------------
 
+std::string FunctionTypeAST::name() const {
+    std::ostringstream ss;
+    ss << "Function(";
+    if(size() > 1) {
+        size_t i = 1;
+        ss << argument(i)->name();
+        i++;
+        while(i < size()) {
+            ss << ", " << argument(i)->name();
+            i++;
+        }
+        ss << ") : " << returnType()->name();
+    }
+    return ss.str();
+}
+
+// ---------------------------------------------------------
+
 llvm::Type* TypeAST::toLLVMs () const {
     return nullptr;
 }
 
 llvm::Type* VoidTypeAST::toLLVMs () const {
-    return llvm::Type::getVoidTy(getGlobalContext());
+    if(!cache_)
+        cache_ = llvm::Type::getVoidTy(getGlobalContext());
+    return cache_;
 }
 
 llvm::Type* IntegerTypeAST::toLLVMs () const {
-    return llvm::Type::getInt32Ty(getGlobalContext());
+    if(!cache_)
+        cache_ = llvm::Type::getInt32Ty(getGlobalContext());
+    return cache_;
 }
 
 llvm::Type* DoubleTypeAST::toLLVMs () const {
-    return llvm::Type::getDoubleTy(getGlobalContext());
+    if(!cache_)
+        cache_ =  llvm::Type::getDoubleTy(getGlobalContext());
+    return cache_;
 }
 
 llvm::Type* BooleanTypeAST::toLLVMs () const {
-    return llvm::Type::getInt1Ty(getGlobalContext());
+    if(!cache_)
+        cache_ =  llvm::Type::getInt1Ty(getGlobalContext());
+    return cache_;
+}
+
+llvm::StructType* ComplexTypeAST::toLLVMs () const {
+    if(!cache_) {
+        auto dblt = ctx_.getDoubleTy()->toLLVMs();
+        cache_ = llvm::StructType::create(
+               getGlobalContext(),
+               {dblt, dblt},
+               name()
+        );
+    }
+    return llvm::dyn_cast<llvm::StructType>(cache_);
 }
 
 llvm::FunctionType* FunctionTypeAST::toLLVMs () const {
-    std::vector<llvm::Type*> argsTypes;
-    for (size_t i = 1; i < size(); i++)
-        argsTypes.push_back(operands_[i]->toLLVMs());
+    if(!cache_) {
+        std::vector<llvm::Type*> argsTypes;
+        for (size_t i = 1; i < size(); i++)
+            argsTypes.push_back(operands_[i]->toLLVMs());
 
-    return llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
+        cache_ = llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
+    }
+    return llvm::dyn_cast<llvm::FunctionType>(cache_);
 }
 
 llvm::Type* ReferenceTypeAST::toLLVMs () const {
     // will that be a pointer to of->toLLVMs() ? or just the of->toLLVMs()?
     // let's assume for now it's not a pointer
-    return of()->toLLVMs();
+    if(!cache_)
+        cache_ = of()->toLLVMs();
+    return cache_;
 }
 
 // ---------------------------------------------------------
@@ -99,6 +146,11 @@ llvm::Value* DoubleTypeAST::defaultLLVMsValue () const {
 }
 llvm::Value* BooleanTypeAST::defaultLLVMsValue () const {
     return llvm::ConstantInt::getFalse(getGlobalContext());
+}
+llvm::Value* ComplexTypeAST::defaultLLVMsValue () const {
+    auto v = dynamic_cast<llvm::Constant*>(ctx_.getDoubleTy()->defaultLLVMsValue());
+    std::vector<llvm::Constant*> vek{v, v};
+    return llvm::ConstantStruct::get(toLLVMs(), vek);
 }
 llvm::Value* ReferenceTypeAST::defaultLLVMsValue () const {
     return of()->defaultLLVMsValue();
@@ -121,6 +173,20 @@ std::list<Conversion> IntegerTypeAST::ListConversions() const{
                                                                      // cannot reuse the parent context, because we
                                                                      // need a non-const context.
                 return ctx.Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
+            }
+        }
+    };
+}
+
+std::list<Conversion> DoubleTypeAST::ListConversions() const{
+    return {
+        Conversion{
+            ctx_.getComplexTy(),   // Conversion to complex
+            15,                   // -- costs 10
+            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{
+                auto vc = dynamic_cast<llvm::Constant*>(v);
+                std::vector<llvm::Constant*> vek{vc, dynamic_cast<llvm::Constant*>(ctx.getDoubleTy()->defaultLLVMsValue())};
+                return llvm::ConstantStruct::get(ctx.getComplexTy()->toLLVMs(), vek);
             }
         }
     };

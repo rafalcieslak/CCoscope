@@ -28,6 +28,7 @@ class ArithmeticTypeAST;  using ArithmeticType  = Proxy<ArithmeticTypeAST>;
 class IntegerTypeAST;     using IntegerType     = Proxy<IntegerTypeAST>;
 class DoubleTypeAST;      using DoubleType      = Proxy<DoubleTypeAST>;
 class BooleanTypeAST;     using BooleanType     = Proxy<BooleanTypeAST>;
+class ComplexTypeAST;     using ComplexType     = Proxy<ComplexTypeAST>;
 class FunctionTypeAST;    using FunctionType    = Proxy<FunctionTypeAST>;
 class ReferenceTypeAST;   using ReferenceType   = Proxy<ReferenceTypeAST>;
 
@@ -40,6 +41,7 @@ public:
         , gid_(gid)
         , operands_(operands)
         , representative_(this)
+        , cache_(nullptr)
     {}
     virtual ~TypeAST() {}
 
@@ -66,6 +68,7 @@ protected:
     size_t gid_;
     std::vector<Type> operands_;
     mutable const TypeAST* representative_;
+    mutable llvm::Type* cache_;
 
     template<class T> friend class Proxy;
 };
@@ -120,6 +123,8 @@ public:
     virtual std::string name() const {return "Double";}
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
+
+    virtual std::list<Conversion> ListConversions() const override;
 };
 
 class BooleanTypeAST : public PrimitiveTypeAST {
@@ -133,6 +138,17 @@ public:
     llvm::Value* defaultLLVMsValue () const;
 };
 
+class ComplexTypeAST : public ArithmeticTypeAST {
+public:
+    ComplexTypeAST(const CodegenContext& ctx, size_t gid)
+        : ArithmeticTypeAST(ctx, gid)
+    {}
+
+    virtual std::string name() const {return "Complex";}
+    llvm::StructType* toLLVMs () const override;
+    llvm::Value* defaultLLVMsValue () const;
+};
+
 class FunctionTypeAST : public TypeAST {
 public:
     FunctionTypeAST(const CodegenContext& ctx, size_t gid,
@@ -143,7 +159,7 @@ public:
         operands_ = args;
     }
 
-    virtual std::string name() const {return "Function";}
+    virtual std::string name() const;
     bool equal (const TypeAST& other) const override;
     llvm::FunctionType* toLLVMs () const override;
 
@@ -158,7 +174,7 @@ public:
         : TypeAST(ctx, gid, {of})
     {}
 
-    virtual std::string name() const {return "ref(" + of().deref()->name() + ")";}
+    virtual std::string name() const {return "Ref(" + of()->name() + ")";}
     bool equal (const TypeAST& other) const override;
     llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;

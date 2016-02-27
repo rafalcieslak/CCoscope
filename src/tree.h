@@ -26,6 +26,7 @@ enum class keyword {
 class ExprAST;             using Expr                = Proxy<ExprAST>;
 template<typename T> class PrimitiveExprAST;
 template<typename T> using PrimitiveExpr = Proxy<PrimitiveExprAST<T>>;
+class ComplexValueAST;     using ComplexValue        = Proxy<ComplexValueAST>;
 class VariableExprAST;     using VariableExpr        = Proxy<VariableExprAST>;
 class BinaryExprAST;       using BinaryExpr          = Proxy<BinaryExprAST>;
 class ReturnExprAST;       using ReturnExpr          = Proxy<ReturnExprAST>;
@@ -103,6 +104,21 @@ template<typename T>
 Type PrimitiveExprAST<T>::maintype() const {
     return ctx.getVoidTy();
 }*/
+
+class ComplexValueAST : public ExprAST {
+public:
+    ComplexValueAST(CodegenContext& ctx, size_t gid, Expr re, Expr im)
+        : ExprAST(ctx, gid)
+        , Re(re)
+        , Im(im)
+    {}
+
+    llvm::Value* codegen() const override;
+    virtual Type maintype () const override;
+
+protected:
+    Expr Re, Im;
+};
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
