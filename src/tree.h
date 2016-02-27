@@ -105,7 +105,7 @@ Type PrimitiveExprAST<T>::maintype() const {
     return ctx.getVoidTy();
 }*/
 
-class ComplexValueAST : public ExprAST {
+class ComplexValueAST : public ExprAST, protected Resolvable {
 public:
     ComplexValueAST(CodegenContext& ctx, size_t gid, Expr re, Expr im)
         : ExprAST(ctx, gid)
@@ -118,6 +118,8 @@ public:
 
 protected:
     Expr Re, Im;
+    
+    bool Resolve() const override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".

@@ -55,14 +55,23 @@ llvm::Value* PrimitiveExprAST<T>::codegen() const {
 }
 
 llvm::Value* ComplexValueAST::codegen() const {
-    auto re = ctx().makeDouble(Re);
-    auto im = ctx().makeDouble(Im);
-    auto rev = re->codegen();
-    auto imv = im->codegen();
-    auto rec = dynamic_cast<llvm::Constant*>(rev);
-    auto imc = dynamic_cast<llvm::Constant*>(imv);
-    std::vector<llvm::Constant*> vek{rec, imc};
-    return llvm::ConstantStruct::get(maintype().as<ComplexType>()->toLLVMs(), vek);
+ /*   auto rev = Re->codegen();
+    auto imv = Im->codegen();
+  //  auto rec = dynamic_cast<llvm::Constant*>(rev);
+   // auto imc = dynamic_cast<llvm::Constant*>(imv);
+    std::vector<llvm::Constant*> vek{rev, imv};
+    return llvm::ConstantStruct::get(maintype().as<ComplexType>()->toLLVMs(), vek);*/
+    if(!resolved && !Resolve()) return nullptr;
+
+    // First, codegen both children
+    llvm::Value* valL = Re->codegen();
+    llvm::Value* valR = Im->codegen();
+    if(!valL || !valR) return nullptr;
+
+    // Then, perform the conversion.
+    auto converted = match_result.converter_function(ctx(), {valL, valR});
+    // Finally, call the operator performer
+    return match_result.match.associated_function(converted);
 }
 
 llvm::Value* VariableExprAST::codegen() const {
@@ -519,6 +528,54 @@ BlockAST::ScopeManager::~ScopeManager() {
 
 // =================================
 
+bool ComplexValueAST::Resolve() const {
+    Type Retype = Re->maintype();
+    Type Imtype = Im->maintype();
+    auto ret = MatchCandidateEntry{
+        {Retype, Imtype},
+        [this](std::vector<llvm::Value*> v){
+            auto rev = v[0];
+            auto imv = v[1];
+            //auto rev = Re->codegen();
+         //   auto imv = Im->codegen();
+         std::cerr << "in complex constructor, re value is " << std::endl;
+         rev->dump();
+         std::cerr << " and im value is " << std::endl;
+         imv->dump();
+         std::cerr << " after cast to constant re is " << std::endl;
+            auto rec = dynamic_cast<llvm::Constant*>(rev);
+        if(rec)
+            rec->dump();
+        else
+            std::cerr << "nullptr!";
+        std::cerr << std::endl;
+            auto imc = dynamic_cast<llvm::Constant*>(imv);
+            std::vector<llvm::Constant*> vek{rec, imc};
+            return llvm::ConstantStruct::get(maintype().as<ComplexType>()->toLLVMs(), vek);
+
+            //return val;
+
+        },
+        ctx().getComplexTy()
+    };
+    
+    auto match = ctx().typematcher.Match({ret}, {Retype, Imtype});
+    
+    if(match.type == TypeMatcher::Result::NONE) {
+        ctx().AddError("No matching complex constructor found to call with types: " +
+                     Retype->name() + ", " + Imtype->name() + ".");
+        return false;
+    }else if(match.type == TypeMatcher::Result::MULTIPLE){
+        ctx().AddError("Multiple candidates for complex constructor and types: " +
+                     Retype->name() + ", " + Imtype->name() + ".");
+        return false;
+    }else{
+        resolved = true;
+        match_result = match;
+        return true;
+    }
+}
+
 bool BinaryExprAST::Resolve() const{
     // Get the list of operator variants under this name
     auto opit = ctx().BinOpCreator.find(opcode);
@@ -660,6 +717,13 @@ bool CallExprAST::Resolve() const{
             },
             ctx().getVoidTy()
         };
+      /*  auto print_variant_boolean = MatchCandidateEntry{
+            {ctx().getComplexTy()},
+            [this](std::vector<llvm::Value*> v){
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_bool"), v);
+            },
+            ctx().getVoidTy()
+        };*/
 
         auto expr_type = Args[0]->maintype();
         auto match = ctx().typematcher.Match({print_variant_int,

@@ -354,17 +354,16 @@ void CodegenContext::PrepareStdFunctionPrototypes(){
     ADD_STDPROTO("print_double",void(double));
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
     
-    auto blafun = makeFunction(makePrototype(
-        "bla", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getDoubleTy()),
-        makeReturn((makeVariable("Re")))
+    auto blaproto = makePrototype(
+        "bla", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getDoubleTy());
+    makeFunction(blaproto, makeBlock({}, {makeReturn((makeVariable("Re")))})
         );
-    blafun->codegen();
     
-    auto complexfun = makeFunction(makePrototype(
-        "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy()),
-        makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))
+    auto complexproto = makePrototype(
+        "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
+    makeFunction(complexproto, makeBlock({},
+        {makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))})
         );
-    complexfun->codegen();
 }
 
 

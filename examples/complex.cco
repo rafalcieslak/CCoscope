@@ -1,4 +1,8 @@
 
+fun foo(Re : double, Im : double) : double {
+    return Re;
+}
+
 fun main() : int {
     var i : int;
     var f1 : double;
