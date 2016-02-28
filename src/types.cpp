@@ -148,19 +148,9 @@ llvm::Value* BooleanTypeAST::defaultLLVMsValue () const {
     return llvm::ConstantInt::getFalse(getGlobalContext());
 }
 llvm::Value* ComplexTypeAST::defaultLLVMsValue () const {
-    auto v = dynamic_cast<llvm::Constant*>(
-    ctx_.getDoubleTy()->defaultLLVMsValue());
-    //const_cast<CodegenContext&>(ctx_).makeDouble(42)->codegen());
-    
+    auto v = dynamic_cast<llvm::Constant*>(ctx_.getDoubleTy()->defaultLLVMsValue());
     std::vector<llvm::Constant*> vek{v, v};
-    auto r = llvm::ConstantStruct::get(toLLVMs(), vek);
-    /*    std::cerr << "creating default complex, and r is ";
-    if(r)
-        r->dump();
-    else
-        std::cerr << "nullptr!";
-    std::cerr << std::endl;*/
-    return r;
+    return llvm::ConstantStruct::get(toLLVMs(), vek);
 }
 llvm::Value* ReferenceTypeAST::defaultLLVMsValue () const {
     return of()->defaultLLVMsValue();

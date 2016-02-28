@@ -385,7 +385,7 @@ std::vector<Type> PrototypeAST::GetSignature() const{
     return result;
 }
 
-llvm::Function *FunctionAST::codegen() const {
+llvm::Function* FunctionAST::codegen() const {
     using namespace llvm;
 
     // First, check for an existing function from a previous 'extern' declaration.
@@ -443,12 +443,7 @@ llvm::Function *FunctionAST::codegen() const {
 Type ExprAST::maintype() const {
     return ctx().getVoidTy();
 }
-/* see `tree.h`
-template<typename T>
-ExprType PrimitiveExprAST<T>::maintype(CodegenContext& ctx) const {
-    return {std::make_shared<PrimitiveExprAST<int>>(42), CCVoidType()};
-}
-*/
+
 template<>
 Type PrimitiveExprAST<int>::maintype() const {
     return ctx().getIntegerTy();
