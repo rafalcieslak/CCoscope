@@ -5,6 +5,7 @@ fun main() : int {
     var f2 : double;
     var c1 : complex;
     var c2 : complex;
+    var c3 : complex;
     var cres : complex;
     
     f1 := 3.14;
@@ -16,10 +17,14 @@ fun main() : int {
     print(c2);
     cres := c1 + c2;
     print(cres);
+    c3 := newComplex(8.14, 4.66);
+    print(cres == c3);
+    c3 := newComplex(8.140, 4.6601);
+    print(cres == c3);
     cres := c1 - c2;
     print(cres);
     cres := c1 * c2;
     print(cres);
-    //cres := c1 / c2;
-    //print(cres);
+    cres := c1 / c2;
+    print(cres);
 }
