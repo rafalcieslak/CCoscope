@@ -530,9 +530,11 @@ BlockAST::ScopeManager::~ScopeManager() {
 
 bool ComplexValueAST::Resolve() const {
     Type Retype = Re->maintype();
+    std::cerr << "retype is " << Retype->name() << std::endl;
     Type Imtype = Im->maintype();
+    auto dblt = ctx().getDoubleTy();
     auto ret = MatchCandidateEntry{
-        {Retype, Imtype},
+        {dblt, dblt},
         [this](std::vector<llvm::Value*> v){
             auto rev = v[0];
             auto imv = v[1];
