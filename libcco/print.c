@@ -11,3 +11,11 @@ void __cco_print_bool(int v){
     if(v) printf("True\n");
     else  printf("False\n");
 }
+
+void __cco_print_cstr(char* v) {
+    printf("%s\n", v);
+}
+
+void __cco_print_complex(double re, double im) {
+    printf("Complex[Re = %f; Im = %f]\n", re, im);
+}

@@ -16,6 +16,8 @@
 
 namespace ccoscope {
 
+void __cco_print_complex(ComplexValue c);
+
 class CodegenContext;
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of

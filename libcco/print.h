@@ -8,5 +8,7 @@
 void __cco_print_int(int);
 void __cco_print_double(double);
 void __cco_print_bool(int);
+void __cco_print_cstr(char*);
+void __cco_print_complex(double, double);
 
 #endif // __CCO_PRINT_H__

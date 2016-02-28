@@ -533,8 +533,8 @@ bool ComplexValueAST::Resolve() const {
             ctx().Builder.CreateStore(rev, idx1);
             auto idx2 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 1);
             ctx().Builder.CreateStore(imv, idx2);
-            
-            return rets;
+            auto retsload = ctx().Builder.CreateLoad(rets, "Cmplxloadret");
+            return retsload;
         },
         ctx().getComplexTy()
     };
@@ -697,18 +697,21 @@ bool CallExprAST::Resolve() const{
             },
             ctx().getVoidTy()
         };
-      /*  auto print_variant_boolean = MatchCandidateEntry{
+        auto print_variant_complex = MatchCandidateEntry{
             {ctx().getComplexTy()},
             [this](std::vector<llvm::Value*> v){
-                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_bool"), v);
+                auto rev = ctx().Builder.CreateExtractValue(v[0], {0});
+                auto imv = ctx().Builder.CreateExtractValue(v[0], {1});
+                return ctx().Builder.CreateCall(ctx().GetStdFunction("print_complex"), {rev, imv});
             },
             ctx().getVoidTy()
-        };*/
+        };
 
         auto expr_type = Args[0]->maintype();
         auto match = ctx().typematcher.Match({print_variant_int,
                                               print_variant_double,
-                                              print_variant_boolean},
+                                              print_variant_boolean,
+                                              print_variant_complex},
                                              {expr_type}
             );
 
