@@ -355,7 +355,7 @@ void CodegenContext::PrepareStdFunctionPrototypes(){
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
     ADD_STDPROTO("print_cstr", void(char*));
     ADD_STDPROTO("print_complex", void(double, double));
-    
+
     auto complexproto = makePrototype(
         "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
     makeFunction(complexproto, makeBlock({{"Cmplx", getComplexTy()}},

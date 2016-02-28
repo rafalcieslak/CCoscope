@@ -538,9 +538,9 @@ bool ComplexValueAST::Resolve() const {
         },
         ctx().getComplexTy()
     };
-    
+
     auto match = ctx().typematcher.Match({ret}, {Retype, Imtype});
-    
+
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching complex constructor found to call with types: " +
                      Retype->name() + ", " + Imtype->name() + ".");
