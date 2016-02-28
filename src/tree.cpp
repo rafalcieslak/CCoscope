@@ -542,19 +542,39 @@ bool ComplexValueAST::Resolve() const {
          //   auto imv = Im->codegen();
          std::cerr << "in complex constructor, re value is " << std::endl;
          rev->dump();
-         std::cerr << " and im value is " << std::endl;
-         imv->dump();
-         std::cerr << " after cast to constant re is " << std::endl;
-            auto rec = dynamic_cast<llvm::Constant*>(rev);
-        if(rec)
-            rec->dump();
-        else
-            std::cerr << "nullptr!";
+         std::cerr << " and its type is " << std::endl;
+         imv->getType()->dump();
+      //   std::cerr << " after cast to constant re is " << std::endl;
+       //     auto rec = llvm::cast<llvm::Constant>(rev);//dynamic_cast<llvm::Constant*>(rev);
+       // if(rec)
+       //     rec->dump();
+       // else
+       //     std::cerr << "nullptr!";
         std::cerr << std::endl;
-            auto imc = dynamic_cast<llvm::Constant*>(imv);
-            std::vector<llvm::Constant*> vek{rec, imc};
-            return llvm::ConstantStruct::get(maintype().as<ComplexType>()->toLLVMs(), vek);
-
+       //     auto imc = llvm::cast<llvm::Constant>(imv);//dynamic_cast<llvm::Constant*>(imv);
+         //   std::vector<llvm::Constant*> vek{rec, imc};
+            //auto rets = ctx().getComplexTy()->defaultLLVMsValue();
+            auto rets = ctx().VarsInScope["Cmplx"].first;
+            std::cerr << "made struct: ";
+            rets->dump();
+            auto idx1 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
+            if(idx1) {
+                std::cerr << "\nand got its first index as\n";
+                idx1->dump();
+            }
+            else 
+                std::cerr << "idx1 is nullptr!" << std::endl;
+            auto stor = ctx().Builder.CreateStore(rev, idx1);
+            std::cerr << "\nand created store \n";
+            stor->dump();
+            std::cerr << "\nnow sturct looks like: ";
+            rets->dump();
+            std::cerr << std::endl;
+            
+            auto idx2 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 1);
+            ctx().Builder.CreateStore(imv, idx2);
+            
+            return rets;
             //return val;
 
         },

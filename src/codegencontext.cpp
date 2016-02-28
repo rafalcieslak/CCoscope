@@ -361,7 +361,7 @@ void CodegenContext::PrepareStdFunctionPrototypes(){
     
     auto complexproto = makePrototype(
         "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
-    makeFunction(complexproto, makeBlock({},
+    makeFunction(complexproto, makeBlock({{"Cmplx", getComplexTy()}},
         {makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))})
         );
 }
