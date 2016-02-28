@@ -73,73 +73,45 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
 
-    BinOpCreator["ADD"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
-       [this] (std::vector<Value*> v){
-            auto c1re = this->Builder.CreateExtractValue(v[0], {0});
-            auto c1im = this->Builder.CreateExtractValue(v[0], {1});
-            auto c2re = this->Builder.CreateExtractValue(v[1], {0});
-            auto c2im = this->Builder.CreateExtractValue(v[1], {1});
+#define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
+    BinOpCreator[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},    \
+       [this] (std::vector<Value*> v){                            \
+            auto c1re = this->Builder.CreateExtractValue(v[0], {0}); \
+            auto c1im = this->Builder.CreateExtractValue(v[0], {1}); \
+            auto c2re = this->Builder.CreateExtractValue(v[1], {0}); \
+            auto c2im = this->Builder.CreateExtractValue(v[1], {1}); \
+            variadiccode \
+            auto cmplx_t = getComplexTy()->toLLVMs(); \
+            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t); \
+            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0); \
+            this->Builder.CreateStore(reres, idx1); \
+            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1); \
+            this->Builder.CreateStore(imres, idx2); \
+            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret"); \
+            return retsload; \
+       }, rettype                                                 \
+    })
+
+    ADD_COMPLEX_OP("ADD",
             auto reres = this->Builder.CreateFAdd(c1re, c2re, "cmplxaddtmp");
             auto imres = this->Builder.CreateFAdd(c1im, c2im, "cmplxaddtmp");
-            auto cmplx_t = getComplexTy()->toLLVMs();
-            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t);
-            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0);
-            this->Builder.CreateStore(reres, idx1);
-            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1);
-            this->Builder.CreateStore(imres, idx2);
-            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret");
-            return retsload;
-       }, getComplexTy()
-    });
+     , getComplexTy(), "addtmp");
 
-    BinOpCreator["SUB"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
-       [this] (std::vector<Value*> v){
-            auto c1re = this->Builder.CreateExtractValue(v[0], {0});
-            auto c1im = this->Builder.CreateExtractValue(v[0], {1});
-            auto c2re = this->Builder.CreateExtractValue(v[1], {0});
-            auto c2im = this->Builder.CreateExtractValue(v[1], {1});
+    ADD_COMPLEX_OP("SUB",
             auto reres = this->Builder.CreateFSub(c1re, c2re, "cmplxsubtmp");
             auto imres = this->Builder.CreateFSub(c1im, c2im, "cmplxsubtmp");
-            auto cmplx_t = getComplexTy()->toLLVMs();
-            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t);
-            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0);
-            this->Builder.CreateStore(reres, idx1);
-            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1);
-            this->Builder.CreateStore(imres, idx2);
-            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret");
-            return retsload;
-       }, getComplexTy()
-    });
+     , getComplexTy(), "subtmp");
 
-    BinOpCreator["MULT"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
-       [this] (std::vector<Value*> v){
-            auto c1re = this->Builder.CreateExtractValue(v[0], {0});
-            auto c1im = this->Builder.CreateExtractValue(v[0], {1});
-            auto c2re = this->Builder.CreateExtractValue(v[1], {0});
-            auto c2im = this->Builder.CreateExtractValue(v[1], {1});
+    ADD_COMPLEX_OP("MULT",
             auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
             auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
             auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
             auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
             auto reres = this->Builder.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
             auto imres = this->Builder.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
-            auto cmplx_t = getComplexTy()->toLLVMs();
-            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t);
-            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0);
-            this->Builder.CreateStore(reres, idx1);
-            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1);
-            this->Builder.CreateStore(imres, idx2);
-            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret");
-            return retsload;
-       }, getComplexTy()
-    });
+     , getComplexTy(), "multmp");
 
-    BinOpCreator["DIV"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
-       [this] (std::vector<Value*> v){
-            auto c1re = this->Builder.CreateExtractValue(v[0], {0});
-            auto c1im = this->Builder.CreateExtractValue(v[0], {1});
-            auto c2re = this->Builder.CreateExtractValue(v[1], {0});
-            auto c2im = this->Builder.CreateExtractValue(v[1], {1});
+    ADD_COMPLEX_OP("DIV",
             auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
             auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
             auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
@@ -151,16 +123,7 @@ CodegenContext::CodegenContext()
             auto right = this->Builder.CreateFSub(c1imc2re, c1rec2im, "cmplxaddtmp");
             auto reres = this->Builder.CreateFDiv(left, squares, "cmplxdivtmp");
             auto imres = this->Builder.CreateFDiv(right, squares, "cmplxdivtmp");
-            auto cmplx_t = getComplexTy()->toLLVMs();
-            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t);
-            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0);
-            this->Builder.CreateStore(reres, idx1);
-            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1);
-            this->Builder.CreateStore(imres, idx2);
-            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret");
-            return retsload;
-       }, getComplexTy()
-    });
+     , getComplexTy(), "divtmp");
 
     BinOpCreator["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
        [this] (std::vector<Value*> v){
