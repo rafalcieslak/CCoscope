@@ -55,22 +55,13 @@ llvm::Value* PrimitiveExprAST<T>::codegen() const {
 }
 
 llvm::Value* ComplexValueAST::codegen() const {
- /*   auto rev = Re->codegen();
-    auto imv = Im->codegen();
-  //  auto rec = dynamic_cast<llvm::Constant*>(rev);
-   // auto imc = dynamic_cast<llvm::Constant*>(imv);
-    std::vector<llvm::Constant*> vek{rev, imv};
-    return llvm::ConstantStruct::get(maintype().as<ComplexType>()->toLLVMs(), vek);*/
     if(!resolved && !Resolve()) return nullptr;
 
-    // First, codegen both children
-    llvm::Value* valL = Re->codegen();
-    llvm::Value* valR = Im->codegen();
-    if(!valL || !valR) return nullptr;
+    llvm::Value* valRe = Re->codegen();
+    llvm::Value* valIm = Im->codegen();
+    if(!valRe || !valIm) return nullptr;
 
-    // Then, perform the conversion.
-    auto converted = match_result.converter_function(ctx(), {valL, valR});
-    // Finally, call the operator performer
+    auto converted = match_result.converter_function(ctx(), {valRe, valIm});
     return match_result.match.associated_function(converted);
 }
 
@@ -530,7 +521,6 @@ BlockAST::ScopeManager::~ScopeManager() {
 
 bool ComplexValueAST::Resolve() const {
     Type Retype = Re->maintype();
-    std::cerr << "retype is " << Retype->name() << std::endl;
     Type Imtype = Im->maintype();
     auto dblt = ctx().getDoubleTy();
     auto ret = MatchCandidateEntry{
@@ -538,45 +528,13 @@ bool ComplexValueAST::Resolve() const {
         [this](std::vector<llvm::Value*> v){
             auto rev = v[0];
             auto imv = v[1];
-            //auto rev = Re->codegen();
-         //   auto imv = Im->codegen();
-         std::cerr << "in complex constructor, re value is " << std::endl;
-         rev->dump();
-         std::cerr << " and its type is " << std::endl;
-         imv->getType()->dump();
-      //   std::cerr << " after cast to constant re is " << std::endl;
-       //     auto rec = llvm::cast<llvm::Constant>(rev);//dynamic_cast<llvm::Constant*>(rev);
-       // if(rec)
-       //     rec->dump();
-       // else
-       //     std::cerr << "nullptr!";
-        std::cerr << std::endl;
-       //     auto imc = llvm::cast<llvm::Constant>(imv);//dynamic_cast<llvm::Constant*>(imv);
-         //   std::vector<llvm::Constant*> vek{rec, imc};
-            //auto rets = ctx().getComplexTy()->defaultLLVMsValue();
             auto rets = ctx().VarsInScope["Cmplx"].first;
-            std::cerr << "made struct: ";
-            rets->dump();
             auto idx1 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
-            if(idx1) {
-                std::cerr << "\nand got its first index as\n";
-                idx1->dump();
-            }
-            else 
-                std::cerr << "idx1 is nullptr!" << std::endl;
-            auto stor = ctx().Builder.CreateStore(rev, idx1);
-            std::cerr << "\nand created store \n";
-            stor->dump();
-            std::cerr << "\nnow sturct looks like: ";
-            rets->dump();
-            std::cerr << std::endl;
-            
+            ctx().Builder.CreateStore(rev, idx1);
             auto idx2 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 1);
             ctx().Builder.CreateStore(imv, idx2);
             
             return rets;
-            //return val;
-
         },
         ctx().getComplexTy()
     };
