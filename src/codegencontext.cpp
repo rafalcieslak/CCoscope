@@ -312,7 +312,6 @@ const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) c
     return node;
 }
 
-
 llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
     auto it = stdlib_functions.find(name);
     if(it == stdlib_functions.end()) return nullptr;
