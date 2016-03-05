@@ -1,0 +1,26 @@
+
+fun foo(a : complex, b : complex) : complex {
+  var c : complex;
+  c := a + b * a;
+  return c;
+}
+
+fun bar(a : int, b : double) : complex {
+  var g : double;
+  g := 2 * a + b;
+  return g;
+  //return newComplex(g, 0);
+}
+
+fun main() : int {
+    var i : int;
+    var c : complex;
+    var d : complex;
+    
+    c := newComplex(3, -2);
+    d := foo(-2, c);
+    print(d);
+    d := bar(3, 0.14);
+    print(d);
+    print(bar(3, 0.14));
+}

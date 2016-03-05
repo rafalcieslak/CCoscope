@@ -184,9 +184,13 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
             ctx_.getComplexTy(),   // Conversion to complex
             15,                   // -- costs 10
             [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{
-                auto vc = dynamic_cast<llvm::Constant*>(v);
-                std::vector<llvm::Constant*> vek{vc, dynamic_cast<llvm::Constant*>(ctx.getDoubleTy()->defaultLLVMsValue())};
-                return llvm::ConstantStruct::get(ctx.getComplexTy()->toLLVMs(), vek);
+                llvm::Function *CalleeF = ctx.TheModule->getFunction("newComplex");
+                if(CalleeF) {
+                    return ctx.Builder.CreateCall(CalleeF, {v, ctx.getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
+                } else {
+                    std::cerr << "newComplex not found!" << std::endl;
+                    return nullptr;
+                }
             }
         }
     };
