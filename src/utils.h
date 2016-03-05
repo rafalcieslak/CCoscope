@@ -13,7 +13,7 @@ void CopyFile(std::string src, std::string dest);
 std::string SubstFileExt(std::string filename, std::string ext);
 
 std::vector<std::string> SplitString(std::string str, std::string delimiter);
-std::string JoinString(std::vector<std::string> str, std::string c);
+std::string JoinString(std::vector<std::string> str, std::string c = "");
 
 inline bool StringEndsWith(std::string const & value, std::string const & ending)
 {

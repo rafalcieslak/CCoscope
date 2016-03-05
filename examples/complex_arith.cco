@@ -1,0 +1,30 @@
+
+fun main() : int {
+    var i : int;
+    var f1 : double;
+    var f2 : double;
+    var c1 : complex;
+    var c2 : complex;
+    var c3 : complex;
+    var cres : complex;
+    
+    f1 := 3.14;
+    f2 := -2;
+    c1 := newComplex(f1, f2);
+    i := 5;
+    c2 := newComplex(5, 6.66);
+    print(c1);
+    print(c2);
+    cres := c1 + c2;
+    print(cres);
+    c3 := newComplex(8.14, 4.66);
+    print(cres == c3);
+    c3 := newComplex(8.140, 4.6601);
+    print(cres == c3);
+    cres := c1 - c2;
+    print(cres);
+    cres := c1 * c2;
+    print(cres);
+    cres := c1 / c2;
+    print(cres);
+}

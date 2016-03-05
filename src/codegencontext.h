@@ -12,6 +12,7 @@
 
 #include "tree.h"
 #include "types.h"
+#include "typematcher.h"
 
 namespace ccoscope {
 
@@ -49,21 +50,6 @@ struct GIDCmp {
     }
 };
 
-// naiive for now
-struct TypeHash { size_t operator () (const TypeAST* t) const { return 1; } };
-struct TypeEqual {
-    bool operator () (const TypeAST* t1, const TypeAST* t2) const {
-        return t1->equal(*t2);
-    }
-};
-
-using TypeSet = std::unordered_set<const TypeAST*, TypeHash, TypeEqual>;
-
-struct TTypeCmp {
-    bool operator () (const std::tuple<std::string, Type, Type>& lhs,
-                      const std::tuple<std::string, Type, Type>& rhs) const;
-};
-
 class CodegenContext
 {
 public:
@@ -77,6 +63,7 @@ public:
     PrimitiveExpr<int> makeInt(int value);
     PrimitiveExpr<double> makeDouble(double value);
     PrimitiveExpr<bool> makeBool(bool value);
+    ComplexValue makeComplex(Expr re, Expr im);
     BinaryExpr makeBinary(std::string Op, Expr LHS, Expr RHS);
     ReturnExpr makeReturn(Expr expr);
     Block makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
@@ -96,12 +83,13 @@ public:
     // ==---------------------------------------------------------------
     // Factory methods for Types
 
-    VoidType getVoidTy();
-    IntegerType getIntegerTy();
-    DoubleType getDoubleTy();
-    BooleanType getBooleanTy();
-    FunctionType getFunctionTy(Type ret, std::vector<Type> args);
-    ReferenceType getReferenceTy(Type of);
+    VoidType getVoidTy() const;
+    IntegerType getIntegerTy() const;
+    DoubleType getDoubleTy() const;
+    BooleanType getBooleanTy() const;
+    ComplexType getComplexTy() const;
+    FunctionType getFunctionTy(Type ret, std::vector<Type> args) const;
+    ReferenceType getReferenceTy(Type of) const;
 
     // ==---------------------------------------------------------------
 
@@ -114,12 +102,10 @@ public:
     std::shared_ptr<llvm::Module> TheModule;
     llvm::IRBuilder<> Builder;
     llvm::Function* CurrentFunc;
+    Type CurrentFuncReturnType;
     mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
 
-    std::map<std::tuple<std::string, Type, Type>,
-            std::pair<std::function<llvm::Value*(llvm::Value*, llvm::Value*)>,
-                      Type>,
-            TTypeCmp> BinOpCreator;
+    std::map<std::string, std::list<MatchCandidateEntry>> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB
@@ -133,13 +119,15 @@ public:
     void SetModuleAndFile(std::shared_ptr<llvm::Module> module, std::string infile);
 
     // Stores an error-message. TODO: Add file positions storage.
-    void AddError(std::string text);
+    void AddError(std::string text) const;
 
     // Returns true iff no errors were stored.
     bool IsErrorFree();
 
     // Prints all stored errors to stdout.
     void DisplayErrors();
+
+    TypeMatcher typematcher;
 
 protected:
     // Storage for error messages.
@@ -155,13 +143,13 @@ protected:
 
     // Is there a way to merge these two "introduces"? TODO: find a way!
     template<class T>
-    const T* introduceE(const T* node) { return introduce_expr(node)->template as<T>(); }
+    const T* introduceE(const T* node) const { return introduce_expr(node)->template as<T>(); }
     template<class T>
-    const T* introduceT(const T* node) { return introduce_type(node)->template as<T>(); }
-    const ExprAST* introduce_expr(const ExprAST*);
-    const TypeAST* introduce_type(const TypeAST*);
-    const PrototypeAST* introduce_prototype(const PrototypeAST*);
-    const FunctionAST* introduce_function(const FunctionAST*);
+    const T* introduceT(const T* node) const { return introduce_type(node)->template as<T>(); }
+    const ExprAST* introduce_expr(const ExprAST*) const;
+    const TypeAST* introduce_type(const TypeAST*) const;
+    const PrototypeAST* introduce_prototype(const PrototypeAST*) const;
+    const FunctionAST* introduce_function(const FunctionAST*) const;
 
     mutable size_t gid_;
 };

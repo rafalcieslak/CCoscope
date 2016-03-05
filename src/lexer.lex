@@ -26,7 +26,7 @@ digit    [0-9]
 alpha    [a-zA-z]
 alphanum {digit}|{alpha}
 
-basetype int|bool|double
+basetype int|bool|double|complex
 
 /* Floats */
 exponent	[eE]-?{digit}+

@@ -15,115 +15,127 @@ llvm::Constant* CreateI8String(char const* str, CodegenContext& ctx) {
 
 CodegenContext::CodegenContext()
     : Builder(getGlobalContext())
+    , typematcher(*this)
     , gid_(0)
 {
     // Operators on integers
 
-    BinOpCreator[std::make_tuple("ADD", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateAdd(LHS, RHS, "addtmp");
-        }, getIntegerTy());
-    BinOpCreator[std::make_tuple("SUB", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateSub(LHS, RHS, "subtmp");
-        }, getIntegerTy());
-    BinOpCreator[std::make_tuple("MULT", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateMul(LHS, RHS, "multmp");
-        }, getIntegerTy());
-    BinOpCreator[std::make_tuple("DIV", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateSDiv(LHS, RHS, "divtmp");
-        }, getIntegerTy());
-    BinOpCreator[std::make_tuple("MOD", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateSRem(LHS, RHS, "modtmp");
-        }, getIntegerTy());
+#define INIT_OP(name) BinOpCreator[name] = std::list<MatchCandidateEntry>()
 
-    BinOpCreator[std::make_tuple("EQUAL", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpEQ(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("NEQUAL", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpNE(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
+#define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname) \
+    BinOpCreator[name].push_back(MatchCandidateEntry{{t1, t2},    \
+       [this] (std::vector<Value*> v){                            \
+            return this->Builder.builderfunc(v[0], v[1], retname);\
+       }, rettype                                                 \
+    })
 
-    BinOpCreator[std::make_tuple("GREATER", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpSGT(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("GREATEREQ", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpSGE(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("LESS", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpSLT(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("LESSEQ", getIntegerTy(), getIntegerTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateICmpSLE(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
+    // We wouldn't need that if STL provided a `defaultdict`.
+    INIT_OP("ADD");
+    INIT_OP("SUB");
+    INIT_OP("MULT");
+    INIT_OP("DIV");
+    INIT_OP("REM");
+    INIT_OP("EQUAL");
+    INIT_OP("NEQUAL");
+    INIT_OP("GREATER");
+    INIT_OP("GREATEREQ");
+    INIT_OP("LESS");
+    INIT_OP("LESSEQ");
+    INIT_OP("LOGICAL_AND");
+    INIT_OP("LOGICAL_OR");
 
-    BinOpCreator[std::make_tuple("LOGICAL_AND", getBooleanTy(), getBooleanTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateAnd(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("LOGICAL_OR", getBooleanTy(), getBooleanTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateOr(LHS, RHS, "cmptmp");
-        }, getBooleanTy());
+    ADD_BASIC_OP("ADD",  getIntegerTy(), getIntegerTy(), CreateAdd,  getIntegerTy(), "addtmp");
+    ADD_BASIC_OP("SUB",  getIntegerTy(), getIntegerTy(), CreateSub,  getIntegerTy(), "subtmp");
+    ADD_BASIC_OP("MULT", getIntegerTy(), getIntegerTy(), CreateMul,  getIntegerTy(), "multmp");
+    ADD_BASIC_OP("DIV",  getIntegerTy(), getIntegerTy(), CreateSDiv, getIntegerTy(), "divtmp");
+    ADD_BASIC_OP("REM",  getIntegerTy(), getIntegerTy(), CreateSRem, getIntegerTy(), "modtmp");
 
-    // Operators on doubles
+    ADD_BASIC_OP("EQUAL",    getIntegerTy(), getIntegerTy(), CreateICmpEQ,  getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("NEQUAL",   getIntegerTy(), getIntegerTy(), CreateICmpNE,  getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("GREATER",  getIntegerTy(), getIntegerTy(), CreateICmpSGT, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("GREATEREQ",getIntegerTy(), getIntegerTy(), CreateICmpSGE, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("LESS",     getIntegerTy(), getIntegerTy(), CreateICmpSLT, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("LESSEQ",   getIntegerTy(), getIntegerTy(), CreateICmpSLE, getBooleanTy(), "cmptmp");
 
-    BinOpCreator[std::make_tuple("ADD", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFAdd(LHS, RHS, "faddtmp");
-        }, getDoubleTy());
-    BinOpCreator[std::make_tuple("SUB", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFSub(LHS, RHS, "fsubtmp");
-        }, getDoubleTy());
-    BinOpCreator[std::make_tuple("MULT", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFMul(LHS, RHS, "fmultmp");
-        }, getDoubleTy());
-    BinOpCreator[std::make_tuple("DIV", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFDiv(LHS, RHS, "fdivtmp");
-        }, getDoubleTy());
-    BinOpCreator[std::make_tuple("MOD", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFRem(LHS, RHS, "fmodtmp");
-        }, getDoubleTy());
+    ADD_BASIC_OP("LOGICAL_AND", getBooleanTy(), getBooleanTy(), CreateAnd,  getBooleanTy(), "andtmp");
+    ADD_BASIC_OP("LOGICAL_OR" , getBooleanTy(), getBooleanTy(), CreateOr,   getBooleanTy(), "ortmp" );
 
-    BinOpCreator[std::make_tuple("EQUAL", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFCmpOEQ(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("NEQUAL", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFCmpONE(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());
+    ADD_BASIC_OP("ADD",  getDoubleTy(), getDoubleTy(), CreateFAdd,  getDoubleTy(), "addtmp");
+    ADD_BASIC_OP("SUB",  getDoubleTy(), getDoubleTy(), CreateFSub,  getDoubleTy(), "subtmp");
+    ADD_BASIC_OP("MULT", getDoubleTy(), getDoubleTy(), CreateFMul,  getDoubleTy(), "multmp");
+    ADD_BASIC_OP("DIV",  getDoubleTy(), getDoubleTy(), CreateFDiv,  getDoubleTy(), "divtmp");
+    ADD_BASIC_OP("REM",  getDoubleTy(), getDoubleTy(), CreateFRem,  getDoubleTy(), "modtmp");
 
-    BinOpCreator[std::make_tuple("GREATER", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFCmpOGT(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("GREATEREQ", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFCmpOGE(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("LESS", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFCmpOLT(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());
-    BinOpCreator[std::make_tuple("LESSEQ", getDoubleTy(), getDoubleTy())] =
-        std::make_pair([this] (Value* LHS, Value* RHS) {
-            return this->Builder.CreateFCmpOLE(LHS, RHS, "fcmptmp");
-        }, getBooleanTy());
+    ADD_BASIC_OP("EQUAL",    getDoubleTy(), getDoubleTy(), CreateFCmpOEQ, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("NEQUAL",   getDoubleTy(), getDoubleTy(), CreateFCmpONE, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("GREATER",  getDoubleTy(), getDoubleTy(), CreateFCmpOGT, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("GREATEREQ",getDoubleTy(), getDoubleTy(), CreateFCmpOGE, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
+    ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
 
+#define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
+    BinOpCreator[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},    \
+       [this] (std::vector<Value*> v){                            \
+            auto c1re = this->Builder.CreateExtractValue(v[0], {0}); \
+            auto c1im = this->Builder.CreateExtractValue(v[0], {1}); \
+            auto c2re = this->Builder.CreateExtractValue(v[1], {0}); \
+            auto c2im = this->Builder.CreateExtractValue(v[1], {1}); \
+            variadiccode \
+            auto cmplx_t = getComplexTy()->toLLVMs(); \
+            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t); \
+            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0); \
+            this->Builder.CreateStore(reres, idx1); \
+            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1); \
+            this->Builder.CreateStore(imres, idx2); \
+            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret"); \
+            return retsload; \
+       }, rettype                                                 \
+    })
+
+    ADD_COMPLEX_OP("ADD",
+            auto reres = this->Builder.CreateFAdd(c1re, c2re, "cmplxaddtmp");
+            auto imres = this->Builder.CreateFAdd(c1im, c2im, "cmplxaddtmp");
+     , getComplexTy(), "addtmp");
+
+    ADD_COMPLEX_OP("SUB",
+            auto reres = this->Builder.CreateFSub(c1re, c2re, "cmplxsubtmp");
+            auto imres = this->Builder.CreateFSub(c1im, c2im, "cmplxsubtmp");
+     , getComplexTy(), "subtmp");
+
+    ADD_COMPLEX_OP("MULT",
+            auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
+            auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
+            auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
+            auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
+            auto reres = this->Builder.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
+            auto imres = this->Builder.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
+     , getComplexTy(), "multmp");
+
+    ADD_COMPLEX_OP("DIV",
+            auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
+            auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
+            auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
+            auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
+            auto c2rere = this->Builder.CreateFMul(c2re, c2re, "cmplxmultmp");
+            auto c2imim = this->Builder.CreateFMul(c2im, c2im, "cmplxmultmp");
+            auto squares = this->Builder.CreateFAdd(c2rere, c2imim, "cmplxaddtmp");
+            auto left = this->Builder.CreateFAdd(c1c2re, c1c2im, "cmplxsubtmp");
+            auto right = this->Builder.CreateFSub(c1imc2re, c1rec2im, "cmplxaddtmp");
+            auto reres = this->Builder.CreateFDiv(left, squares, "cmplxdivtmp");
+            auto imres = this->Builder.CreateFDiv(right, squares, "cmplxdivtmp");
+     , getComplexTy(), "divtmp");
+
+    BinOpCreator["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+       [this] (std::vector<Value*> v){
+            auto c1re = this->Builder.CreateExtractValue(v[0], {0});
+            auto c1im = this->Builder.CreateExtractValue(v[0], {1});
+            auto c2re = this->Builder.CreateExtractValue(v[1], {0});
+            auto c2im = this->Builder.CreateExtractValue(v[1], {1});
+            auto c1c2re = this->Builder.CreateFCmpOEQ(c1re, c2re, "cmplxcmptmp");
+            auto c1c2im = this->Builder.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
+            return this->Builder.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
+       }, getBooleanTy()
+    });
 }
 
 CodegenContext::~CodegenContext() {
@@ -137,16 +149,6 @@ CodegenContext::~CodegenContext() {
         delete it;
 }
 
-bool TTypeCmp::operator () (const std::tuple<std::string, Type, Type>& lhs,
-                      const std::tuple<std::string, Type, Type>& rhs) const {
-    return  std::get<0>(lhs) < std::get<0>(rhs) ||
-           (std::get<0>(lhs) == std::get<0>(rhs) &&
-            std::get<1>(lhs)->gid() < std::get<1>(rhs)->gid()) ||
-           (std::get<0>(lhs) == std::get<0>(rhs) &&
-            std::get<1>(lhs)->gid() == std::get<1>(rhs)->gid() &&
-            std::get<2>(lhs)->gid() < std::get<2>(rhs)->gid()
-           );
-}
 
 // ==---------------------------------------------------------------
 // Factory methods for AST nodes
@@ -165,6 +167,10 @@ PrimitiveExpr<double> CodegenContext::makeDouble(double value) {
 
 PrimitiveExpr<bool> CodegenContext::makeBool(bool value) {
     return introduceE(new PrimitiveExprAST<bool>(*this, gid_++, value));
+}
+
+ComplexValue CodegenContext::makeComplex(Expr re, Expr im) {
+    return introduceE(new ComplexValueAST(*this, gid_++, re, im));
 }
 
 BinaryExpr CodegenContext::makeBinary(std::string Op, Expr LHS, Expr RHS) {
@@ -219,27 +225,31 @@ Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
 // ==---------------------------------------------------------------
 // Factory methods for Types
 
-VoidType CodegenContext::getVoidTy() {
+VoidType CodegenContext::getVoidTy() const{
     return introduceT(new VoidTypeAST(*this, gid_++));
 }
 
-IntegerType CodegenContext::getIntegerTy() {
+IntegerType CodegenContext::getIntegerTy() const{
     return introduceT(new IntegerTypeAST(*this, gid_++));
 }
 
-DoubleType CodegenContext::getDoubleTy() {
+DoubleType CodegenContext::getDoubleTy() const{
     return introduceT(new DoubleTypeAST(*this, gid_++));
 }
 
-BooleanType CodegenContext::getBooleanTy() {
+BooleanType CodegenContext::getBooleanTy() const{
     return introduceT(new BooleanTypeAST(*this, gid_++));
 }
 
-FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) {
+ComplexType CodegenContext::getComplexTy() const{
+    return introduceT(new ComplexTypeAST(*this, gid_++));
+}
+
+FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) const{
     return introduceT(new FunctionTypeAST(*this, gid_++, ret, args));
 }
 
-ReferenceType CodegenContext::getReferenceTy(Type of) {
+ReferenceType CodegenContext::getReferenceTy(Type of) const{
     return introduceT(new ReferenceTypeAST(*this, gid_++, of));
 }
 
@@ -251,7 +261,7 @@ void CodegenContext::SetModuleAndFile(std::shared_ptr<llvm::Module> module, std:
     PrepareStdFunctionPrototypes();
 }
 
-void CodegenContext::AddError(std::string text){
+void CodegenContext::AddError(std::string text) const{
     errors.push_back(std::make_pair(CurrentFunc->getName(), text));
 }
 
@@ -266,7 +276,7 @@ void CodegenContext::DisplayErrors(){
     }
 }
 
-const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
+const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) const{
     /* This look ridiculously simple now, but in the future we can
      * make CSE optimization here
      */
@@ -274,7 +284,7 @@ const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) {
     return node;
 }
 
-const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
+const TypeAST* CodegenContext::introduce_type(const TypeAST* node) const{
     auto it = types.find(node);
     if(it != types.end() && *it != node) {
         delete node;
@@ -285,7 +295,7 @@ const TypeAST* CodegenContext::introduce_type(const TypeAST* node) {
     return node;
 }
 
-const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node) {
+const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node) const{
     auto pit = prototypesMap.find(node->getName());
     if(pit != prototypesMap.end()) {
         delete node;
@@ -297,11 +307,10 @@ const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node
     return node;
 }
 
-const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) {
+const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) const{
     definitions.insert(node);
     return node;
 }
-
 
 llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
     auto it = stdlib_functions.find(name);
@@ -323,6 +332,14 @@ void CodegenContext::PrepareStdFunctionPrototypes(){
     ADD_STDPROTO("print_int",void(int));
     ADD_STDPROTO("print_double",void(double));
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
+    ADD_STDPROTO("print_cstr", void(char*));
+    ADD_STDPROTO("print_complex", void(double, double));
+
+    auto complexproto = makePrototype(
+        "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
+    makeFunction(complexproto, makeBlock({{"Cmplx", getComplexTy()}},
+        {makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))})
+        );
 }
 
 

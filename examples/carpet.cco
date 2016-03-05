@@ -48,3 +48,4 @@ fun draw_frac(max : int, cur_y : int, cur_x : int, depth : int) : bool {
     }
     return true;
 }
+

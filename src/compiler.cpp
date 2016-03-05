@@ -78,7 +78,7 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
 
     auto ctx = CodegenContext{};
 
-    parser(tok, ctx, /*prototypes,definitions, */tkn_Start, 0);
+    parser(tok, ctx, tkn_Start, 0);
 
     // Instead of returning an exit status, the parser returns
     // nothing, and we need to determine if parsing was successful by
