@@ -73,17 +73,17 @@
 %constraint ReturnType returntype 1 2
 
 %intokenheader #include <memory>
-%intokenheader #include "tree.h"
-%intokenheader #include "types.h"
+%intokenheader #include "../tree/tree.h"
+%intokenheader #include "../types/types.h"
 
 %global ctx ccoscope::CodegenContext
 
 #include <cassert>
 #define ASSERT( X ) { assert( ( X ) ); }
 #include <cstdio>
-#include "tree.h"
-#include "types.h"
-#include "codegencontext.h"
+#include "../tree/tree.h"
+#include "../types/types.h"
+#include "../codegencontext.h"
 #include <memory>
 
 % Start : Module

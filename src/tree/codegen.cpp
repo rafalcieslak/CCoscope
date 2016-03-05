@@ -7,30 +7,6 @@
 
 namespace ccoscope {
 
-template class Proxy<ExprAST>;
-template class Proxy<PrimitiveExprAST<int>>;
-template class Proxy<PrimitiveExprAST<double>>;
-template class Proxy<PrimitiveExprAST<bool>>;
-template class Proxy<ComplexValueAST>;
-template class Proxy<VariableExprAST>;
-template class Proxy<BinaryExprAST>;
-template class Proxy<ReturnExprAST>;
-template class Proxy<BlockAST>;
-template class Proxy<AssignmentAST>;
-template class Proxy<CallExprAST>;
-template class Proxy<IfExprAST>;
-template class Proxy<WhileExprAST>;
-template class Proxy<ForExprAST>;
-template class Proxy<KeywordAST>;
-template class Proxy<PrototypeAST>;
-template class Proxy<FunctionAST>;
-
-bool ExprAST::equal(const ExprAST& other) const {
-    return gid() == other.gid();
-}
-
-// ---------------------------------------------------------------------
-
 template<>
 llvm::Value* PrimitiveExprAST<int>::codegen() const {
     return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(32, Val, 1));
@@ -436,81 +412,6 @@ llvm::Function* FunctionAST::codegen() const {
     return nullptr;
 }
 
-// --------------------------------------------------
-// Typechecking
-// --------------------------------------------------
-
-Type ExprAST::maintype() const {
-    return ctx().getVoidTy();
-}
-
-template<>
-Type PrimitiveExprAST<int>::maintype() const {
-    return ctx().getIntegerTy();
-}
-
-template<>
-Type PrimitiveExprAST<bool>::maintype() const {
-    return ctx().getBooleanTy();
-}
-
-template<>
-Type PrimitiveExprAST<double>::maintype() const {
-    return ctx().getDoubleTy();
-}
-
-Type ComplexValueAST::maintype() const {
-    return ctx().getComplexTy();
-}
-
-Type VariableExprAST::maintype() const {
-    return ctx().getReferenceTy( ctx().VarsInScope[Name].second );
-}
-
-Type BinaryExprAST::maintype() const {
-    // If already resolved - OK. Otherwise try to resolve, if failed - return.
-    // TODO: Remember that resolution failed in order no to redo it.
-    if(!resolved && !Resolve()) return ctx().getVoidTy();
-
-    return match_result.match.return_type;
-}
-
-Type AssignmentAST::maintype() const {
-    // TODO -- maybe a ReferenceType ?
-    return ctx().getVoidTy();
-}
-
-Type CallExprAST::maintype() const {
-    // If already resolved - OK. Otherwise try to resolve, if failed - return.
-    // TODO: Remember that resolution failed in order no to redo it.
-    if(!resolved && !Resolve()) return ctx().getVoidTy();
-
-    return match_result.match.return_type;
-}
-
-Type PrototypeAST::maintype() const {
-    std::vector<Type> argsTypes;
-    for (auto& p : Args) {
-        argsTypes.push_back(p.second);
-    }
-
-    return ctx().getFunctionTy(ReturnType, argsTypes);
-}
-
-Type FunctionAST::maintype() const {
-    return Proto->maintype();
-}
-
-BlockAST::ScopeManager::~ScopeManager() {
-    for (auto& var : parent->Vars) {
-        auto it = std::find_if(ctx.VarsInScope.begin(),
-                               ctx.VarsInScope.end(),
-                               [&var](auto& p) {
-                                   return p.first == var.first;
-                               });
-        ctx.VarsInScope.erase(it);
-    }
-}
 
 // =================================
 

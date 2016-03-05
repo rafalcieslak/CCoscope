@@ -52,6 +52,10 @@ FLEX_TARGET(lexer lexer.lex ${CMAKE_CURRENT_BINARY_DIR}/lexer.cpp)
 
 file(GLOB SOURCES
   ./*.cpp
+  parser/*.cpp
+  tree/*.cpp
+  types/*.cpp
+  utils/*.cpp
   )
 
 # LLVM detection package for cmake is very limited :(

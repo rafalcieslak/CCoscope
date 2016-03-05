@@ -1,7 +1,7 @@
 #ifndef __COMPILER_H__
 #define __COMPILER_H__
 
-#include "utils.h"
+#include "utils/utils.h"
 
 namespace ccoscope {
 

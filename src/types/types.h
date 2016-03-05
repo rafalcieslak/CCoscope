@@ -8,7 +8,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 
-#include "proxy.h"
+#include "../utils/proxy.h"
 #include "conversions.h"
 
 #include <typeinfo>

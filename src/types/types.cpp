@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "types.h"
-#include "codegencontext.h"
+#include "../codegencontext.h"
 
 namespace ccoscope {
 

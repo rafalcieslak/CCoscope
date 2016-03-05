@@ -1,9 +1,9 @@
 #include "compiler.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include "codegencontext.h"
-#include "tree.h"
+#include "tree/tree.h"
 #include "token.h"
-#include "tokenizer.h"
+#include "parser/tokenizer.h"
 #include "parser.h"
 
 #include "llvm/IR/Module.h"

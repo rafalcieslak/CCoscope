@@ -1,7 +1,7 @@
 #ifndef __CONVERSIONS_H__
 #define __CONVERSIONS_H__
 
-#include "proxy.h"
+#include "../utils/proxy.h"
 
 #include "llvm/IR/Value.h"
 
