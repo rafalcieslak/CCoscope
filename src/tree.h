@@ -349,6 +349,13 @@ protected:
     Expr Body;
 };
 
+class ConvertAST : public ExprAST {
+public:
+    ConvertAST(CodegenContext& ctx, size_t gid)
+        : ExprAST(ctx, gid)
+    {}
+};
+
 
 // I really hate having to add this operator, but maphoon insists on printing all token arguments...
 inline std::ostream& operator<<(std::ostream& s, const std::list<Expr>& l){

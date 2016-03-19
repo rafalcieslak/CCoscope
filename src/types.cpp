@@ -75,62 +75,69 @@ std::string FunctionTypeAST::name() const {
 // ---------------------------------------------------------
 
 llvm::Type* TypeAST::toLLVMs () const {
-    return nullptr;
-}
-
-llvm::Type* VoidTypeAST::toLLVMs () const {
-    if(!cache_)
-        cache_ = llvm::Type::getVoidTy(getGlobalContext());
-    return cache_;
-}
-
-llvm::Type* IntegerTypeAST::toLLVMs () const {
-    if(!cache_)
-        cache_ = llvm::Type::getInt32Ty(getGlobalContext());
-    return cache_;
-}
-
-llvm::Type* DoubleTypeAST::toLLVMs () const {
-    if(!cache_)
-        cache_ =  llvm::Type::getDoubleTy(getGlobalContext());
-    return cache_;
-}
-
-llvm::Type* BooleanTypeAST::toLLVMs () const {
-    if(!cache_)
-        cache_ =  llvm::Type::getInt1Ty(getGlobalContext());
+    if(!cache_) {
+        cache_ = toLLVMs_();
+    }
     return cache_;
 }
 
 llvm::StructType* ComplexTypeAST::toLLVMs () const {
     if(!cache_) {
-        auto dblt = ctx_.getDoubleTy()->toLLVMs();
-        cache_ = llvm::StructType::create(
-               getGlobalContext(),
-               {dblt, dblt},
-               name()
-        );
+        cache_ = toLLVMs_();
     }
-    return llvm::dyn_cast<llvm::StructType>(cache_);
+    return llvm::cast<llvm::StructType>(cache_);
 }
 
 llvm::FunctionType* FunctionTypeAST::toLLVMs () const {
     if(!cache_) {
-        std::vector<llvm::Type*> argsTypes;
-        for (size_t i = 1; i < size(); i++)
-            argsTypes.push_back(operands_[i]->toLLVMs());
-
-        cache_ = llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
+        cache_ = toLLVMs_();
     }
-    return llvm::dyn_cast<llvm::FunctionType>(cache_);
+    return llvm::cast<llvm::FunctionType>(cache_);
 }
 
-llvm::Type* ReferenceTypeAST::toLLVMs () const {
+llvm::Type* TypeAST::toLLVMs_ () const {
+    return nullptr;
+}
+
+llvm::Type* VoidTypeAST::toLLVMs_ () const {
+    return llvm::Type::getVoidTy(getGlobalContext());
+}
+
+llvm::Type* IntegerTypeAST::toLLVMs_ () const {
+    return llvm::Type::getInt32Ty(getGlobalContext());
+}
+
+llvm::Type* DoubleTypeAST::toLLVMs_ () const {
+    return llvm::Type::getDoubleTy(getGlobalContext());
+}
+
+llvm::Type* BooleanTypeAST::toLLVMs_ () const {
+    return llvm::Type::getInt1Ty(getGlobalContext());
+}
+
+llvm::StructType* ComplexTypeAST::toLLVMs_ () const {
+    auto dblt = ctx_.getDoubleTy()->toLLVMs();
+    auto t = llvm::StructType::create(
+       getGlobalContext(),
+       {dblt, dblt},
+       name()
+    );
+    return llvm::cast<llvm::StructType>(t);
+}
+
+llvm::FunctionType* FunctionTypeAST::toLLVMs_ () const {
+    std::vector<llvm::Type*> argsTypes;
+    for (size_t i = 1; i < size(); i++)
+        argsTypes.push_back(operands_[i]->toLLVMs());
+
+    auto t = llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
+    return llvm::cast<llvm::FunctionType>(t);
+}
+
+llvm::Type* ReferenceTypeAST::toLLVMs_ () const {
     // will that be a pointer to of->toLLVMs() ? or just the of->toLLVMs()?
     // let's assume for now it's not a pointer
-    if(!cache_)
-        cache_ = of()->toLLVMs();
-    return cache_;
+    return of()->toLLVMs();
 }
 
 // ---------------------------------------------------------

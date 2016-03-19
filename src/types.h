@@ -64,6 +64,8 @@ public:
     };
 
 protected:
+    virtual llvm::Type* toLLVMs_ () const;
+
     const CodegenContext& ctx_;
     size_t gid_;
     std::vector<Type> operands_;
@@ -89,7 +91,9 @@ public:
     {}
 
     virtual std::string name() const {return "Void";}
-    llvm::Type* toLLVMs () const override;
+
+protected: 
+    llvm::Type* toLLVMs_ () const override;
 };
 
 class ArithmeticTypeAST : public PrimitiveTypeAST {
@@ -108,10 +112,12 @@ public:
     {}
 
     virtual std::string name() const {return "Integer";}
-    llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 
     virtual std::list<Conversion> ListConversions() const override;
+
+protected:
+    llvm::Type* toLLVMs_ () const override;
 };
 
 class DoubleTypeAST : public ArithmeticTypeAST {
@@ -121,10 +127,12 @@ public:
     {}
 
     virtual std::string name() const {return "Double";}
-    llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 
     virtual std::list<Conversion> ListConversions() const override;
+
+protected:
+    llvm::Type* toLLVMs_ () const override;
 };
 
 class BooleanTypeAST : public PrimitiveTypeAST {
@@ -134,8 +142,10 @@ public:
     {}
 
     virtual std::string name() const {return "Boolean";}
-    llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
+
+protected:
+    llvm::Type* toLLVMs_ () const override;
 };
 
 class ComplexTypeAST : public ArithmeticTypeAST {
@@ -147,6 +157,9 @@ public:
     virtual std::string name() const {return "Complex";}
     llvm::StructType* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
+
+protected:
+    llvm::StructType* toLLVMs_ () const override;
 };
 
 class FunctionTypeAST : public TypeAST {
@@ -166,6 +179,9 @@ public:
     Type returnType () const { return operand(0); }
     // Mind you -- one-based argument list
     Type argument (size_t i) const { return operand(i); }
+
+protected:
+    llvm::FunctionType* toLLVMs_ () const override;
 };
 
 class ReferenceTypeAST : public TypeAST {
@@ -176,12 +192,14 @@ public:
 
     virtual std::string name() const {return "Ref(" + of()->name() + ")";}
     bool equal (const TypeAST& other) const override;
-    llvm::Type* toLLVMs () const override;
     llvm::Value* defaultLLVMsValue () const;
 
     Type of () const { return operand(0); }
 
     virtual std::list<Conversion> ListConversions() const override;
+
+protected:
+    llvm::Type* toLLVMs_ () const override;
 };
 
 

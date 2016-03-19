@@ -4,6 +4,19 @@
 #include <string>
 #include <vector>
 
+template<typename T>
+class Maybe {
+public:
+    Maybe() {}
+    Maybe(T v) : val(&v) {}
+    
+    bool is_empty () const { return !val; }
+    T get () const { return *val; }
+    
+protected:
+    mutable T* val;
+};
+
 bool FileExists(std::string name);
 std::string GetTmpFile(std::string suffix = "");
 // Returns the path to CCoscope executable
