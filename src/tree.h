@@ -163,7 +163,7 @@ protected:
     
     std::string opcode;
     Expr LHS, RHS;
-    mutable Maybe<MatchCandidateEntry> BestOverload;
+    mutable MatchCandidateEntry BestOverload;
     //mutable TypeMatcher::Result bestOverload;
     //llvm::Function* bestOverload;
 

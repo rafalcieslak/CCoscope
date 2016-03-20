@@ -85,7 +85,7 @@ llvm::Value* BinaryExprAST::codegen() const {
     llvm::Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
     
-    auto mce = BestOverload.get();
+    auto mce = BestOverload;
     auto binfun = ctx().BinOpCreator[mce];
     return binfun({valL, valR});
 }

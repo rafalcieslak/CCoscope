@@ -128,6 +128,9 @@ CodegenContext::CodegenContext()
     AvailableBinOps["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
     BinOpCreator[MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}] =
        [this] (std::vector<Value*> v){
+           std::cerr << "will extract from ";
+           v[0]->dump();
+           std::cerr << std::endl;
             auto c1re = this->Builder.CreateExtractValue(v[0], {0});
             auto c1im = this->Builder.CreateExtractValue(v[0], {1});
             auto c2re = this->Builder.CreateExtractValue(v[1], {0});
