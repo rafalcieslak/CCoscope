@@ -20,14 +20,14 @@ CodegenContext::CodegenContext()
 {
     // Operators on integers
 
-#define INIT_OP(name) BinOpCreator[name] = std::list<MatchCandidateEntry>()
+#define INIT_OP(name) AvailableBinOps[name] = std::list<MatchCandidateEntry>()
 
 #define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname) \
-    BinOpCreator[name].push_back(MatchCandidateEntry{{t1, t2},    \
-       [this] (std::vector<Value*> v){                            \
+    AvailableBinOps[name].push_back(MatchCandidateEntry{{t1, t2}, rettype}); \
+    BinOpCreator[MatchCandidateEntry{{t1, t2}, rettype}] = \
+        [this] (std::vector<Value*> v) { \
             return this->Builder.builderfunc(v[0], v[1], retname);\
-       }, rettype                                                 \
-    })
+       }
 
     // We wouldn't need that if STL provided a `defaultdict`.
     INIT_OP("ADD");
@@ -74,7 +74,8 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
 
 #define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
-    BinOpCreator[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},    \
+    AvailableBinOps[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
+    BinOpCreator[MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}] = \
        [this] (std::vector<Value*> v){                            \
             auto c1re = this->Builder.CreateExtractValue(v[0], {0}); \
             auto c1im = this->Builder.CreateExtractValue(v[0], {1}); \
@@ -89,8 +90,7 @@ CodegenContext::CodegenContext()
             this->Builder.CreateStore(imres, idx2); \
             auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret"); \
             return retsload; \
-       }, rettype                                                 \
-    })
+       }
 
     ADD_COMPLEX_OP("ADD",
             auto reres = this->Builder.CreateFAdd(c1re, c2re, "cmplxaddtmp");
@@ -124,8 +124,9 @@ CodegenContext::CodegenContext()
             auto reres = this->Builder.CreateFDiv(left, squares, "cmplxdivtmp");
             auto imres = this->Builder.CreateFDiv(right, squares, "cmplxdivtmp");
      , getComplexTy(), "divtmp");
-
-    BinOpCreator["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()},
+    
+    AvailableBinOps["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
+    BinOpCreator[MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}] =
        [this] (std::vector<Value*> v){
             auto c1re = this->Builder.CreateExtractValue(v[0], {0});
             auto c1im = this->Builder.CreateExtractValue(v[0], {1});
@@ -134,8 +135,7 @@ CodegenContext::CodegenContext()
             auto c1c2re = this->Builder.CreateFCmpOEQ(c1re, c2re, "cmplxcmptmp");
             auto c1c2im = this->Builder.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
             return this->Builder.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
-       }, getBooleanTy()
-    });
+       };
 }
 
 CodegenContext::~CodegenContext() {
@@ -220,36 +220,40 @@ Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
     return introduce_function(new FunctionAST(*this, gid_++, Proto, Body));
 }
 
+Convert CodegenContext::makeConvert(Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter) {
+    return introduceE(new ConvertAST(*this, gid_++, Expression, ResultingType, Converter));
+}
+
 // ==---------------------------------------------------------------
 
 // ==---------------------------------------------------------------
 // Factory methods for Types
 
-VoidType CodegenContext::getVoidTy() const{
+VoidType CodegenContext::getVoidTy() {
     return introduceT(new VoidTypeAST(*this, gid_++));
 }
 
-IntegerType CodegenContext::getIntegerTy() const{
+IntegerType CodegenContext::getIntegerTy() {
     return introduceT(new IntegerTypeAST(*this, gid_++));
 }
 
-DoubleType CodegenContext::getDoubleTy() const{
+DoubleType CodegenContext::getDoubleTy() {
     return introduceT(new DoubleTypeAST(*this, gid_++));
 }
 
-BooleanType CodegenContext::getBooleanTy() const{
+BooleanType CodegenContext::getBooleanTy() {
     return introduceT(new BooleanTypeAST(*this, gid_++));
 }
 
-ComplexType CodegenContext::getComplexTy() const{
+ComplexType CodegenContext::getComplexTy() {
     return introduceT(new ComplexTypeAST(*this, gid_++));
 }
 
-FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) const{
+FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) {
     return introduceT(new FunctionTypeAST(*this, gid_++, ret, args));
 }
 
-ReferenceType CodegenContext::getReferenceTy(Type of) const{
+ReferenceType CodegenContext::getReferenceTy(Type of) {
     return introduceT(new ReferenceTypeAST(*this, gid_++, of));
 }
 
@@ -316,6 +320,19 @@ llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
     auto it = stdlib_functions.find(name);
     if(it == stdlib_functions.end()) return nullptr;
     else return it->second;
+}
+
+std::string CodegenContext::GetPrintFunctionName(Type type)  {
+    if(type == getIntegerTy())
+        return "print_int";
+    if(type == getDoubleTy())
+        return "print_double";
+    if(type == getBooleanTy())
+        return "print_bool";
+    if(type == getComplexTy())
+        return "print_complex";
+    AddError("Asked to print non-printable value of type " + type->name());
+    return "";
 }
 
 void CodegenContext::PrepareStdFunctionPrototypes(){

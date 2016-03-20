@@ -77,19 +77,20 @@ public:
     Prototype makePrototype(const std::string &Name,
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType);
     Function makeFunction(Prototype Proto, Expr Body);
+    Convert makeConvert(Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter);
 
     // ==---------------------------------------------------------------
 
     // ==---------------------------------------------------------------
     // Factory methods for Types
 
-    VoidType getVoidTy() const;
-    IntegerType getIntegerTy() const;
-    DoubleType getDoubleTy() const;
-    BooleanType getBooleanTy() const;
-    ComplexType getComplexTy() const;
-    FunctionType getFunctionTy(Type ret, std::vector<Type> args) const;
-    ReferenceType getReferenceTy(Type of) const;
+    VoidType getVoidTy();
+    IntegerType getIntegerTy();
+    DoubleType getDoubleTy();
+    BooleanType getBooleanTy();
+    ComplexType getComplexTy();
+    FunctionType getFunctionTy(Type ret, std::vector<Type> args);
+    ReferenceType getReferenceTy(Type of);
 
     // ==---------------------------------------------------------------
 
@@ -105,7 +106,8 @@ public:
     Type CurrentFuncReturnType;
     mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
 
-    std::map<std::string, std::list<MatchCandidateEntry>> BinOpCreator;
+    std::map<std::string, std::list<MatchCandidateEntry>> AvailableBinOps;//BinOpCreator;
+    std::map<MatchCandidateEntry, std::function<llvm::Value*(std::vector<llvm::Value*>)>, MCECmp> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB
@@ -115,6 +117,7 @@ public:
 
     // Special function handles
     llvm::Function* GetStdFunction(std::string name) const;
+    std::string GetPrintFunctionName(Type type) ;
 
     void SetModuleAndFile(std::shared_ptr<llvm::Module> module, std::string infile);
 

@@ -6,6 +6,7 @@
 #include "types.h"
 #include "proxy.h"
 #include "typematcher.h"
+#include "utils.h"
 
 #include <string>
 #include <memory>
@@ -25,7 +26,7 @@ enum class keyword {
 
 class ExprAST;             using Expr                = Proxy<ExprAST>;
 template<typename T> class PrimitiveExprAST;
-template<typename T> using PrimitiveExpr = Proxy<PrimitiveExprAST<T>>;
+template<typename T>       using PrimitiveExpr       = Proxy<PrimitiveExprAST<T>>;
 class ComplexValueAST;     using ComplexValue        = Proxy<ComplexValueAST>;
 class VariableExprAST;     using VariableExpr        = Proxy<VariableExprAST>;
 class BinaryExprAST;       using BinaryExpr          = Proxy<BinaryExprAST>;
@@ -39,6 +40,7 @@ class ForExprAST;          using ForExpr             = Proxy<ForExprAST>;
 class KeywordAST;          using Keyword             = Proxy<KeywordAST>;
 class PrototypeAST;        using Prototype           = Proxy<PrototypeAST>;
 class FunctionAST;         using Function            = Proxy<FunctionAST>;
+class ConvertAST;          using Convert             = Proxy<ConvertAST>;
 
 /// ExprAST - Base class for all expression nodes.
 class ExprAST : public MagicCast<ExprAST> {
@@ -52,21 +54,27 @@ public:
     virtual ~ExprAST() {}
 
     virtual llvm::Value* codegen() const = 0;
-    virtual Type maintype() const;
-
+    //virtual Type maintype() const;
+    Type Typecheck() const;
+    Type GetType() const;
+    
     size_t gid () const { return gid_; }
     CodegenContext& ctx () const { return ctx_; }
     bool equal(const ExprAST& other) const;
     bool is_proxy () const { return representative_ != this; }
-
+    bool was_typechecked () const { return type_cache_.is_empty(); }
+    
 protected:
+    virtual Type Typecheck_() const;
+
     CodegenContext& ctx_;
     size_t gid_;
     mutable const ExprAST* representative_;
+    mutable Type type_cache_;
 
-    template<class T> friend class Proxy;
+    template<typename T> friend class Proxy;
 };
-
+/*
 /// Base class for expression nodes that perform type resolution.
 class Resolvable{
 protected:
@@ -78,7 +86,7 @@ protected:
     virtual bool Resolve() const = 0;
     // Stored resolution result.
     mutable TypeMatcher::Result match_result;
-};
+};*/
 
 /// PrimitiveExprAST - Expression class for numeric literals like "1.0"
 /// as well as boolean constants
@@ -91,9 +99,10 @@ public:
     {}
 
     llvm::Value* codegen() const override;
-    virtual Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+
     T Val;
 };
 /*
@@ -105,7 +114,7 @@ Type PrimitiveExprAST<T>::maintype() const {
     return ctx.getVoidTy();
 }*/
 
-class ComplexValueAST : public ExprAST, protected Resolvable {
+class ComplexValueAST : public ExprAST/*, protected Resolvable*/ {
 public:
     ComplexValueAST(CodegenContext& ctx, size_t gid, Expr re, Expr im)
         : ExprAST(ctx, gid)
@@ -114,12 +123,12 @@ public:
     {}
 
     llvm::Value* codegen() const override;
-    virtual Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+   // bool Resolve() const override;
+    
     Expr Re, Im;
-
-    bool Resolve() const override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -131,33 +140,37 @@ public:
     {}
 
     llvm::Value* codegen() const override;
-    virtual Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+
     std::string Name;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
-class BinaryExprAST : public ExprAST, protected Resolvable {
+class BinaryExprAST : public ExprAST {
 public:
     BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
         : ExprAST(ctx, gid)
-        , opcode(Op), LHS(LHS), RHS(RHS), bestOverload(nullptr)
+        , opcode(Op), LHS(LHS), RHS(RHS)//, bestOverload(nullptr)
     {}
 
     llvm::Value* codegen() const override;
-    virtual Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+  //  bool Resolve() const override;
+    
     std::string opcode;
     Expr LHS, RHS;
-    llvm::Function* bestOverload;
+    mutable Maybe<MatchCandidateEntry> BestOverload;
+    //mutable TypeMatcher::Result bestOverload;
+    //llvm::Function* bestOverload;
 
-    bool Resolve() const override;
 };
 
 /// ReturnExprAST - Represents a value return expression
-class ReturnExprAST : public ExprAST, protected Resolvable {
+class ReturnExprAST : public ExprAST {
 public:
     ReturnExprAST(CodegenContext& ctx, size_t gid, Expr expr)
         : ExprAST(ctx, gid)
@@ -167,9 +180,10 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
+   // bool Resolve() const override;
+    virtual Type Typecheck_() const override;
+    
     Expr Expression;
-
-    bool Resolve() const override;
 };
 
 /// BlockAST - Represents a list of variable definitions and a list of
@@ -200,6 +214,8 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     std::vector<std::pair<std::string, Type>> Vars;
     std::list<Expr> Statements;
 
@@ -207,7 +223,7 @@ protected:
 };
 
 /// AssignmentAST - Represents an assignment operations
-class AssignmentAST : public ExprAST, protected Resolvable {
+class AssignmentAST : public ExprAST {
 public:
     AssignmentAST(CodegenContext& ctx, size_t gid,
                   const std::string& Name, Expr expr)
@@ -216,17 +232,17 @@ public:
     {}
 
     llvm::Value* codegen() const override;
-    virtual Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+   // bool Resolve() const;
+
     std::string Name;
     Expr Expression;
-
-    bool Resolve() const;
 };
 
 /// CallExprAST - Expression class for function calls.
-class CallExprAST : public ExprAST, protected Resolvable {
+class CallExprAST : public ExprAST {
 public:
     CallExprAST(CodegenContext& ctx, size_t gid, const std::string &Callee,
                 std::vector<Expr> Args)
@@ -235,13 +251,13 @@ public:
     {}
 
     llvm::Value* codegen() const override;
-    virtual Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    mutable llvm::Function* BestOverload;
+    
     std::string Callee;
     std::vector<Expr> Args;
-
-    bool Resolve() const override;
 };
 
 /// IfExprAST - Expression class for if/then/else.
@@ -255,6 +271,8 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     Expr Cond, Then, Else;
 };
 
@@ -269,6 +287,8 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     Expr Cond, Body;
 };
 
@@ -285,6 +305,8 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     Expr Init, Cond;
     std::list<Expr> Step;
     Expr Body;
@@ -300,6 +322,8 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     keyword which;
 };
 
@@ -320,12 +344,12 @@ public:
     Type getReturnType() const { return ReturnType; }
     const std::vector<std::pair<std::string, Type>>& getArgs() const { return Args; }
     llvm::Function* codegen() const override;
-    Type maintype () const override;
-
     std::vector<Type> GetSignature() const;
     Type GetReturnType() const {return ReturnType;}
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     std::string Name;
     std::vector<std::pair<std::string, Type>> Args;
     Type ReturnType;
@@ -342,18 +366,31 @@ public:
     {}
 
     llvm::Function* codegen() const override;
-    Type maintype () const override;
 
 protected:
+    virtual Type Typecheck_() const override;
+    
     Prototype Proto;
     Expr Body;
 };
 
 class ConvertAST : public ExprAST {
 public:
-    ConvertAST(CodegenContext& ctx, size_t gid)
+    ConvertAST(CodegenContext& ctx, size_t gid, Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter)
         : ExprAST(ctx, gid)
+        , Expression(Expression)
+        , ResultingType(ResultingType)
+        , Converter(Converter)
     {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    virtual Type Typecheck_() const override;
+
+    Expr Expression;
+    Type ResultingType;
+    std::function<llvm::Value*(llvm::Value*)> Converter;
 };
 
 

@@ -20,7 +20,7 @@ template class Proxy<ReferenceTypeAST>;
 
 using namespace llvm;
 
-Type str2type (const CodegenContext& ctx, std::string s) {
+Type str2type (CodegenContext& ctx, std::string s) {
     if (s == "int")
         return ctx.getIntegerTy();
     else if (s == "double")
@@ -176,10 +176,10 @@ std::list<Conversion> IntegerTypeAST::ListConversions() const{
         Conversion{
             ctx_.getDoubleTy(),   // Conversion to a double
             10,                   // -- costs 10
-            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{  // Note: The CodegenContext is passed again. We
+            [this](/*CodegenContext & ctx,*/ llvm::Value* v)->llvm::Value*{  // Note: The CodegenContext is passed again. We
                                                                      // cannot reuse the parent context, because we
                                                                      // need a non-const context.
-                return ctx.Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
+                return this->ctx().Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
             }
         }
     };
@@ -190,12 +190,12 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
         Conversion{
             ctx_.getComplexTy(),   // Conversion to complex
             15,                   // -- costs 15
-            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{
-                llvm::Function *CalleeF = ctx.TheModule->getFunction("newComplex");
+            [this](/*CodegenContext & ctx,*/ llvm::Value* v)->llvm::Value*{
+                llvm::Function *CalleeF = this->ctx().TheModule->getFunction("newComplex");
                 if(CalleeF) {
-                    return ctx.Builder.CreateCall(CalleeF, {v, ctx.getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
+                    return this->ctx().Builder.CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
                 } else {
-                    ctx.AddError("newComplex constructor not found!");
+                    this->ctx().AddError("newComplex constructor not found!");
                     return nullptr;
                 }
             }
@@ -208,10 +208,10 @@ std::list<Conversion> ReferenceTypeAST::ListConversions() const{
         Conversion{
             of(),                // Conversion to the inner type
             1,                   // -- costs 1
-            [](CodegenContext & ctx, llvm::Value* v)->llvm::Value*{
+            [this](/*CodegenContext & ctx,*/ llvm::Value* v)->llvm::Value*{
                 AllocaInst* alloca = dynamic_cast<AllocaInst*>(v);
                 if(!alloca) return nullptr;
-                return ctx.Builder.CreateLoad(alloca, v->getName() + "_load");
+                return this->ctx().Builder.CreateLoad(alloca, v->getName() + "_load");
             }
         }
     };

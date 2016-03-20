@@ -99,11 +99,13 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
     bool errors = false;
 
     for(const auto& protoAST : ctx.prototypes){
+        protoAST->Typecheck();
         llvm::Function* func = protoAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // func->dump();
     }
     for(const auto& functionAST : ctx.definitions){
+        functionAST->Typecheck();
         llvm::Function* func = functionAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // Optimize the function

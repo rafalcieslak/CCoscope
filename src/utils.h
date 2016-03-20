@@ -7,11 +7,15 @@
 template<typename T>
 class Maybe {
 public:
-    Maybe() {}
+    Maybe() : val(nullptr) {}
     Maybe(T v) : val(&v) {}
     
     bool is_empty () const { return !val; }
     T get () const { return *val; }
+    
+    void operator = (const Maybe<T>& other) const {
+        val = other.val;
+    }
     
 protected:
     mutable T* val;

@@ -71,7 +71,7 @@ const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> cand
         });
     // At this point, exactly one match should be left.
     if(combinations_with_total_costs.size() == 0){
-        std::cerr << "Internal error: the above operations should not have emptied the combination list." << std::endl;
+        ctx.AddError("Internal error: the above operations should not have emptied the combination list.");
         return Result(Result::NONE);
     }else if(combinations_with_total_costs.size() > 1){
         //TODO: Somehow embed the information about viable candidates in the result returned
@@ -85,6 +85,15 @@ const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> cand
 
         // At this point, oe is the matching operator variant.
         // Finally, we can prepare the application function.
+        Result::ConverterFunctions cfcs;
+        for(size_t i = 0; i < best_match.size(); i++) {
+            cfcs.push_back(
+                [best_match, i](/*CodegenContext& ctx,*/ llvm::Value* v) -> llvm::Value* {
+                    return best_match[i].converter(/*ctx,*/ v);
+                }
+            );
+        }
+        /*
         Result::BatchConverterFunction bcf = [best_match](CodegenContext& ctx, std::vector<llvm::Value*> v) -> std::vector<llvm::Value*>{
             std::vector<llvm::Value*> result;
             if(v.size() != best_match.size()) return result;
@@ -95,11 +104,11 @@ const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> cand
                 result[i] = best_match[i].converter( ctx, v[i] );
             }
             return result;
-        };
-        return Result(Result::UNIQUE, mce, bcf);
+        };*/
+        return Result(Result::UNIQUE, mce, cfcs);//bcf);
     }
-    // assert(false)
-    std::cout << "Internal error: Match was found, but it has no corresponding operator variant." << std::endl;
+    
+    ctx.AddError("Internal error: Match was found, but it has no corresponding operator variant.");
     return Result(Result::NONE);
 }
 
@@ -123,7 +132,7 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
     std::map<Type, std::pair<int, ConverterFunction>, TypeCmp> visited_vertices;
 
     // Initial vertex
-    naiive_dijkstra_pq.push(pq_elem{0, t, [](CodegenContext&, llvm::Value* v){return v;} });
+    naiive_dijkstra_pq.push(pq_elem{0, t, [](/*CodegenContext&,*/ llvm::Value* v){return v;} });
 
     while(!naiive_dijkstra_pq.empty()){
         auto current = naiive_dijkstra_pq.top();
@@ -144,9 +153,9 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
             naiive_dijkstra_pq.push(pq_elem{
                 current_mcost - conv.cost,
                 conv.target_type,
-                [current_convf, conv](CodegenContext& ctx, llvm::Value* v){
+                [current_convf, conv](/*CodegenContext& ctx,*/ llvm::Value* v){
                     // Join path functions
-                    return conv.converter(ctx, current_convf(ctx,v));
+                    return conv.converter(/*ctx,*/ current_convf(/*ctx,*/v));
                 }
             });
         }

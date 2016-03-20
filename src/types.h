@@ -32,11 +32,11 @@ class ComplexTypeAST;     using ComplexType     = Proxy<ComplexTypeAST>;
 class FunctionTypeAST;    using FunctionType    = Proxy<FunctionTypeAST>;
 class ReferenceTypeAST;   using ReferenceType   = Proxy<ReferenceTypeAST>;
 
-Type str2type (const CodegenContext& ctx, std::string s);
+Type str2type (CodegenContext& ctx, std::string s);
 
 class TypeAST : public MagicCast<TypeAST> {
 public:
-    TypeAST(const CodegenContext& ctx, size_t gid, std::vector<Type> operands)
+    TypeAST(/*const*/ CodegenContext& ctx, size_t gid, std::vector<Type> operands)
         : ctx_(ctx)
         , gid_(gid)
         , operands_(operands)
@@ -52,7 +52,7 @@ public:
     Type operand(size_t i) const { return operands_[i]; }
     size_t size() const { return operands_.size(); }
 
-    const CodegenContext& ctx () const { return ctx_; }
+    /*const*/ CodegenContext& ctx () const { return ctx_; }
     size_t gid () const { return gid_; }
     bool is_proxy () const { return representative_ != this; }
 
@@ -66,7 +66,7 @@ public:
 protected:
     virtual llvm::Type* toLLVMs_ () const;
 
-    const CodegenContext& ctx_;
+    /*const*/ CodegenContext& ctx_;
     size_t gid_;
     std::vector<Type> operands_;
     mutable const TypeAST* representative_;
@@ -77,7 +77,7 @@ protected:
 
 class PrimitiveTypeAST : public TypeAST {
 public:
-    PrimitiveTypeAST(const CodegenContext& ctx, size_t gid)
+    PrimitiveTypeAST(CodegenContext& ctx, size_t gid)
         : TypeAST(ctx, gid, {})
     {}
 
@@ -86,7 +86,7 @@ public:
 
 class VoidTypeAST : public PrimitiveTypeAST {
 public:
-    VoidTypeAST(const CodegenContext& ctx, size_t gid)
+    VoidTypeAST(CodegenContext& ctx, size_t gid)
         : PrimitiveTypeAST(ctx, gid)
     {}
 
@@ -98,7 +98,7 @@ protected:
 
 class ArithmeticTypeAST : public PrimitiveTypeAST {
 public:
-    ArithmeticTypeAST(const CodegenContext& ctx, size_t gid)
+    ArithmeticTypeAST(CodegenContext& ctx, size_t gid)
         : PrimitiveTypeAST(ctx, gid)
     {}
 
@@ -107,7 +107,7 @@ public:
 
 class IntegerTypeAST : public ArithmeticTypeAST {
 public:
-    IntegerTypeAST(const CodegenContext& ctx, size_t gid)
+    IntegerTypeAST(CodegenContext& ctx, size_t gid)
         : ArithmeticTypeAST(ctx, gid)
     {}
 
@@ -122,7 +122,7 @@ protected:
 
 class DoubleTypeAST : public ArithmeticTypeAST {
 public:
-    DoubleTypeAST(const CodegenContext& ctx, size_t gid)
+    DoubleTypeAST(CodegenContext& ctx, size_t gid)
         : ArithmeticTypeAST(ctx, gid)
     {}
 
@@ -137,7 +137,7 @@ protected:
 
 class BooleanTypeAST : public PrimitiveTypeAST {
 public:
-    BooleanTypeAST(const CodegenContext& ctx, size_t gid)
+    BooleanTypeAST(CodegenContext& ctx, size_t gid)
         : PrimitiveTypeAST(ctx, gid)
     {}
 
@@ -150,7 +150,7 @@ protected:
 
 class ComplexTypeAST : public ArithmeticTypeAST {
 public:
-    ComplexTypeAST(const CodegenContext& ctx, size_t gid)
+    ComplexTypeAST(CodegenContext& ctx, size_t gid)
         : ArithmeticTypeAST(ctx, gid)
     {}
 
@@ -164,7 +164,7 @@ protected:
 
 class FunctionTypeAST : public TypeAST {
 public:
-    FunctionTypeAST(const CodegenContext& ctx, size_t gid,
+    FunctionTypeAST(CodegenContext& ctx, size_t gid,
                     Type ret, std::vector<Type> args)
         : TypeAST(ctx, gid, {})
     {
@@ -178,7 +178,7 @@ public:
 
     Type returnType () const { return operand(0); }
     // Mind you -- one-based argument list
-    Type argument (size_t i) const { return operand(i); }
+    Type argument (size_t i) const { assert(i >= 1 && "one based argument list in FunctionType"); return operand(i); }
 
 protected:
     llvm::FunctionType* toLLVMs_ () const override;
@@ -186,7 +186,7 @@ protected:
 
 class ReferenceTypeAST : public TypeAST {
 public:
-    ReferenceTypeAST(const CodegenContext& ctx, size_t gid, Type of)
+    ReferenceTypeAST( CodegenContext& ctx, size_t gid, Type of)
         : TypeAST(ctx, gid, {of})
     {}
 

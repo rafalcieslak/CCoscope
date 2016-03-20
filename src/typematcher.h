@@ -10,10 +10,35 @@
 
 namespace ccoscope{
 
+// We probably should think about how to refine the interface here
+// because this mechanism is used both for finding conversion of "normal"
+// types and for finding overloads for functions -- in the former case,
+// `return_type` doesn't make much sense and we need to do weird stuff
+// then like putting there arbitrary type...
 struct MatchCandidateEntry{
+    MatchCandidateEntry() {}
+    MatchCandidateEntry(std::vector<Type> inpt, Type rett)
+        : input_types(inpt), return_type(rett)
+    {}
+    
     std::vector<Type> input_types;
-    std::function<llvm::Value*(std::vector<llvm::Value*>)> associated_function;
+    //std::function<llvm::Value*(std::vector<llvm::Value*>)> associated_function;
     Type return_type;
+    
+    void operator = (const MatchCandidateEntry& other) {
+        if(this != &other) {
+            input_types = other.input_types;
+            return_type = other.return_type;
+        }
+    }
+};
+
+struct MCECmp {
+    bool operator () (const MatchCandidateEntry& lhs, const MatchCandidateEntry& rhs) {
+        return lhs.input_types < rhs.input_types ||
+        (lhs.input_types == rhs.input_types &&
+        lhs.return_type < rhs.return_type);
+    }
 };
 
 class TypeMatcher{
@@ -29,26 +54,27 @@ public:
         ResultType type; // false if no match was found at all
         MatchCandidateEntry match;
         // This function performs matched conversion
-        typedef std::function<std::vector<llvm::Value*>(CodegenContext&, std::vector<llvm::Value*> input)> BatchConverterFunction;
-        BatchConverterFunction converter_function;
+        typedef std::vector<std::function<llvm::Value*(/*CodegenContext&,*/ llvm::Value*)>> ConverterFunctions;
+        //std::function<std::vector<llvm::Value*>(CodegenContext&, std::vector<llvm::Value*> input)> BatchConverterFunction;
+        ConverterFunctions converter_functions;
+        //BatchConverterFunction converter_function;
 
         Result(ResultType t = NONE) : type(t) {}
-        Result(const ResultType& r, const MatchCandidateEntry& e, BatchConverterFunction func) :
-            type(r), match(e), converter_function(func) {}
+        Result(const ResultType& r, const MatchCandidateEntry& e, ConverterFunctions cfuncs) ://BatchConverterFunction func) :
+            type(r), match(e), converter_functions(cfuncs) {}
     };
 
-    // Returns a TypeMatcher::Result, and writes corresponding errors to the
-    // parent context.
+    // Returns a TypeMatcher::Result and writes corresponding errors to the parent context.
     const Result Match(std::list<MatchCandidateEntry> candidates, std::vector<Type> input_signature) const;
 
 
 private:
-    // Reference to parent, used to get types.
-    // TODO: Is this even used?
+    // Reference to parent, used to get types. (rather -- writing errors)
+    // TODO: Is this even used? -> yes, it is : )
     const CodegenContext& ctx;
 
     // For a given type, returns a list of possible conversions, including an
-    // identity conversion and an transitive conversions
+    // identity conversion and transitive conversions
     std::list<Conversion> ListTransitiveConversions(Type) const;
     // Replaces each type on the list with all possible conversions
     std::vector<std::list<Conversion>> InflateTypes(std::vector<Type>) const;
