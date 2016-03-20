@@ -160,17 +160,20 @@ llvm::Value* AssignmentAST::codegen() const {
 
 llvm::Value* CallExprAST::codegen() const {
     // Special case for print
-    /*if(Callee == "print"){
+    if(Callee == "print"){
         // Codegen arguments
         auto Val = Args[0]->codegen();
         if(!Val) return nullptr;
+        
+        if(Args[0]->GetType() == ctx().getComplexTy()) {
+            auto rev = ctx().Builder.CreateExtractValue(Val, {0});
+            auto imv = ctx().Builder.CreateExtractValue(Val, {1});
+            return ctx().Builder.CreateCall(BestOverload, {rev, imv});
+        } else {
+            return ctx().Builder.CreateCall(BestOverload, Val);
+        }
 
-        // Then perform conversions
-        auto converted = match_result.converter_function(ctx(), {Val});
-        // Finally generate the call
-        return match_result.match.associated_function(converted);
-
-    }else{*/
+    }else{
         // Codegen arguments
         std::vector<llvm::Value *> ArgsV;
         for (unsigned i = 0, e = Args.size(); i != e; ++i) {
@@ -180,7 +183,7 @@ llvm::Value* CallExprAST::codegen() const {
         }
         
         return ctx().Builder.CreateCall(BestOverload, ArgsV, "calltmp");
-   // }
+    }
 }
 
 llvm::Value* IfExprAST::codegen() const {
@@ -356,10 +359,6 @@ llvm::Value* KeywordAST::codegen() const {
 
 
 llvm::Function* PrototypeAST::codegen() const {
-    auto ft = this->GetType();
-    std::cerr << "ft type = " << ft->name() << std::endl;
-    auto ftt = ft.as<FunctionType>();
-    std::cerr << "as fun type = " << ftt->name() << std::endl;
     auto F =
       llvm::Function::Create(this->GetType().as<FunctionType>()->toLLVMs(),
         llvm::Function::ExternalLinkage, Name, ctx().TheModule.get()
@@ -719,6 +718,7 @@ Type IfExprAST::Typecheck_() const {
     auto CondType = Cond->Typecheck();
     if(CondType != ctx().getBooleanTy()) {
         ctx().AddError("Cond in If statement has type " + CondType->name());
+        return ctx().getVoidTy();
     }
     
     Then->Typecheck();
@@ -730,6 +730,7 @@ Type WhileExprAST::Typecheck_() const {
     auto CondType = Cond->Typecheck();
     if(CondType != ctx().getBooleanTy()) {
         ctx().AddError("Cond in While statement has type " + CondType->name());
+        return ctx().getVoidTy();
     }
     
     Body->Typecheck();
@@ -740,6 +741,7 @@ Type ForExprAST::Typecheck_() const {
     auto CondType = Cond->Typecheck();
     if(CondType != ctx().getBooleanTy()) {
         ctx().AddError("Cond in For statement has type " + CondType->name());
+        return ctx().getVoidTy();
     }
     
     for(auto& E : Step) {
