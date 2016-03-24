@@ -41,7 +41,7 @@ public:
     const T* deref() const;
     const T* operator  * () const { return deref(); }
     const T* operator -> () const { return *(*this); }
-    //bool operator < (const Proxy<T>& other) const { return *(this->deref()) < *(other.deref()); }
+    bool operator < (const Proxy<T>& other) const { return *(this->deref()) < *(other.deref()); }
     const Proxy<T>& operator = (const Proxy<T>& other) const { node_ = other.node(); return *this; }
 
     bool is_empty() const { return node_ == nullptr; }

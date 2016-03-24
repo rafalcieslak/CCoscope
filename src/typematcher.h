@@ -7,7 +7,7 @@
 #include <string>
 #include <list>
 #include <vector>
-
+#include <iostream>
 namespace ccoscope{
 
 // We probably should think about how to refine the interface here
@@ -15,6 +15,10 @@ namespace ccoscope{
 // types and for finding overloads for functions -- in the former case,
 // `return_type` doesn't make much sense and we need to do weird stuff
 // then like putting there arbitrary type...
+
+struct MatchCandidateEntry;
+inline std::ostream& operator<<(std::ostream& s, const MatchCandidateEntry& mce);
+
 struct MatchCandidateEntry{
     MatchCandidateEntry() {}
     MatchCandidateEntry(std::vector<Type> inpt, Type rett)
@@ -31,8 +35,28 @@ struct MatchCandidateEntry{
             return_type = other.return_type;
         }
     }
+    
+    bool operator < (const MatchCandidateEntry& other) const {
+        std::cerr << "testing " <<  *this << " < " << other << " gives: ";
+        auto b = input_types < other.input_types ||
+              (input_types == other.input_types &&
+               return_type < other.return_type);
+               std::cerr << b << std::endl;
+        return input_types < other.input_types ||
+              (input_types == other.input_types &&
+               return_type < other.return_type);
+    }
 };
 
+inline std::ostream& operator<<(std::ostream& s, const MatchCandidateEntry& mce){
+    s << "{";
+    for(auto& p : mce.input_types) {
+        s << p->name() << ", ";
+    }
+    s << "; " << mce.return_type->name() << "}";
+    return s;
+}
+/*
 struct MCECmp {
     bool operator () (const MatchCandidateEntry& lhs, const MatchCandidateEntry& rhs) {
         return lhs.input_types < rhs.input_types ||
@@ -40,7 +64,7 @@ struct MCECmp {
         lhs.return_type < rhs.return_type);
     }
 };
-
+*/
 class TypeMatcher{
 public:
     TypeMatcher(const CodegenContext& c) : ctx(c) {}

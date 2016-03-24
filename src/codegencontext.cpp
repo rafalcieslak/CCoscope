@@ -24,7 +24,7 @@ CodegenContext::CodegenContext()
 
 #define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname) \
     AvailableBinOps[name].push_back(MatchCandidateEntry{{t1, t2}, rettype}); \
-    BinOpCreator[MatchCandidateEntry{{t1, t2}, rettype}] = \
+    BinOpCreator[{name, MatchCandidateEntry{{t1, t2}, rettype}}] = \
         [this] (std::vector<Value*> v) { \
             return this->Builder.builderfunc(v[0], v[1], retname);\
        }
@@ -72,12 +72,23 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("GREATEREQ",getDoubleTy(), getDoubleTy(), CreateFCmpOGE, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
-
+    
+    auto it = BinOpCreator.find(std::make_pair("MULT", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getComplexTy()}));
+    if(it != BinOpCreator.end())
+        std::cerr << " NOOO!!!!" << std::endl;
+    
 #define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
     AvailableBinOps[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
-    BinOpCreator[MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}] = \
-       [this] (std::vector<Value*> v){                            \
+    BinOpCreator[{name, MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}}] = \
+       [this] (std::vector<Value*> v){   \
+            std::cerr << "Awill extract from "; \
+           v[0]->dump(); \
+           std::cerr << std::endl;                         \
+           std::cerr << " Aand "; \
+           v[1]->dump(); \
+           std::cerr << std::endl; \
             auto c1re = this->Builder.CreateExtractValue(v[0], {0}); \
+            std::cerr << "Aextracted first " << std::endl; \
             auto c1im = this->Builder.CreateExtractValue(v[0], {1}); \
             auto c2re = this->Builder.CreateExtractValue(v[1], {0}); \
             auto c2im = this->Builder.CreateExtractValue(v[1], {1}); \
@@ -126,7 +137,7 @@ CodegenContext::CodegenContext()
      , getComplexTy(), "divtmp");
     
     AvailableBinOps["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
-    BinOpCreator[MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}] =
+    BinOpCreator[{"EQUAL", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}}] =
        [this] (std::vector<Value*> v){
            std::cerr << "will extract from ";
            v[0]->dump();
@@ -139,6 +150,12 @@ CodegenContext::CodegenContext()
             auto c1c2im = this->Builder.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
             return this->Builder.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
        };
+    
+    std::cerr << "binopcreator is: ";
+    for(auto& elem : BinOpCreator)
+    {
+       std::cerr << "<" << elem.first.first << ", " << elem.first.second << "> -> " <<  "somfun" << "\n";
+    }
 }
 
 CodegenContext::~CodegenContext() {

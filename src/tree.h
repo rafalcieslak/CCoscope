@@ -57,6 +57,7 @@ public:
     //virtual Type maintype() const;
     Type Typecheck() const;
     Type GetType() const;
+    bool operator < (const ExprAST& other) const { return gid() < other.gid(); }
     
     size_t gid () const { return gid_; }
     CodegenContext& ctx () const { return ctx_; }
@@ -152,20 +153,17 @@ class BinaryExprAST : public ExprAST {
 public:
     BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
         : ExprAST(ctx, gid)
-        , opcode(Op), LHS(LHS), RHS(RHS)//, bestOverload(nullptr)
+        , opcode(Op), LHS(LHS), RHS(RHS)
     {}
 
     llvm::Value* codegen() const override;
 
 protected:
     virtual Type Typecheck_() const override;
-  //  bool Resolve() const override;
     
     std::string opcode;
     Expr LHS, RHS;
     mutable MatchCandidateEntry BestOverload;
-    //mutable TypeMatcher::Result bestOverload;
-    //llvm::Function* bestOverload;
 
 };
 
@@ -180,7 +178,6 @@ public:
     llvm::Value* codegen() const override;
 
 protected:
-   // bool Resolve() const override;
     virtual Type Typecheck_() const override;
     
     Expr Expression;
@@ -235,7 +232,6 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-   // bool Resolve() const;
 
     std::string Name;
     Expr Expression;
