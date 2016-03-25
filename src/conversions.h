@@ -12,13 +12,12 @@ namespace ccoscope{
 
 class CodegenContext;
 
-typedef std::function<llvm::Value*(/*CodegenContext&,*/ llvm::Value*)> ConverterFunction;
+typedef std::function<llvm::Value*(llvm::Value*)> ConverterFunction;
 typedef unsigned int ConversionCost;
 
 class TypeAST; using Type = Proxy<TypeAST>;
 
 struct Conversion{
-    //Type orig_type;
     Type target_type;
     ConversionCost cost;
     ConverterFunction converter;

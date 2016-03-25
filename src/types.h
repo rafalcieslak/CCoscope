@@ -56,7 +56,7 @@ public:
     size_t gid () const { return gid_; }
     bool is_proxy () const { return representative_ != this; }
 
-    bool operator < (const TypeAST& other) const { return gid() < other.gid() }
+    bool operator < (const TypeAST& other) const { return gid() < other.gid(); }
     virtual std::string name() const {return "NoType";}
 
     virtual std::list<Conversion> ListConversions() const {

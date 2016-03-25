@@ -84,18 +84,8 @@ llvm::Value* BinaryExprAST::codegen() const {
     llvm::Value* valL = LHS->codegen();
     llvm::Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
-    std::cerr << "codegen binary " << opcode << ", l = ";
-    valL->dump();
-    std::cerr << std::endl << "r = ";
-    valR->dump();
-    std::cerr << std::endl;
-    if(type_cache_.is_empty())
-        std::cerr << "but it wasnt typechecked!" << std::endl;
     
-    auto mce = BestOverload;
-    std::cerr << "chosen overload is for input types: " << mce.input_types[0]->name() << \
-    ", " << mce.input_types[1]->name() << " and ret type is " << mce.return_type->name() << std::endl;
-    auto binfun = ctx().BinOpCreator[{opcode, mce}];
+    auto binfun = ctx().BinOpCreator[{opcode, BestOverload}];
     return binfun({valL, valR});
 }
 
@@ -522,25 +512,15 @@ Type BinaryExprAST::Typecheck_() const {
     
     auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
     
-    std::cerr << "TYPECHECK: for op " << opcode << " and arg types: " << \
-        Ltype->name() << ", " << Rtype->name() << ", chosen overload is for types: ";
-    
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
                      Ltype->name() + ", " + Rtype->name() + ".");
-                     std::cerr << "NONE FUCKT!" << std::endl;
         return ctx().getVoidTy();
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
                      Ltype->name() + ", " + Rtype->name() + ".");
-                     std::cerr << "MULTIPLE FUCKT!" << std::endl;
         return ctx().getVoidTy();
     }else{
-        
-       // std::cerr << "TYPECHECK: for op " << opcode << " and arg types: " << 
-     //   Ltype->name() << ", " << Rtype->name() << ", chosen overload is for types: " << 
-        std::cerr << match.match.input_types[0]->name() << ", " << match.match.input_types[1]->name() << std::endl;
-        
         LHS = ctx().makeConvert(LHS, match.match.input_types[0], match.converter_functions[0]);
         RHS = ctx().makeConvert(RHS, match.match.input_types[1], match.converter_functions[1]);
         BestOverload = match.match;
@@ -704,9 +684,6 @@ Type CallExprAST::Typecheck_() const {
     // TODO: When function overloading is implemented, there will be multiple variants to call.
     auto call_variant = MatchCandidateEntry{
         {signature},
-       /* [this, CalleeF](std::vector<llvm::Value*> v){
-            return this->ctx().Builder.CreateCall(CalleeF, v, "calltmp");
-        },*/
         proto->GetReturnType()
     };
 

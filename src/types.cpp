@@ -163,11 +163,6 @@ llvm::Value* ReferenceTypeAST::defaultLLVMsValue () const {
     return of()->defaultLLVMsValue();
 }
 
-bool TypeCmp::operator () (const Type& lhs,
-                           const Type& rhs) const {
-    return  lhs->gid() < rhs->gid();
-}
-
 // ---------------------------------------------------------
 
 
@@ -176,9 +171,7 @@ std::list<Conversion> IntegerTypeAST::ListConversions() const{
         Conversion{
             ctx_.getDoubleTy(),   // Conversion to a double
             10,                   // -- costs 10
-            [this](/*CodegenContext & ctx,*/ llvm::Value* v)->llvm::Value*{  // Note: The CodegenContext is passed again. We
-                                                                     // cannot reuse the parent context, because we
-                                                                     // need a non-const context.
+            [this](llvm::Value* v)->llvm::Value*{
                 return this->ctx().Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
             }
         }
@@ -190,7 +183,7 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
         Conversion{
             ctx_.getComplexTy(),   // Conversion to complex
             15,                   // -- costs 15
-            [this](/*CodegenContext & ctx,*/ llvm::Value* v)->llvm::Value*{
+            [this](llvm::Value* v)->llvm::Value*{
                 llvm::Function *CalleeF = this->ctx().TheModule->getFunction("newComplex");
                 if(CalleeF) {
                     return this->ctx().Builder.CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
@@ -208,7 +201,7 @@ std::list<Conversion> ReferenceTypeAST::ListConversions() const{
         Conversion{
             of(),                // Conversion to the inner type
             1,                   // -- costs 1
-            [this](/*CodegenContext & ctx,*/ llvm::Value* v)->llvm::Value*{
+            [this](llvm::Value* v)->llvm::Value*{
                 AllocaInst* alloca = dynamic_cast<AllocaInst*>(v);
                 if(!alloca) return nullptr;
                 return this->ctx().Builder.CreateLoad(alloca, v->getName() + "_load");

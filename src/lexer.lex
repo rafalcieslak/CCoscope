@@ -91,6 +91,8 @@ continue        PUTTOK(tkn_KEYWORD_CONTINUE);
 \)              PUTTOK(tkn_RPAR);
 \{              PUTTOK(tkn_LBRACKET);
 \}              PUTTOK(tkn_RBRACKET);
+\[              PUTTOK(tkn_LSQUAREBRACKET);
+\]              PUTTOK(tkn_RSQUAREBRACKET);
 \|              PUTTOK(tkn_PIPE);
 
 {identifier}    PUTTOK(tkn_IDENTIFIER); TOKADD(id, yytext);

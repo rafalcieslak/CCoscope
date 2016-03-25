@@ -34,7 +34,7 @@ CodegenContext::CodegenContext()
     INIT_OP("SUB");
     INIT_OP("MULT");
     INIT_OP("DIV");
-    INIT_OP("REM");
+    INIT_OP("MOD");
     INIT_OP("EQUAL");
     INIT_OP("NEQUAL");
     INIT_OP("GREATER");
@@ -48,7 +48,7 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("SUB",  getIntegerTy(), getIntegerTy(), CreateSub,  getIntegerTy(), "subtmp");
     ADD_BASIC_OP("MULT", getIntegerTy(), getIntegerTy(), CreateMul,  getIntegerTy(), "multmp");
     ADD_BASIC_OP("DIV",  getIntegerTy(), getIntegerTy(), CreateSDiv, getIntegerTy(), "divtmp");
-    ADD_BASIC_OP("REM",  getIntegerTy(), getIntegerTy(), CreateSRem, getIntegerTy(), "modtmp");
+    ADD_BASIC_OP("MOD",  getIntegerTy(), getIntegerTy(), CreateSRem, getIntegerTy(), "modtmp");
 
     ADD_BASIC_OP("EQUAL",    getIntegerTy(), getIntegerTy(), CreateICmpEQ,  getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("NEQUAL",   getIntegerTy(), getIntegerTy(), CreateICmpNE,  getBooleanTy(), "cmptmp");
@@ -64,7 +64,7 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("SUB",  getDoubleTy(), getDoubleTy(), CreateFSub,  getDoubleTy(), "subtmp");
     ADD_BASIC_OP("MULT", getDoubleTy(), getDoubleTy(), CreateFMul,  getDoubleTy(), "multmp");
     ADD_BASIC_OP("DIV",  getDoubleTy(), getDoubleTy(), CreateFDiv,  getDoubleTy(), "divtmp");
-    ADD_BASIC_OP("REM",  getDoubleTy(), getDoubleTy(), CreateFRem,  getDoubleTy(), "modtmp");
+    ADD_BASIC_OP("MOD",  getDoubleTy(), getDoubleTy(), CreateFRem,  getDoubleTy(), "modtmp");
 
     ADD_BASIC_OP("EQUAL",    getDoubleTy(), getDoubleTy(), CreateFCmpOEQ, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("NEQUAL",   getDoubleTy(), getDoubleTy(), CreateFCmpONE, getBooleanTy(), "cmptmp");
@@ -73,22 +73,11 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
     
-    auto it = BinOpCreator.find(std::make_pair("MULT", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getComplexTy()}));
-    if(it != BinOpCreator.end())
-        std::cerr << " NOOO!!!!" << std::endl;
-    
 #define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
     AvailableBinOps[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
     BinOpCreator[{name, MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}}] = \
        [this] (std::vector<Value*> v){   \
-            std::cerr << "Awill extract from "; \
-           v[0]->dump(); \
-           std::cerr << std::endl;                         \
-           std::cerr << " Aand "; \
-           v[1]->dump(); \
-           std::cerr << std::endl; \
             auto c1re = this->Builder.CreateExtractValue(v[0], {0}); \
-            std::cerr << "Aextracted first " << std::endl; \
             auto c1im = this->Builder.CreateExtractValue(v[0], {1}); \
             auto c2re = this->Builder.CreateExtractValue(v[1], {0}); \
             auto c2im = this->Builder.CreateExtractValue(v[1], {1}); \
@@ -139,9 +128,6 @@ CodegenContext::CodegenContext()
     AvailableBinOps["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
     BinOpCreator[{"EQUAL", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}}] =
        [this] (std::vector<Value*> v){
-           std::cerr << "will extract from ";
-           v[0]->dump();
-           std::cerr << std::endl;
             auto c1re = this->Builder.CreateExtractValue(v[0], {0});
             auto c1im = this->Builder.CreateExtractValue(v[0], {1});
             auto c2re = this->Builder.CreateExtractValue(v[1], {0});
@@ -150,12 +136,6 @@ CodegenContext::CodegenContext()
             auto c1c2im = this->Builder.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
             return this->Builder.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
        };
-    
-    std::cerr << "binopcreator is: ";
-    for(auto& elem : BinOpCreator)
-    {
-       std::cerr << "<" << elem.first.first << ", " << elem.first.second << "> -> " <<  "somfun" << "\n";
-    }
 }
 
 CodegenContext::~CodegenContext() {
@@ -378,6 +358,5 @@ void CodegenContext::PrepareStdFunctionPrototypes(){
         {makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))})
         );
 }
-
 
 }

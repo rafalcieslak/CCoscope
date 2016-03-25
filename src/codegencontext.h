@@ -49,15 +49,6 @@ struct GIDCmp {
         return lhs.gid() < rhs.gid();
     }
 };
-/*
-struct MCEPCmp {
-    bool operator () (const std::pair<std::string, MatchCandidateEntry>& lhs, const std::pair<std::string, MatchCandidateEntry>& rhs) {
-        return lhs.first < rhs.first || 
-        ( lhs.first == rhs.first && lhs.second.input_types < rhs.second.input_types) ||
-        (lhs.first == rhs.first && lhs.second.input_types == rhs.second.input_types &&
-        lhs.second.return_type < rhs.second.return_type);
-    }
-};*/
 
 class CodegenContext
 {
@@ -115,8 +106,8 @@ public:
     Type CurrentFuncReturnType;
     mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
 
-    std::map<std::string, std::list<MatchCandidateEntry>> AvailableBinOps;//BinOpCreator;
-    std::map<std::pair<std::string, MatchCandidateEntry>, std::function<llvm::Value*(std::vector<llvm::Value*>)>/*, MCEPCmp*/> BinOpCreator;
+    std::map<std::string, std::list<MatchCandidateEntry>> AvailableBinOps;
+    std::map<std::pair<std::string, MatchCandidateEntry>, std::function<llvm::Value*(std::vector<llvm::Value*>)>> BinOpCreator;
 
     // For tracking in which loop we are currently in
     // .first -- headerBB, .second -- postBB

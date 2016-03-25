@@ -118,7 +118,6 @@ enum OperationMode{
     CompileAssembleAndLink,
 };
 
-
 int main(int argc, char** argv){
 
     enum OperationMode opmode = OperationMode::CompileAssembleAndLink;
@@ -244,7 +243,6 @@ int main(int argc, char** argv){
                 break;
             files_to_be_linked.push_back(file);
         }
-
     }
 
     if( opmode == CompileAssembleAndLink ){

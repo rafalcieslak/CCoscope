@@ -26,7 +26,6 @@ struct MatchCandidateEntry{
     {}
     
     std::vector<Type> input_types;
-    //std::function<llvm::Value*(std::vector<llvm::Value*>)> associated_function;
     Type return_type;
     
     void operator = (const MatchCandidateEntry& other) {
@@ -37,11 +36,6 @@ struct MatchCandidateEntry{
     }
     
     bool operator < (const MatchCandidateEntry& other) const {
-        std::cerr << "testing " <<  *this << " < " << other << " gives: ";
-        auto b = input_types < other.input_types ||
-              (input_types == other.input_types &&
-               return_type < other.return_type);
-               std::cerr << b << std::endl;
         return input_types < other.input_types ||
               (input_types == other.input_types &&
                return_type < other.return_type);
@@ -56,15 +50,7 @@ inline std::ostream& operator<<(std::ostream& s, const MatchCandidateEntry& mce)
     s << "; " << mce.return_type->name() << "}";
     return s;
 }
-/*
-struct MCECmp {
-    bool operator () (const MatchCandidateEntry& lhs, const MatchCandidateEntry& rhs) {
-        return lhs.input_types < rhs.input_types ||
-        (lhs.input_types == rhs.input_types &&
-        lhs.return_type < rhs.return_type);
-    }
-};
-*/
+
 class TypeMatcher{
 public:
     TypeMatcher(const CodegenContext& c) : ctx(c) {}
@@ -78,13 +64,11 @@ public:
         ResultType type; // false if no match was found at all
         MatchCandidateEntry match;
         // This function performs matched conversion
-        typedef std::vector<std::function<llvm::Value*(/*CodegenContext&,*/ llvm::Value*)>> ConverterFunctions;
-        //std::function<std::vector<llvm::Value*>(CodegenContext&, std::vector<llvm::Value*> input)> BatchConverterFunction;
+        typedef std::vector<std::function<llvm::Value*(llvm::Value*)>> ConverterFunctions;
         ConverterFunctions converter_functions;
-        //BatchConverterFunction converter_function;
 
         Result(ResultType t = NONE) : type(t) {}
-        Result(const ResultType& r, const MatchCandidateEntry& e, ConverterFunctions cfuncs) ://BatchConverterFunction func) :
+        Result(const ResultType& r, const MatchCandidateEntry& e, ConverterFunctions cfuncs) :
             type(r), match(e), converter_functions(cfuncs) {}
     };
 
@@ -124,7 +108,6 @@ std::list<std::vector<T>> CombinationWalker(const std::vector<std::list<T>>& in)
         // Multidimentional dereference
         std::vector<T> current_combination(combination_size);
         std::transform(iterators.begin(), iterators.end(), current_combination.begin(), [](list_it it){return *it;});
-        //std::cout << "Inserting a combination" << std::endl;
         result.push_back(current_combination);
 
         // Increment combination.

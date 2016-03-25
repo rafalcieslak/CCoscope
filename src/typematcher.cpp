@@ -88,24 +88,12 @@ const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> cand
         Result::ConverterFunctions cfcs;
         for(size_t i = 0; i < best_match.size(); i++) {
             cfcs.push_back(
-                [best_match, i](/*CodegenContext& ctx,*/ llvm::Value* v) -> llvm::Value* {
-                    return best_match[i].converter(/*ctx,*/ v);
+                [best_match, i](llvm::Value* v) -> llvm::Value* {
+                    return best_match[i].converter(v);
                 }
             );
         }
-        /*
-        Result::BatchConverterFunction bcf = [best_match](CodegenContext& ctx, std::vector<llvm::Value*> v) -> std::vector<llvm::Value*>{
-            std::vector<llvm::Value*> result;
-            if(v.size() != best_match.size()) return result;
-            result.resize(v.size(), nullptr);
-
-            // Conversions...
-            for(unsigned int i = 0; i < v.size(); i++){
-                result[i] = best_match[i].converter( ctx, v[i] );
-            }
-            return result;
-        };*/
-        return Result(Result::UNIQUE, mce, cfcs);//bcf);
+        return Result(Result::UNIQUE, mce, cfcs);
     }
     
     ctx.AddError("Internal error: Match was found, but it has no corresponding operator variant.");
@@ -129,10 +117,10 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
         }
     };
     std::priority_queue<pq_elem,std::vector<pq_elem>,QCmp> naiive_dijkstra_pq;
-    std::map<Type, std::pair<int, ConverterFunction>, TypeCmp> visited_vertices;
+    std::map<Type, std::pair<int, ConverterFunction>> visited_vertices;
 
     // Initial vertex
-    naiive_dijkstra_pq.push(pq_elem{0, t, [](/*CodegenContext&,*/ llvm::Value* v){return v;} });
+    naiive_dijkstra_pq.push(pq_elem{0, t, [](llvm::Value* v){return v;} });
 
     while(!naiive_dijkstra_pq.empty()){
         auto current = naiive_dijkstra_pq.top();
@@ -153,9 +141,9 @@ std::list<Conversion> TypeMatcher::ListTransitiveConversions(Type t) const{
             naiive_dijkstra_pq.push(pq_elem{
                 current_mcost - conv.cost,
                 conv.target_type,
-                [current_convf, conv](/*CodegenContext& ctx,*/ llvm::Value* v){
+                [current_convf, conv](llvm::Value* v){
                     // Join path functions
-                    return conv.converter(/*ctx,*/ current_convf(/*ctx,*/v));
+                    return conv.converter(current_convf(v));
                 }
             });
         }
