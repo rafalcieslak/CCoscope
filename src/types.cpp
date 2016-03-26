@@ -135,9 +135,8 @@ llvm::FunctionType* FunctionTypeAST::toLLVMs_ () const {
 }
 
 llvm::Type* ReferenceTypeAST::toLLVMs_ () const {
-    // will that be a pointer to of->toLLVMs() ? or just the of->toLLVMs()?
-    // let's assume for now it's not a pointer
-    return of()->toLLVMs();
+    unsigned addressSpace = 0; // just a gues...
+    return llvm::PointerType::get(of()->toLLVMs(), addressSpace);
 }
 
 // ---------------------------------------------------------

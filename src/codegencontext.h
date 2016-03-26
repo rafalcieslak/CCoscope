@@ -68,7 +68,6 @@ public:
     ReturnExpr makeReturn(Expr expr);
     Block makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
                     const std::list<Expr>& s);
-    Assignment makeAssignment(const std::string& Name, Expr expr);
     CallExpr makeCall(const std::string &Callee, std::vector<Expr> Args);
     IfExpr makeIf(Expr Cond, Expr Then, Expr Else);
     WhileExpr makeWhile(Expr Cond, Expr Body);

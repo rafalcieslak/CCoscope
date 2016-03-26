@@ -28,6 +28,13 @@ CodegenContext::CodegenContext()
         [this] (std::vector<Value*> v) { \
             return this->Builder.builderfunc(v[0], v[1], retname);\
        }
+       
+#define ADD_ASSIGN_OP(t) \
+    AvailableBinOps["ASSIGN"].push_back(MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}); \
+    BinOpCreator[{"ASSIGN", MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}}] = \
+        [this] (std::vector<Value*> v) { \
+            return this->Builder.CreateStore(v[1], v[0]); \
+        }
 
     // We wouldn't need that if STL provided a `defaultdict`.
     INIT_OP("ADD");
@@ -43,20 +50,26 @@ CodegenContext::CodegenContext()
     INIT_OP("LESSEQ");
     INIT_OP("LOGICAL_AND");
     INIT_OP("LOGICAL_OR");
-
-    ADD_BASIC_OP("ADD",  getIntegerTy(), getIntegerTy(), CreateAdd,  getIntegerTy(), "addtmp");
-    ADD_BASIC_OP("SUB",  getIntegerTy(), getIntegerTy(), CreateSub,  getIntegerTy(), "subtmp");
-    ADD_BASIC_OP("MULT", getIntegerTy(), getIntegerTy(), CreateMul,  getIntegerTy(), "multmp");
-    ADD_BASIC_OP("DIV",  getIntegerTy(), getIntegerTy(), CreateSDiv, getIntegerTy(), "divtmp");
-    ADD_BASIC_OP("MOD",  getIntegerTy(), getIntegerTy(), CreateSRem, getIntegerTy(), "modtmp");
-
+    INIT_OP("ASSIGN");
+    
+    ADD_ASSIGN_OP(getIntegerTy());
+    ADD_ASSIGN_OP(getBooleanTy());
+    ADD_ASSIGN_OP(getDoubleTy());
+    ADD_ASSIGN_OP(getComplexTy());
+    
+    ADD_BASIC_OP("ADD",    getIntegerTy(), getIntegerTy(), CreateAdd,  getIntegerTy(), "addtmp");
+    ADD_BASIC_OP("SUB",    getIntegerTy(), getIntegerTy(), CreateSub,  getIntegerTy(), "subtmp");
+    ADD_BASIC_OP("MULT",   getIntegerTy(), getIntegerTy(), CreateMul,  getIntegerTy(), "multmp");
+    ADD_BASIC_OP("DIV",    getIntegerTy(), getIntegerTy(), CreateSDiv, getIntegerTy(), "divtmp");
+    ADD_BASIC_OP("MOD",    getIntegerTy(), getIntegerTy(), CreateSRem, getIntegerTy(), "modtmp");
+    
     ADD_BASIC_OP("EQUAL",    getIntegerTy(), getIntegerTy(), CreateICmpEQ,  getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("NEQUAL",   getIntegerTy(), getIntegerTy(), CreateICmpNE,  getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("GREATER",  getIntegerTy(), getIntegerTy(), CreateICmpSGT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("GREATEREQ",getIntegerTy(), getIntegerTy(), CreateICmpSGE, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESS",     getIntegerTy(), getIntegerTy(), CreateICmpSLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getIntegerTy(), getIntegerTy(), CreateICmpSLE, getBooleanTy(), "cmptmp");
-
+    
     ADD_BASIC_OP("LOGICAL_AND", getBooleanTy(), getBooleanTy(), CreateAnd,  getBooleanTy(), "andtmp");
     ADD_BASIC_OP("LOGICAL_OR" , getBooleanTy(), getBooleanTy(), CreateOr,   getBooleanTy(), "ortmp" );
 
@@ -184,10 +197,6 @@ ReturnExpr CodegenContext::makeReturn(Expr expr) {
 Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
                                 const std::list<Expr>& s) {
     return introduceE(new BlockAST(*this, gid_++, vars, s));
-}
-
-Assignment CodegenContext::makeAssignment(const std::string& Name, Expr expr) {
-    return introduceE(new AssignmentAST(*this, gid_++, Name, expr));
 }
 
 CallExpr CodegenContext::makeCall(const std::string &Callee, std::vector<Expr> Args) {

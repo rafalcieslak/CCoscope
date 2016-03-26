@@ -32,7 +32,6 @@ class VariableExprAST;     using VariableExpr        = Proxy<VariableExprAST>;
 class BinaryExprAST;       using BinaryExpr          = Proxy<BinaryExprAST>;
 class ReturnExprAST;       using ReturnExpr          = Proxy<ReturnExprAST>;
 class BlockAST;            using Block               = Proxy<BlockAST>;
-class AssignmentAST;       using Assignment          = Proxy<AssignmentAST>;
 class CallExprAST;         using CallExpr            = Proxy<CallExprAST>;
 class IfExprAST;           using IfExpr              = Proxy<IfExprAST>;
 class WhileExprAST;        using WhileExpr           = Proxy<WhileExprAST>;
@@ -54,7 +53,6 @@ public:
     virtual ~ExprAST() {}
 
     virtual llvm::Value* codegen() const = 0;
-    //virtual Type maintype() const;
     Type Typecheck() const;
     Type GetType() const;
     bool operator < (const ExprAST& other) const { return gid() < other.gid(); }
@@ -75,19 +73,6 @@ protected:
 
     template<typename T> friend class Proxy;
 };
-/*
-/// Base class for expression nodes that perform type resolution.
-class Resolvable{
-protected:
-    // --- Cache for operator resolution result
-    mutable bool resolved = false;
-    // Returns false if resolution failed. Returns true if resolution was
-    // successful. In such case it's safe to assume that match_result type is
-    // unique.
-    virtual bool Resolve() const = 0;
-    // Stored resolution result.
-    mutable TypeMatcher::Result match_result;
-};*/
 
 /// PrimitiveExprAST - Expression class for numeric literals like "1.0"
 /// as well as boolean constants
@@ -115,7 +100,7 @@ Type PrimitiveExprAST<T>::maintype() const {
     return ctx.getVoidTy();
 }*/
 
-class ComplexValueAST : public ExprAST/*, protected Resolvable*/ {
+class ComplexValueAST : public ExprAST {
 public:
     ComplexValueAST(CodegenContext& ctx, size_t gid, Expr re, Expr im)
         : ExprAST(ctx, gid)
@@ -127,7 +112,6 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-   // bool Resolve() const override;
     
     Expr Re, Im;
 };
@@ -217,24 +201,6 @@ protected:
     std::list<Expr> Statements;
 
     friend ForExprAST;
-};
-
-/// AssignmentAST - Represents an assignment operations
-class AssignmentAST : public ExprAST {
-public:
-    AssignmentAST(CodegenContext& ctx, size_t gid,
-                  const std::string& Name, Expr expr)
-        : ExprAST(ctx, gid)
-        , Name(Name), Expression(expr)
-    {}
-
-    llvm::Value* codegen() const override;
-
-protected:
-    virtual Type Typecheck_() const override;
-
-    std::string Name;
-    Expr Expression;
 };
 
 /// CallExprAST - Expression class for function calls.

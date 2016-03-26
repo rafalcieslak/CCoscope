@@ -236,10 +236,12 @@
 
 
 // Assignment statement
-% Assignment : IDENTIFIER ASSIGN Expression SEMICOLON
+//% Assignment : IDENTIFIER ASSIGN Expression SEMICOLON
+% Assignment : Expression ASSIGN Expression SEMICOLON
 {   token t(tkn_Assignment);
-    t.tree.push_back( ctx.makeAssignment(
-         IDENTIFIER1->id.front(),
+    t.tree.push_back( ctx.makeBinary(
+         "ASSIGN",
+         Expression1->tree.front(),
          Expression3->tree.front()
         ) );
     return t;

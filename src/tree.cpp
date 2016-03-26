@@ -16,7 +16,6 @@ template class Proxy<VariableExprAST>;
 template class Proxy<BinaryExprAST>;
 template class Proxy<ReturnExprAST>;
 template class Proxy<BlockAST>;
-template class Proxy<AssignmentAST>;
 template class Proxy<CallExprAST>;
 template class Proxy<IfExprAST>;
 template class Proxy<WhileExprAST>;
@@ -147,14 +146,6 @@ llvm::Value* BlockAST::codegen() const {
         if(errors) return nullptr;
         return last;
     }
-}
-
-llvm::Value* AssignmentAST::codegen() const {
-    llvm::Value* Val = Expression->codegen();
-    if(!Val) return nullptr;
-    
-    llvm::AllocaInst* alloca = ctx().VarsInScope[Name].first;
-    return this->ctx().Builder.CreateStore(Val, alloca);
 }
 
 llvm::Value* CallExprAST::codegen() const {
@@ -575,39 +566,6 @@ Type BlockAST::Typecheck_() const {
     }
     
     return ctx().getVoidTy();
-}
-
-Type AssignmentAST::Typecheck_() const {
-    
-    // TODO: The assignment should really be implemented as a binary operator.
-
-    // Look up the target var name.
-    if (ctx().VarsInScope.count(Name) < 1){
-        ctx().AddError("Variable '" + Name + "' is not available in this scope.");
-        return ctx().getVoidTy();
-    }
-
-    Type target_type = ctx().VarsInScope[Name].second;
-    Type expr_type = Expression->Typecheck();
-    
-    auto assignment = MatchCandidateEntry{
-        {target_type},
-        ctx().getVoidTy() // interface cries
-    };
-    auto match = ctx().typematcher.Match({assignment}, {expr_type});
-
-    if(match.type == TypeMatcher::Result::NONE){
-        ctx().AddError("Assignment failed, type mismatch: Cannot implicitly convert a " +
-                       expr_type->name() + " to " + target_type->name());
-        return ctx().getVoidTy();
-    }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Assignment failed, type mismatch: Multiple equally viable implicit conversions from " +
-                       expr_type->name() + " to " + target_type->name() + " are available");
-        return ctx().getVoidTy();
-    }else{
-        Expression = ctx().makeConvert(Expression, target_type, match.converter_functions[0]);
-        return target_type;
-    }
 }
 
 Type CallExprAST::Typecheck_() const {
