@@ -7,12 +7,6 @@ namespace ccoscope {
 using namespace std;
 using namespace llvm;
 
-// Creates a global i8 string. Useful for printing values.
-llvm::Constant* CreateI8String(char const* str, CodegenContext& ctx) {
-  auto strVal = ctx.Builder.CreateGlobalStringPtr(str);
-  return llvm::cast<llvm::Constant>(strVal);
-}
-
 CodegenContext::CodegenContext()
     : Builder(getGlobalContext())
     , typematcher(*this)

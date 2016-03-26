@@ -28,8 +28,6 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
   return TmpB.CreateAlloca(type, 0, (VarName + "_addr").c_str());
 }
 
-llvm::Constant* CreateI8String(char const* str, CodegenContext& ctx);
-
 template<class T>
 struct GIDHash {
     size_t operator () (T n) const { return n->gid(); }
