@@ -90,7 +90,7 @@ public:
     // ==---------------------------------------------------------------
     
     llvm::Module* TheModule () const { return theModule_.get(); }
-    llvm::IRBuilder<> Builder () const { return builder_; }
+    llvm::IRBuilder<>& Builder () const { return builder_; }
     llvm::Function* CurrentFunc () const { return currentFunc_; }
     Type CurrentFuncReturnType () const { return currentFuncReturnType_; }
     
