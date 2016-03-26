@@ -75,9 +75,8 @@ public:
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType);
     Function makeFunction(Prototype Proto, Expr Body);
     Convert makeConvert(Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter);
-
     // ==---------------------------------------------------------------
-
+    
     // ==---------------------------------------------------------------
     // Factory methods for Types
 
@@ -88,29 +87,34 @@ public:
     ComplexType getComplexTy();
     FunctionType getFunctionTy(Type ret, std::vector<Type> args);
     ReferenceType getReferenceTy(Type of);
-
     // ==---------------------------------------------------------------
-
-    mutable GIDSet<FunctionAST> definitions;
-    mutable GIDSet<PrototypeAST> prototypes;
-    mutable std::map<std::string, Prototype> prototypesMap;
-    mutable GIDSet<ExprAST> expressions;
-    mutable TypeSet types;
-
-    std::shared_ptr<llvm::Module> TheModule;
-    llvm::IRBuilder<> Builder;
-    llvm::Function* CurrentFunc;
-    Type CurrentFuncReturnType;
-    mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> VarsInScope;
-
-    std::map<std::string, std::list<MatchCandidateEntry>> AvailableBinOps;
-    std::map<std::pair<std::string, MatchCandidateEntry>, std::function<llvm::Value*(std::vector<llvm::Value*>)>> BinOpCreator;
-
-    // For tracking in which loop we are currently in
-    // .first -- headerBB, .second -- postBB
-    mutable std::list<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> LoopsBBHeaderPost;
-
-    bool is_inside_loop () const { return !LoopsBBHeaderPost.empty(); }
+    
+    llvm::Module* TheModule () const { return theModule_.get(); }
+    llvm::IRBuilder<> Builder () const { return builder_; }
+    llvm::Function* CurrentFunc () const { return currentFunc_; }
+    Type CurrentFuncReturnType () const { return currentFuncReturnType_; }
+    
+    bool IsVarInScope (std::string s) const { return varsInScope_.find(s) != varsInScope_.end(); }
+    std::pair<llvm::AllocaInst*, Type> GetVarInfo (std::string s) const { return varsInScope_[s]; }
+    void SetVarInfo (std::string s, std::pair<llvm::AllocaInst*, Type> info) const { varsInScope_[s] = info; }
+    bool RemoveVarInfo (std::string s) const { auto it = varsInScope_.find(s); if(it != varsInScope_.end()) { varsInScope_.erase(it); return true; } return false; } 
+    void ClearVarsInfo () const { varsInScope_.clear(); }
+    
+    void PutLoopInfo (llvm::BasicBlock* headerBB, llvm::BasicBlock* postBB) const { loopsBBHeaderPost_.push_back({headerBB, postBB}); }
+    void PopLoopInfo () const { loopsBBHeaderPost_.pop_back(); }
+    bool IsInsideLoop () const { return !loopsBBHeaderPost_.empty(); }
+    std::pair<llvm::BasicBlock*, llvm::BasicBlock*> GetCurrentLoopInfo () const { return loopsBBHeaderPost_.back(); }
+    
+    void SetCurrentFunc (llvm::Function* f) const { currentFunc_ = f; }
+    void SetCurrentFuncReturnType (Type t) const { currentFuncReturnType_ = t; }
+    
+    int NumberOfPrototypes () const { return prototypes_.size(); }
+    int NumberOfDefinitions () const { return definitions_.size(); }
+    bool HasPrototype (std::string s) const { return prototypesMap_.find(s) != prototypesMap_.end(); }
+    Prototype GetPrototype (std::string s) const { return prototypesMap_[s]; }
+    
+    bool IsBinOpAvailable (std::string opcode) const { return availableBinOps_.find(opcode) != availableBinOps_.end(); }
+    std::list<MatchCandidateEntry> VariantsForBinOp (std::string opcode) { return availableBinOps_[opcode]; }
 
     // Special function handles
     llvm::Function* GetStdFunction(std::string name) const;
@@ -120,38 +124,57 @@ public:
 
     // Stores an error-message. TODO: Add file positions storage.
     void AddError(std::string text) const;
-
     // Returns true iff no errors were stored.
     bool IsErrorFree();
-
     // Prints all stored errors to stdout.
     void DisplayErrors();
-
+    
     TypeMatcher typematcher;
-
+    
 protected:
+    std::shared_ptr<llvm::Module> theModule_;
+    mutable llvm::IRBuilder<> builder_;
+    mutable llvm::Function* currentFunc_;
+    mutable Type currentFuncReturnType_;
+    mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> varsInScope_;
+
+    std::map<std::string, std::list<MatchCandidateEntry>> availableBinOps_;
+    std::map<std::pair<std::string, MatchCandidateEntry>, std::function<llvm::Value*(std::vector<llvm::Value*>)>> binOpCreator_;
+
+    // For tracking in which loop we are currently in
+    // .first -- headerBB, .second -- postBB
+    mutable std::list<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> loopsBBHeaderPost_;
+
     // Storage for error messages.
-    mutable std::list<std::pair<std::string, std::string>> errors;
+    mutable std::list<std::pair<std::string, std::string>> errors_;
 
     // The map storing special function handlers, use GetStdFunctions to search for a handle.
-    std::map<std::string, llvm::Function*> stdlib_functions;
+    std::map<std::string, llvm::Function*> stdlib_functions_;
     // Initializes the above map, called as soon as a module is set.
-    void PrepareStdFunctionPrototypes();
+    void PrepareStdFunctionPrototypes_();
 
     // The base input source file for this module
-    std::string filename;
+    std::string filename_;
 
     // Is there a way to merge these two "introduces"? TODO: find a way!
     template<class T>
-    const T* introduceE(const T* node) const { return introduce_expr(node)->template as<T>(); }
+    const T* IntroduceE_(const T* node) const { return IntroduceExpr_(node)->template as<T>(); }
     template<class T>
-    const T* introduceT(const T* node) const { return introduce_type(node)->template as<T>(); }
-    const ExprAST* introduce_expr(const ExprAST*) const;
-    const TypeAST* introduce_type(const TypeAST*) const;
-    const PrototypeAST* introduce_prototype(const PrototypeAST*) const;
-    const FunctionAST* introduce_function(const FunctionAST*) const;
-
+    const T* IntroduceT_(const T* node) const { return IntroduceType_(node)->template as<T>(); }
+    const ExprAST* IntroduceExpr_(const ExprAST*) const;
+    const TypeAST* IntroduceType_(const TypeAST*) const;
+    const PrototypeAST* IntroducePrototype_(const PrototypeAST*) const;
+    const FunctionAST* IntroduceFunction_(const FunctionAST*) const;
+    
+    mutable GIDSet<FunctionAST> definitions_;
+    mutable GIDSet<PrototypeAST> prototypes_;
+    mutable std::map<std::string, Prototype> prototypesMap_;
+    mutable GIDSet<ExprAST> expressions_;
+    mutable TypeSet types_;
     mutable size_t gid_;
+    
+    friend class BinaryExprAST; // uses binOpCreator_
+    friend int Compile(std::string infile, std::string outfile, unsigned int optlevel);
 };
 
 }

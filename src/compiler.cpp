@@ -88,23 +88,23 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
         return -1;
     }
 
-    std::cout << "Found " << ctx.prototypes.size() << " prototypes and " << ctx.definitions.size() << " function definitions. " << std::endl;
+    std::cout << "Found " << ctx.NumberOfPrototypes() << " prototypes and " << ctx.NumberOfDefinitions() << " function definitions. " << std::endl;
 
     auto module = std::make_shared<Module>("CCoscope compiler", getGlobalContext());
 
     ctx.SetModuleAndFile(module, infile);
 
-    auto TheFPM = PreparePassManager(ctx.TheModule.get(), optlevel);
+    auto TheFPM = PreparePassManager(ctx.TheModule(), optlevel);
 
     bool errors = false;
 
-    for(const auto& protoAST : ctx.prototypes){
+    for(const auto& protoAST : ctx.prototypes_){
         protoAST->Typecheck();
         llvm::Function* func = protoAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // func->dump();
     }
-    for(const auto& functionAST : ctx.definitions){
+    for(const auto& functionAST : ctx.definitions_){
         functionAST->Typecheck();
         llvm::Function* func = functionAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
@@ -126,7 +126,7 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
 
     std::ofstream lloutfile(outfile);
     raw_os_ostream raw_lloutfile(lloutfile);
-    ctx.TheModule->print(raw_lloutfile, nullptr);
+    ctx.TheModule()->print(raw_lloutfile, nullptr);
     lloutfile.close();
 
     return 0;
