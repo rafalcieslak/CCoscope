@@ -21,7 +21,7 @@ template class Proxy<CallExprAST>;
 template class Proxy<IfExprAST>;
 template class Proxy<WhileExprAST>;
 template class Proxy<ForExprAST>;
-template class Proxy<KeywordAST>;
+template class Proxy<LoopControlStmtAST>;
 template class Proxy<PrototypeAST>;
 template class Proxy<FunctionAST>;
 
@@ -309,12 +309,12 @@ llvm::Value* ForExprAST::codegen() const {
     return block->codegen();
 }
 
-llvm::Value* KeywordAST::codegen() const {
+llvm::Value* LoopControlStmtAST::codegen() const {
     using namespace llvm;
 
     auto parent = ctx().CurrentFunc;
     switch(which) {
-        case keyword::Break:
+        case loopControl::Break:
             if (!ctx().is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
@@ -335,7 +335,7 @@ llvm::Value* KeywordAST::codegen() const {
                   return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
             }
             break;
-        case keyword::Continue:
+        case loopControl::Continue:
             if (!ctx().is_inside_loop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `continue;` outside any loop
@@ -747,7 +747,7 @@ Type ForExprAST::Typecheck_() const {
     return ctx().getVoidTy();
 }
 
-Type KeywordAST::Typecheck_() const {
+Type LoopControlStmtAST::Typecheck_() const {
     return ctx().getVoidTy();
 }
 

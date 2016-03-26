@@ -73,7 +73,7 @@ public:
     IfExpr makeIf(Expr Cond, Expr Then, Expr Else);
     WhileExpr makeWhile(Expr Cond, Expr Body);
     ForExpr makeFor(Expr Init, Expr Cond, std::list<Expr> Step, Expr Body);
-    Keyword makeKeyword(keyword which);
+    LoopControlStmt makeLoopControlStmt(loopControl which);
     Prototype makePrototype(const std::string &Name,
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType);
     Function makeFunction(Prototype Proto, Expr Body);

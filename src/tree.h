@@ -19,7 +19,7 @@ namespace ccoscope {
 
 class CodegenContext; // forward declaration needed
 
-enum class keyword {
+enum class loopControl {
     Break,
     Continue
 };
@@ -37,7 +37,7 @@ class CallExprAST;         using CallExpr            = Proxy<CallExprAST>;
 class IfExprAST;           using IfExpr              = Proxy<IfExprAST>;
 class WhileExprAST;        using WhileExpr           = Proxy<WhileExprAST>;
 class ForExprAST;          using ForExpr             = Proxy<ForExprAST>;
-class KeywordAST;          using Keyword             = Proxy<KeywordAST>;
+class LoopControlStmtAST;  using LoopControlStmt     = Proxy<LoopControlStmtAST>;
 class PrototypeAST;        using Prototype           = Proxy<PrototypeAST>;
 class FunctionAST;         using Function            = Proxy<FunctionAST>;
 class ConvertAST;          using Convert             = Proxy<ConvertAST>;
@@ -308,9 +308,9 @@ protected:
     Expr Body;
 };
 
-class KeywordAST : public ExprAST {
+class LoopControlStmtAST : public ExprAST {
 public:
-    KeywordAST(CodegenContext& ctx, size_t gid, keyword which)
+    LoopControlStmtAST(CodegenContext& ctx, size_t gid, loopControl which)
         : ExprAST(ctx, gid)
         , which(which)
     {}
@@ -320,7 +320,7 @@ public:
 protected:
     virtual Type Typecheck_() const override;
     
-    keyword which;
+    loopControl which;
 };
 
 // --------------------------------------------------------------------------------

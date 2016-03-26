@@ -206,8 +206,8 @@ ForExpr CodegenContext::makeFor(Expr Init, Expr Cond, std::list<Expr> Step, Expr
     return introduceE(new ForExprAST(*this, gid_++, Init, Cond, Step, Body));
 }
 
-Keyword CodegenContext::makeKeyword(keyword which) {
-    return introduceE(new KeywordAST(*this, gid_++, which));
+LoopControlStmt CodegenContext::makeLoopControlStmt(loopControl which) {
+    return introduceE(new LoopControlStmtAST(*this, gid_++, which));
 }
 
 Prototype CodegenContext::makePrototype(const std::string &Name,

@@ -220,15 +220,15 @@
 }
 %           | KEYWORD_BREAK SEMICOLON
 {   token t(tkn_Statement);
-    t.tree.push_back(ctx.makeKeyword(
-          ccoscope::keyword::Break
+    t.tree.push_back(ctx.makeLoopControlStmt(
+          ccoscope::loopControl::Break
           ));
     return t;
 }
 %           | KEYWORD_CONTINUE SEMICOLON
 {   token t(tkn_Statement);
-    t.tree.push_back(ctx.makeKeyword(
-          ccoscope::keyword::Continue
+    t.tree.push_back(ctx.makeLoopControlStmt(
+          ccoscope::loopControl::Continue
           ));
     return t;
 }
