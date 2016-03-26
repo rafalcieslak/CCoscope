@@ -736,14 +736,8 @@ Type ConvertAST::Typecheck_() const {
 }
 
 BlockAST::ScopeManager::~ScopeManager() {
-    for (auto& var : parent->Vars) {
-        /*auto it = std::find_if(ctx.VarsInScope.begin(),
-                               ctx.VarsInScope.end(),
-                               [&var](auto& p) {
-                                   return p.first == var.first;
-                               });*/
+    for (auto& var : parent->Vars)
         ctx.RemoveVarInfo(var.first);
-    }
 }
 
 }

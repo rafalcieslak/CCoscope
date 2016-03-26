@@ -41,13 +41,6 @@ struct GIDEq {
 template<typename T>
 using GIDSet = std::unordered_set<const T*, GIDHash<const T*>, GIDEq<const T*>>;
 
-template<typename T>
-struct GIDCmp {
-    bool operator () (const T& lhs, const T& rhs) const {
-        return lhs.gid() < rhs.gid();
-    }
-};
-
 class CodegenContext
 {
 public:
