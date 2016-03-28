@@ -19,7 +19,7 @@ add_definitions(
   )
 
 find_package(FLEX REQUIRED)
-find_package(LLVM REQUIRED)
+find_package(LLVM 3.8 REQUIRED)
 
 add_subdirectory(src)
 add_subdirectory(libcco)
