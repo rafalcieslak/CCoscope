@@ -171,7 +171,7 @@ std::list<Conversion> IntegerTypeAST::ListConversions() const{
             ctx_.getDoubleTy(),   // Conversion to a double
             10,                   // -- costs 10
             [this](llvm::Value* v)->llvm::Value*{
-                return this->ctx().Builder.CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
+                return this->ctx().Builder().CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
             }
         }
     };
@@ -183,9 +183,9 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
             ctx_.getComplexTy(),   // Conversion to complex
             15,                   // -- costs 15
             [this](llvm::Value* v)->llvm::Value*{
-                llvm::Function *CalleeF = this->ctx().TheModule->getFunction("newComplex");
+                llvm::Function *CalleeF = this->ctx().TheModule()->getFunction("newComplex");
                 if(CalleeF) {
-                    return this->ctx().Builder.CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
+                    return this->ctx().Builder().CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
                 } else {
                     this->ctx().AddError("newComplex constructor not found!");
                     return nullptr;
@@ -203,7 +203,7 @@ std::list<Conversion> ReferenceTypeAST::ListConversions() const{
             [this](llvm::Value* v)->llvm::Value*{
                 AllocaInst* alloca = dynamic_cast<AllocaInst*>(v);
                 if(!alloca) return nullptr;
-                return this->ctx().Builder.CreateLoad(alloca, v->getName() + "_load");
+                return this->ctx().Builder().CreateLoad(alloca, v->getName() + "_load");
             }
         }
     };

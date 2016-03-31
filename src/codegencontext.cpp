@@ -8,26 +8,26 @@ using namespace std;
 using namespace llvm;
 
 CodegenContext::CodegenContext()
-    : Builder(getGlobalContext())
-    , typematcher(*this)
+    : typematcher(*this)
+    , builder_(getGlobalContext())
     , gid_(0)
 {
     // Operators on integers
 
-#define INIT_OP(name) AvailableBinOps[name] = std::list<MatchCandidateEntry>()
+#define INIT_OP(name) availableBinOps_[name] = std::list<MatchCandidateEntry>()
 
 #define ADD_BASIC_OP(name, t1, t2, builderfunc, rettype, retname) \
-    AvailableBinOps[name].push_back(MatchCandidateEntry{{t1, t2}, rettype}); \
-    BinOpCreator[{name, MatchCandidateEntry{{t1, t2}, rettype}}] = \
+    availableBinOps_[name].push_back(MatchCandidateEntry{{t1, t2}, rettype}); \
+    binOpCreator_[{name, MatchCandidateEntry{{t1, t2}, rettype}}] = \
         [this] (std::vector<Value*> v) { \
-            return this->Builder.builderfunc(v[0], v[1], retname);\
+            return this->builder_.builderfunc(v[0], v[1], retname);\
        }
        
 #define ADD_ASSIGN_OP(t) \
-    AvailableBinOps["ASSIGN"].push_back(MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}); \
-    BinOpCreator[{"ASSIGN", MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}}] = \
+    availableBinOps_["ASSIGN"].push_back(MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}); \
+    binOpCreator_[{"ASSIGN", MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}}] = \
         [this] (std::vector<Value*> v) { \
-            return this->Builder.CreateStore(v[1], v[0]); \
+            return this->builder_.CreateStore(v[1], v[0]); \
         }
 
     // We wouldn't need that if STL provided a `defaultdict`.
@@ -81,78 +81,78 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
     
 #define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
-    AvailableBinOps[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
-    BinOpCreator[{name, MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}}] = \
+    availableBinOps_[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
+    binOpCreator_[{name, MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}}] = \
        [this] (std::vector<Value*> v){   \
-            auto c1re = this->Builder.CreateExtractValue(v[0], {0}); \
-            auto c1im = this->Builder.CreateExtractValue(v[0], {1}); \
-            auto c2re = this->Builder.CreateExtractValue(v[1], {0}); \
-            auto c2im = this->Builder.CreateExtractValue(v[1], {1}); \
+            auto c1re = this->builder_.CreateExtractValue(v[0], {0}); \
+            auto c1im = this->builder_.CreateExtractValue(v[0], {1}); \
+            auto c2re = this->builder_.CreateExtractValue(v[1], {0}); \
+            auto c2im = this->builder_.CreateExtractValue(v[1], {1}); \
             variadiccode \
             auto cmplx_t = getComplexTy()->toLLVMs(); \
-            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc, "cmplxtmp", cmplx_t); \
-            auto idx1 = this->Builder.CreateStructGEP(cmplx_t, alloca, 0); \
-            this->Builder.CreateStore(reres, idx1); \
-            auto idx2 = this->Builder.CreateStructGEP(cmplx_t, alloca, 1); \
-            this->Builder.CreateStore(imres, idx2); \
-            auto retsload = this->Builder.CreateLoad(alloca, "Cmplxloadret"); \
+            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc(), "cmplxtmp", cmplx_t); \
+            auto idx1 = this->builder_.CreateStructGEP(cmplx_t, alloca, 0); \
+            this->builder_.CreateStore(reres, idx1); \
+            auto idx2 = this->builder_.CreateStructGEP(cmplx_t, alloca, 1); \
+            this->builder_.CreateStore(imres, idx2); \
+            auto retsload = this->builder_.CreateLoad(alloca, "Cmplxloadret"); \
             return retsload; \
        }
 
     ADD_COMPLEX_OP("ADD",
-            auto reres = this->Builder.CreateFAdd(c1re, c2re, "cmplxaddtmp");
-            auto imres = this->Builder.CreateFAdd(c1im, c2im, "cmplxaddtmp");
+            auto reres = this->builder_.CreateFAdd(c1re, c2re, "cmplxaddtmp");
+            auto imres = this->builder_.CreateFAdd(c1im, c2im, "cmplxaddtmp");
      , getComplexTy(), "addtmp");
 
     ADD_COMPLEX_OP("SUB",
-            auto reres = this->Builder.CreateFSub(c1re, c2re, "cmplxsubtmp");
-            auto imres = this->Builder.CreateFSub(c1im, c2im, "cmplxsubtmp");
+            auto reres = this->builder_.CreateFSub(c1re, c2re, "cmplxsubtmp");
+            auto imres = this->builder_.CreateFSub(c1im, c2im, "cmplxsubtmp");
      , getComplexTy(), "subtmp");
 
     ADD_COMPLEX_OP("MULT",
-            auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
-            auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
-            auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
-            auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
-            auto reres = this->Builder.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
-            auto imres = this->Builder.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
+            auto c1c2re = this->builder_.CreateFMul(c1re, c2re, "cmplxmultmp");
+            auto c1c2im = this->builder_.CreateFMul(c1im, c2im, "cmplxmultmp");
+            auto c1imc2re = this->builder_.CreateFMul(c1im, c2re, "cmplxmultmp");
+            auto c1rec2im = this->builder_.CreateFMul(c1re, c2im, "cmplxmultmp");
+            auto reres = this->builder_.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
+            auto imres = this->builder_.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
      , getComplexTy(), "multmp");
 
     ADD_COMPLEX_OP("DIV",
-            auto c1c2re = this->Builder.CreateFMul(c1re, c2re, "cmplxmultmp");
-            auto c1c2im = this->Builder.CreateFMul(c1im, c2im, "cmplxmultmp");
-            auto c1imc2re = this->Builder.CreateFMul(c1im, c2re, "cmplxmultmp");
-            auto c1rec2im = this->Builder.CreateFMul(c1re, c2im, "cmplxmultmp");
-            auto c2rere = this->Builder.CreateFMul(c2re, c2re, "cmplxmultmp");
-            auto c2imim = this->Builder.CreateFMul(c2im, c2im, "cmplxmultmp");
-            auto squares = this->Builder.CreateFAdd(c2rere, c2imim, "cmplxaddtmp");
-            auto left = this->Builder.CreateFAdd(c1c2re, c1c2im, "cmplxsubtmp");
-            auto right = this->Builder.CreateFSub(c1imc2re, c1rec2im, "cmplxaddtmp");
-            auto reres = this->Builder.CreateFDiv(left, squares, "cmplxdivtmp");
-            auto imres = this->Builder.CreateFDiv(right, squares, "cmplxdivtmp");
+            auto c1c2re = this->builder_.CreateFMul(c1re, c2re, "cmplxmultmp");
+            auto c1c2im = this->builder_.CreateFMul(c1im, c2im, "cmplxmultmp");
+            auto c1imc2re = this->builder_.CreateFMul(c1im, c2re, "cmplxmultmp");
+            auto c1rec2im = this->builder_.CreateFMul(c1re, c2im, "cmplxmultmp");
+            auto c2rere = this->builder_.CreateFMul(c2re, c2re, "cmplxmultmp");
+            auto c2imim = this->builder_.CreateFMul(c2im, c2im, "cmplxmultmp");
+            auto squares = this->builder_.CreateFAdd(c2rere, c2imim, "cmplxaddtmp");
+            auto left = this->builder_.CreateFAdd(c1c2re, c1c2im, "cmplxsubtmp");
+            auto right = this->builder_.CreateFSub(c1imc2re, c1rec2im, "cmplxaddtmp");
+            auto reres = this->builder_.CreateFDiv(left, squares, "cmplxdivtmp");
+            auto imres = this->builder_.CreateFDiv(right, squares, "cmplxdivtmp");
      , getComplexTy(), "divtmp");
     
-    AvailableBinOps["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
-    BinOpCreator[{"EQUAL", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}}] =
+    availableBinOps_["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
+    binOpCreator_[{"EQUAL", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}}] =
        [this] (std::vector<Value*> v){
-            auto c1re = this->Builder.CreateExtractValue(v[0], {0});
-            auto c1im = this->Builder.CreateExtractValue(v[0], {1});
-            auto c2re = this->Builder.CreateExtractValue(v[1], {0});
-            auto c2im = this->Builder.CreateExtractValue(v[1], {1});
-            auto c1c2re = this->Builder.CreateFCmpOEQ(c1re, c2re, "cmplxcmptmp");
-            auto c1c2im = this->Builder.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
-            return this->Builder.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
+            auto c1re = this->builder_.CreateExtractValue(v[0], {0});
+            auto c1im = this->builder_.CreateExtractValue(v[0], {1});
+            auto c2re = this->builder_.CreateExtractValue(v[1], {0});
+            auto c2im = this->builder_.CreateExtractValue(v[1], {1});
+            auto c1c2re = this->builder_.CreateFCmpOEQ(c1re, c2re, "cmplxcmptmp");
+            auto c1c2im = this->builder_.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
+            return this->builder_.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
        };
 }
 
 CodegenContext::~CodegenContext() {
-    for(auto& it : prototypes)
+    for(auto& it : prototypes_)
         delete it;
-    for(auto& it : definitions)
+    for(auto& it : definitions_)
         delete it;
-    for(auto& it : expressions)
+    for(auto& it : expressions_)
         delete it;
-    for(auto& it : types)
+    for(auto& it : types_)
         delete it;
 }
 
@@ -161,70 +161,70 @@ CodegenContext::~CodegenContext() {
 // Factory methods for AST nodes
 
 VariableExpr CodegenContext::makeVariable(std::string name) {
-    return introduceE(new VariableExprAST(*this, gid_++, name));
+    return IntroduceE_(new VariableExprAST(*this, gid_++, name));
 }
 
 PrimitiveExpr<int> CodegenContext::makeInt(int value) {
-    return introduceE(new PrimitiveExprAST<int>(*this, gid_++, value));
+    return IntroduceE_(new PrimitiveExprAST<int>(*this, gid_++, value));
 }
 
 PrimitiveExpr<double> CodegenContext::makeDouble(double value) {
-    return introduceE(new PrimitiveExprAST<double>(*this, gid_++, value));
+    return IntroduceE_(new PrimitiveExprAST<double>(*this, gid_++, value));
 }
 
 PrimitiveExpr<bool> CodegenContext::makeBool(bool value) {
-    return introduceE(new PrimitiveExprAST<bool>(*this, gid_++, value));
+    return IntroduceE_(new PrimitiveExprAST<bool>(*this, gid_++, value));
 }
 
 ComplexValue CodegenContext::makeComplex(Expr re, Expr im) {
-    return introduceE(new ComplexValueAST(*this, gid_++, re, im));
+    return IntroduceE_(new ComplexValueAST(*this, gid_++, re, im));
 }
 
 BinaryExpr CodegenContext::makeBinary(std::string Op, Expr LHS, Expr RHS) {
-    return introduceE(new BinaryExprAST(*this, gid_++, Op, LHS, RHS));
+    return IntroduceE_(new BinaryExprAST(*this, gid_++, Op, LHS, RHS));
 }
 
 ReturnExpr CodegenContext::makeReturn(Expr expr) {
-    return introduceE(new ReturnExprAST(*this, gid_++, expr));
+    return IntroduceE_(new ReturnExprAST(*this, gid_++, expr));
 }
 
 Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
                                 const std::list<Expr>& s) {
-    return introduceE(new BlockAST(*this, gid_++, vars, s));
+    return IntroduceE_(new BlockAST(*this, gid_++, vars, s));
 }
 
 CallExpr CodegenContext::makeCall(const std::string &Callee, std::vector<Expr> Args) {
-    return introduceE(new CallExprAST(*this, gid_++, Callee, Args));
+    return IntroduceE_(new CallExprAST(*this, gid_++, Callee, Args));
 }
 
 IfExpr CodegenContext::makeIf(Expr Cond, Expr Then, Expr Else) {
-    return introduceE(new IfExprAST(*this, gid_++, Cond, Then, Else));
+    return IntroduceE_(new IfExprAST(*this, gid_++, Cond, Then, Else));
 }
 
 WhileExpr CodegenContext::makeWhile(Expr Cond, Expr Body) {
-    return introduceE(new WhileExprAST(*this, gid_++, Cond, Body));
+    return IntroduceE_(new WhileExprAST(*this, gid_++, Cond, Body));
 }
 
 ForExpr CodegenContext::makeFor(Expr Init, Expr Cond, std::list<Expr> Step, Expr Body) {
-    return introduceE(new ForExprAST(*this, gid_++, Init, Cond, Step, Body));
+    return IntroduceE_(new ForExprAST(*this, gid_++, Init, Cond, Step, Body));
 }
 
 LoopControlStmt CodegenContext::makeLoopControlStmt(loopControl which) {
-    return introduceE(new LoopControlStmtAST(*this, gid_++, which));
+    return IntroduceE_(new LoopControlStmtAST(*this, gid_++, which));
 }
 
 Prototype CodegenContext::makePrototype(const std::string &Name,
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
 {
-    return introduce_prototype(new PrototypeAST(*this, gid_++, Name, Args, ReturnType));
+    return IntroducePrototype_(new PrototypeAST(*this, gid_++, Name, Args, ReturnType));
 }
 
 Function CodegenContext::makeFunction(Prototype Proto, Expr Body) {
-    return introduce_function(new FunctionAST(*this, gid_++, Proto, Body));
+    return IntroduceFunction_(new FunctionAST(*this, gid_++, Proto, Body));
 }
 
 Convert CodegenContext::makeConvert(Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter) {
-    return introduceE(new ConvertAST(*this, gid_++, Expression, ResultingType, Converter));
+    return IntroduceE_(new ConvertAST(*this, gid_++, Expression, ResultingType, Converter));
 }
 
 // ==---------------------------------------------------------------
@@ -233,95 +233,95 @@ Convert CodegenContext::makeConvert(Expr Expression, Type ResultingType, std::fu
 // Factory methods for Types
 
 VoidType CodegenContext::getVoidTy() {
-    return introduceT(new VoidTypeAST(*this, gid_++));
+    return IntroduceT_(new VoidTypeAST(*this, gid_++));
 }
 
 IntegerType CodegenContext::getIntegerTy() {
-    return introduceT(new IntegerTypeAST(*this, gid_++));
+    return IntroduceT_(new IntegerTypeAST(*this, gid_++));
 }
 
 DoubleType CodegenContext::getDoubleTy() {
-    return introduceT(new DoubleTypeAST(*this, gid_++));
+    return IntroduceT_(new DoubleTypeAST(*this, gid_++));
 }
 
 BooleanType CodegenContext::getBooleanTy() {
-    return introduceT(new BooleanTypeAST(*this, gid_++));
+    return IntroduceT_(new BooleanTypeAST(*this, gid_++));
 }
 
 ComplexType CodegenContext::getComplexTy() {
-    return introduceT(new ComplexTypeAST(*this, gid_++));
+    return IntroduceT_(new ComplexTypeAST(*this, gid_++));
 }
 
 FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) {
-    return introduceT(new FunctionTypeAST(*this, gid_++, ret, args));
+    return IntroduceT_(new FunctionTypeAST(*this, gid_++, ret, args));
 }
 
 ReferenceType CodegenContext::getReferenceTy(Type of) {
-    return introduceT(new ReferenceTypeAST(*this, gid_++, of));
+    return IntroduceT_(new ReferenceTypeAST(*this, gid_++, of));
 }
 
 // ==---------------------------------------------------------------
 
 void CodegenContext::SetModuleAndFile(std::shared_ptr<llvm::Module> module, std::string infile) {
-    TheModule = module;
-    filename = infile;
-    PrepareStdFunctionPrototypes();
+    theModule_ = module;
+    filename_ = infile;
+    PrepareStdFunctionPrototypes_();
 }
 
 void CodegenContext::AddError(std::string text) const{
-    errors.push_back(std::make_pair(CurrentFunc->getName(), text));
+    errors_.push_back(std::make_pair(CurrentFunc()->getName(), text));
 }
 
 bool CodegenContext::IsErrorFree(){
-    return errors.empty();
+    return errors_.empty();
 }
 
 void CodegenContext::DisplayErrors(){
-    for(const auto& e : errors){
-        std::cout << ColorStrings::Color(Color::White, true) << filename << ": " << ColorStrings::Color(Color::Red, true) << "ERROR" << ColorStrings::Reset();
+    for(const auto& e : errors_){
+        std::cout << ColorStrings::Color(Color::White, true) << filename_ << ": " << ColorStrings::Color(Color::Red, true) << "ERROR" << ColorStrings::Reset();
         std::cout << " in function `" << e.first << "`: " << e.second << std::endl;
     }
 }
 
-const ExprAST* CodegenContext::introduce_expr(const ExprAST* node) const{
+const ExprAST* CodegenContext::IntroduceExpr_(const ExprAST* node) const{
     /* This look ridiculously simple now, but in the future we can
      * make CSE optimization here
      */
-    expressions.insert(node);
+    expressions_.insert(node);
     return node;
 }
 
-const TypeAST* CodegenContext::introduce_type(const TypeAST* node) const{
-    auto it = types.find(node);
-    if(it != types.end() && *it != node) {
+const TypeAST* CodegenContext::IntroduceType_(const TypeAST* node) const{
+    auto it = types_.find(node);
+    if(it != types_.end() && *it != node) {
         delete node;
         return *it;
     }
 
-    types.insert(node);
+    types_.insert(node);
     return node;
 }
 
-const PrototypeAST* CodegenContext::introduce_prototype(const PrototypeAST* node) const{
-    auto pit = prototypesMap.find(node->getName());
-    if(pit != prototypesMap.end()) {
+const PrototypeAST* CodegenContext::IntroducePrototype_(const PrototypeAST* node) const{
+    auto pit = prototypesMap_.find(node->getName());
+    if(pit != prototypesMap_.end()) {
         delete node;
         return *(pit->second);
     }
 
-    prototypes.insert(node);
-    prototypesMap[node->getName()] = node;
+    prototypes_.insert(node);
+    prototypesMap_[node->getName()] = node;
     return node;
 }
 
-const FunctionAST* CodegenContext::introduce_function(const FunctionAST* node) const{
-    definitions.insert(node);
+const FunctionAST* CodegenContext::IntroduceFunction_(const FunctionAST* node) const{
+    definitions_.insert(node);
     return node;
 }
 
 llvm::Function* CodegenContext::GetStdFunction(std::string name) const{
-    auto it = stdlib_functions.find(name);
-    if(it == stdlib_functions.end()) return nullptr;
+    auto it = stdlib_functions_.find(name);
+    if(it == stdlib_functions_.end()) return nullptr;
     else return it->second;
 }
 
@@ -338,15 +338,15 @@ std::string CodegenContext::GetPrintFunctionName(Type type)  {
     return "";
 }
 
-void CodegenContext::PrepareStdFunctionPrototypes(){
+void CodegenContext::PrepareStdFunctionPrototypes_(){
     // Prepare prototypes of standard library functions.
     llvm::Function* f;
     llvm::FunctionType* ftype;
 // ---
 #define ADD_STDPROTO(name, typesig) do{                                 \
         ftype = TypeBuilder<typesig, false>::get(getGlobalContext());   \
-        f = llvm::Function::Create(ftype, llvm::Function::ExternalLinkage, "__cco_" name, TheModule.get()); \
-        stdlib_functions[name] = f;                                     \
+        f = llvm::Function::Create(ftype, llvm::Function::ExternalLinkage, "__cco_" name, TheModule()); \
+        stdlib_functions_[name] = f;                                     \
     }while(0)
 // ---
     ADD_STDPROTO("print_int",void(int));

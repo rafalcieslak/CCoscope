@@ -59,23 +59,23 @@ llvm::Value* ComplexValueAST::codegen() const {
     llvm::Value* imv = Im->codegen();
     if(!rev || !imv) return nullptr;
     
-    auto rets = ctx().VarsInScope["Cmplx"].first;
-    auto idx1 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
-    ctx().Builder.CreateStore(rev, idx1);
-    auto idx2 = ctx().Builder.CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 1);
-    ctx().Builder.CreateStore(imv, idx2);
-    auto retsload = ctx().Builder.CreateLoad(rets, "Cmplxloadret");
+    auto rets = ctx().GetVarInfo("Cmplx").first;
+    auto idx1 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
+    ctx().Builder().CreateStore(rev, idx1);
+    auto idx2 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 1);
+    ctx().Builder().CreateStore(imv, idx2);
+    auto retsload = ctx().Builder().CreateLoad(rets, "Cmplxloadret");
     return retsload;
 }
 
 llvm::Value* VariableExprAST::codegen() const {
     using namespace llvm;
 
-    if(ctx().VarsInScope.count(Name) < 1){
+    if(!ctx().IsVarInScope(Name)){
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
-    return ctx().VarsInScope[Name].first;
+    return ctx().GetVarInfo(Name).first;
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
@@ -84,7 +84,7 @@ llvm::Value* BinaryExprAST::codegen() const {
     llvm::Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
     
-    auto binfun = ctx().BinOpCreator[{opcode, BestOverload}];
+    auto binfun = ctx().binOpCreator_[{opcode, BestOverload}];
     return binfun({valL, valR});
 }
 
@@ -92,17 +92,17 @@ llvm::Value* ReturnExprAST::codegen() const {
     llvm::Value* Val = Expression->codegen();
     if(!Val) return nullptr;
     
-    llvm::Function* parent = this->ctx().CurrentFunc;
-    llvm::BasicBlock* returnBB    = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
-    llvm::BasicBlock* discardBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnDiscard");
+    llvm::Function* parent = ctx().CurrentFunc();
+    llvm::BasicBlock* returnBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
+    llvm::BasicBlock* discardBB  = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnDiscard");
 
-    this->ctx().Builder.CreateCondBr(llvm::ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
+    this->ctx().Builder().CreateCondBr(llvm::ConstantInt::getTrue(llvm::getGlobalContext()), returnBB, discardBB);
     parent->getBasicBlockList().push_back(returnBB);
-    this->ctx().Builder.SetInsertPoint(returnBB);
-    this->ctx().Builder.CreateRet(Val);
+    this->ctx().Builder().SetInsertPoint(returnBB);
+    this->ctx().Builder().CreateRet(Val);
 
     parent->getBasicBlockList().push_back(discardBB);
-    this->ctx().Builder.SetInsertPoint(discardBB);
+    this->ctx().Builder().SetInsertPoint(discardBB);
 
     return Val;
 }
@@ -118,21 +118,21 @@ llvm::Value* BlockAST::codegen() const {
         return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
     }else{
         // Create new stack vars.
-        llvm::Function* parent = ctx().CurrentFunc;
+        llvm::Function* parent = ctx().CurrentFunc();
         ScopeManager SM {this, ctx()};
 
         // TODO: make ScopeManager sensitive to how many variables were
         // successfully initialized
         for(auto& var : Vars){
-            if(ctx().VarsInScope.count(var.first) > 0){
+            if(ctx().IsVarInScope(var.first)){
                 ctx().AddError("Variable shadowing is not allowed");
                 return nullptr;
             }
             AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, var.second->toLLVMs());
             // Initialize the var to 0.
             Value* zero = var.second->defaultLLVMsValue();
-            ctx().Builder.CreateStore(zero, Alloca);
-            ctx().VarsInScope[var.first] = std::make_pair(Alloca, var.second);
+            ctx().Builder().CreateStore(zero, Alloca);
+            ctx().SetVarInfo(var.first, {Alloca, var.second});
         }
 
         // Generate statements inside the block
@@ -156,11 +156,11 @@ llvm::Value* CallExprAST::codegen() const {
         if(!Val) return nullptr;
         
         if(Args[0]->GetType() == ctx().getComplexTy()) {
-            auto rev = ctx().Builder.CreateExtractValue(Val, {0});
-            auto imv = ctx().Builder.CreateExtractValue(Val, {1});
-            return ctx().Builder.CreateCall(BestOverload, {rev, imv});
+            auto rev = ctx().Builder().CreateExtractValue(Val, {0});
+            auto imv = ctx().Builder().CreateExtractValue(Val, {1});
+            return ctx().Builder().CreateCall(BestOverload, {rev, imv});
         } else {
-            return ctx().Builder.CreateCall(BestOverload, Val);
+            return ctx().Builder().CreateCall(BestOverload, Val);
         }
 
     }else{
@@ -172,7 +172,7 @@ llvm::Value* CallExprAST::codegen() const {
                 return nullptr;
         }
         
-        return ctx().Builder.CreateCall(BestOverload, ArgsV, "calltmp");
+        return ctx().Builder().CreateCall(BestOverload, ArgsV, "calltmp");
     }
 }
 
@@ -182,9 +182,9 @@ llvm::Value* IfExprAST::codegen() const {
     Value* cond = Cond->codegen();
     if(!cond) return nullptr;
 
-    Value* cmp = ctx().Builder.CreateICmpNE(cond, ConstantInt::get(llvm::getGlobalContext(), APInt(1, 0, 1)), "ifcond");
+    Value* cmp = ctx().Builder().CreateICmpNE(cond, ConstantInt::get(llvm::getGlobalContext(), APInt(1, 0, 1)), "ifcond");
 
-    auto parent = ctx().CurrentFunc;
+    auto parent = ctx().CurrentFunc();
 
     BasicBlock *ThenBB  = BasicBlock::Create(llvm::getGlobalContext(), "then");
     BasicBlock *MergeBB = BasicBlock::Create(llvm::getGlobalContext(), "ifcont");
@@ -198,35 +198,35 @@ llvm::Value* IfExprAST::codegen() const {
         ElseBB = MergeBB;
     }
 
-    ctx().Builder.CreateCondBr(cmp, ThenBB, ElseBB);
+    ctx().Builder().CreateCondBr(cmp, ThenBB, ElseBB);
 
     // THEN
     // Add to parent
     parent->getBasicBlockList().push_back(ThenBB);
     // Codegen recursivelly
-    ctx().Builder.SetInsertPoint(ThenBB);
+    ctx().Builder().SetInsertPoint(ThenBB);
     Value *ThenV = Then->codegen();
     if (!ThenV) return nullptr;
-    ctx().Builder.CreateBr(MergeBB);
+    ctx().Builder().CreateBr(MergeBB);
     // Codegen of 'Then' can change the current block, update ThenBB.
-    ThenBB = ctx().Builder.GetInsertBlock();
+    ThenBB = ctx().Builder().GetInsertBlock();
 
     if(Else){
         // ELSE
         // Add to parent
         parent->getBasicBlockList().push_back(ElseBB);
         // Codegen recursivelly
-        ctx().Builder.SetInsertPoint(ElseBB);
+        ctx().Builder().SetInsertPoint(ElseBB);
         Value *ElseV = Else->codegen();
         if (!ElseV) return nullptr;
-        ctx().Builder.CreateBr(MergeBB);
+        ctx().Builder().CreateBr(MergeBB);
         // Codegen of 'Else' can change the current block, update ElseBB.
-        ElseBB = ctx().Builder.GetInsertBlock();
+        ElseBB = ctx().Builder().GetInsertBlock();
     }
 
     // Further instructions are to be placed at merge block
     parent->getBasicBlockList().push_back(MergeBB);
-    ctx().Builder.SetInsertPoint(MergeBB);
+    ctx().Builder().SetInsertPoint(MergeBB);
 
     return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
 }
@@ -234,39 +234,39 @@ llvm::Value* IfExprAST::codegen() const {
 llvm::Value* WhileExprAST::codegen() const {
     using namespace llvm;
 
-    auto parent = ctx().CurrentFunc;
+    auto parent = ctx().CurrentFunc();
 
     BasicBlock* HeaderBB = BasicBlock::Create(llvm::getGlobalContext(), "header");
     BasicBlock* BodyBB   = BasicBlock::Create(llvm::getGlobalContext(), "body");
     BasicBlock* PostBB   = BasicBlock::Create(llvm::getGlobalContext(), "postwhile");
 
-    ctx().Builder.CreateBr(HeaderBB);
+    ctx().Builder().CreateBr(HeaderBB);
 
     // HEADER
     parent->getBasicBlockList().push_back(HeaderBB);
-    ctx().Builder.SetInsertPoint(HeaderBB);
+    ctx().Builder().SetInsertPoint(HeaderBB);
     Value* cond = Cond->codegen();
     if(!cond) return nullptr;
-    Value* cmp = ctx().Builder.CreateICmpNE(cond, ConstantInt::get(llvm::getGlobalContext(), APInt(1, 0, 1)), "whilecond");
-    ctx().Builder.CreateCondBr(cmp, BodyBB, PostBB);
+    Value* cmp = ctx().Builder().CreateICmpNE(cond, ConstantInt::get(llvm::getGlobalContext(), APInt(1, 0, 1)), "whilecond");
+    ctx().Builder().CreateCondBr(cmp, BodyBB, PostBB);
 
     // Update of codegening context -- we are in a loop from now on
-    ctx().LoopsBBHeaderPost.push_back({HeaderBB, PostBB});
+    ctx().PutLoopInfo(HeaderBB, PostBB);
 
     // BODY
     parent->getBasicBlockList().push_back(BodyBB);
-    ctx().Builder.SetInsertPoint(BodyBB);
+    ctx().Builder().SetInsertPoint(BodyBB);
     Value* BodyV = Body->codegen();
     if(!BodyV) return nullptr;
-    ctx().Builder.CreateBr(HeaderBB);
+    ctx().Builder().CreateBr(HeaderBB);
 
 
     // POSTWHILE
     parent->getBasicBlockList().push_back(PostBB);
-    ctx().Builder.SetInsertPoint(PostBB);
+    ctx().Builder().SetInsertPoint(PostBB);
 
     // Update of codegening context -- we've just got out of the loop
-    ctx().LoopsBBHeaderPost.pop_back();
+    ctx().PopLoopInfo();
 
     return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
 }
@@ -303,16 +303,16 @@ llvm::Value* ForExprAST::codegen() const {
 llvm::Value* LoopControlStmtAST::codegen() const {
     using namespace llvm;
 
-    auto parent = ctx().CurrentFunc;
+    auto parent = ctx().CurrentFunc();
     switch(which) {
         case loopControl::Break:
-            if (!ctx().is_inside_loop()) {
+            if (!ctx().IsInsideLoop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
                 ctx().AddError("'break' keyword outside any loop");
                 return nullptr;
             } else {
-                  auto postBB = ctx().LoopsBBHeaderPost.back().second;
+                  auto postBB = ctx().GetCurrentLoopInfo().second;
 
                   // A bit of a hack here -- we generate a non-reachable basic block
                   // because it turns out to be a lot easier then fighting with
@@ -321,23 +321,23 @@ llvm::Value* LoopControlStmtAST::codegen() const {
                   // `break` or `continue` keyword
                   BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "breakDiscard");
                   parent->getBasicBlockList().push_back(discardBB);
-                  ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), postBB, discardBB);
-                  ctx().Builder.SetInsertPoint(discardBB);
+                  ctx().Builder().CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), postBB, discardBB);
+                  ctx().Builder().SetInsertPoint(discardBB);
                   return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
             }
             break;
         case loopControl::Continue:
-            if (!ctx().is_inside_loop()) {
+            if (!ctx().IsInsideLoop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `continue;` outside any loop
                 ctx().AddError("'continue' keyword outside any loop");
                 return nullptr;
             } else {
-                auto headerBB = ctx().LoopsBBHeaderPost.back().first;
+                auto headerBB = ctx().GetCurrentLoopInfo().first;
                 BasicBlock* discardBB   = BasicBlock::Create(llvm::getGlobalContext(), "continueDiscard");
                 parent->getBasicBlockList().push_back(discardBB);
-                ctx().Builder.CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), headerBB, discardBB);
-                ctx().Builder.SetInsertPoint(discardBB);
+                ctx().Builder().CreateCondBr(ConstantInt::getTrue(llvm::getGlobalContext()), headerBB, discardBB);
+                ctx().Builder().SetInsertPoint(discardBB);
                 return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
             }
             break;
@@ -351,7 +351,7 @@ llvm::Value* LoopControlStmtAST::codegen() const {
 llvm::Function* PrototypeAST::codegen() const {
     auto F =
       llvm::Function::Create(this->GetType().as<FunctionType>()->toLLVMs(),
-        llvm::Function::ExternalLinkage, Name, ctx().TheModule.get()
+        llvm::Function::ExternalLinkage, Name, ctx().TheModule()
     );
 
     // Set names for all arguments.
@@ -372,7 +372,7 @@ llvm::Function* FunctionAST::codegen() const {
     using namespace llvm;
 
     // First, check for an existing function from a previous 'extern' declaration.
-    auto TheFunction = ctx().TheModule->getFunction(Proto->getName());
+    auto TheFunction = ctx().TheModule()->getFunction(Proto->getName());
 
     // The function was not previously declared with an extern, so we
     // need to emit the prototype declaration.
@@ -381,22 +381,23 @@ llvm::Function* FunctionAST::codegen() const {
     }
 
     // Set current function
-    ctx().CurrentFunc = TheFunction;
-    ctx().CurrentFuncReturnType = Proto->ReturnType;
+    ctx().SetCurrentFunc(TheFunction);
+    ctx().SetCurrentFuncReturnType(Proto->ReturnType);
+    std::cerr << "seting currentfuncreturntype to " << Proto->ReturnType->name() << std::endl;
 
     // Create a new basic block to start insertion into.
     BasicBlock *BB = BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
-    ctx().Builder.SetInsertPoint(BB);
+    ctx().Builder().SetInsertPoint(BB);
 
     // Clear the scope.
-    ctx().VarsInScope.clear();
+    ctx().ClearVarsInfo();
 
     size_t i = 0;
     // Record the function arguments in the VarsInScope map.
     for (auto &Arg : TheFunction->args()){
         AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), Arg.getType());
-        ctx().Builder.CreateStore(&Arg,Alloca);
-        ctx().VarsInScope[Arg.getName()] = std::make_pair(Alloca, (Proto->getArgs())[i].second);
+        ctx().Builder().CreateStore(&Arg,Alloca);
+        ctx().SetVarInfo(Arg.getName(), {Alloca, (Proto->getArgs())[i].second});
         i++;
     }
 
@@ -405,7 +406,7 @@ llvm::Function* FunctionAST::codegen() const {
 
     // Before terminating the function, create a default return value, in case the function body does not contain one.
     // TODO: Default return type.
-    ctx().Builder.CreateRet(Proto->ReturnType->defaultLLVMsValue());
+    ctx().Builder().CreateRet(Proto->ReturnType->defaultLLVMsValue());
 
     if(val){
     // Validate the generated code, checking for consistency.
@@ -487,16 +488,15 @@ Type ComplexValueAST::Typecheck_() const {
 }
 
 Type VariableExprAST::Typecheck_() const {
-    return ctx().getReferenceTy( ctx().VarsInScope[Name].second );
+    return ctx().getReferenceTy( ctx().GetVarInfo(Name).second );
 }
 
 Type BinaryExprAST::Typecheck_() const {
-    auto opit = ctx().AvailableBinOps.find(opcode);
-    if(opit == ctx().AvailableBinOps.end()) {
+    if(!ctx().IsBinOpAvailable(opcode)) {
         ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
         return ctx().getVoidTy();
     }
-    const std::list<MatchCandidateEntry>& operator_variants = opit->second;
+    const std::list<MatchCandidateEntry>& operator_variants = ctx().VariantsForBinOp(opcode);
 
     Type Ltype = LHS->Typecheck();
     Type Rtype = RHS->Typecheck();
@@ -520,7 +520,7 @@ Type BinaryExprAST::Typecheck_() const {
 }
 
 Type ReturnExprAST::Typecheck_() const {
-    Type target_type = ctx().CurrentFuncReturnType;
+    Type target_type = ctx().CurrentFuncReturnType();
     Type expr_type = Expression->Typecheck();
     
     auto return_m = MatchCandidateEntry{
@@ -543,7 +543,7 @@ Type ReturnExprAST::Typecheck_() const {
             ctx().AddError("ReturnExprAST::Typecheck_() error: target type (" + target_type->name() + ") != match type (" +
                 match.match.input_types[0]->name() + ").");
         }
-        Expression = ctx().makeConvert(Expression, match.match.input_types[0] /*target_type*/, match.converter_functions[0]);
+        Expression = ctx().makeConvert(Expression, match.match.input_types[0], match.converter_functions[0]);
         return target_type;
     }
 }
@@ -554,11 +554,11 @@ Type BlockAST::Typecheck_() const {
     // TODO: make ScopeManager sensitive to how many variables were
     // successfully initialized
     for(auto& var : Vars){
-        if(ctx().VarsInScope.count(var.first) > 0){
+        if(ctx().IsVarInScope(var.first)){
             ctx().AddError("Variable shadowing is not allowed");
             return ctx().getVoidTy();
         }
-        ctx().VarsInScope[var.first] = std::make_pair(nullptr, var.second);
+        ctx().SetVarInfo(var.first, {nullptr, var.second});
     }
 
     for(const auto& stat : Statements){
@@ -617,16 +617,15 @@ Type CallExprAST::Typecheck_() const {
     } // if callee == print
 
     // Find a a corresponding candidate.
-    auto it = ctx().prototypesMap.find(Callee);
-    if(it == ctx().prototypesMap.end()){
+    if(!ctx().HasPrototype(Callee)){
         ctx().AddError("Function " + Callee + " was not declared");
         return ctx().getVoidTy();
     }
-    Prototype proto = it->second;
+    Prototype proto = ctx().GetPrototype(Callee);
     std::vector<Type> signature = proto->GetSignature();
 
     // Look up the name in the global module table.
-    llvm::Function *CalleeF = ctx().TheModule->getFunction(Callee);
+    llvm::Function *CalleeF = ctx().TheModule()->getFunction(Callee);
     if (!CalleeF){
         ctx().AddError("Internal error: Function " + Callee + " is present in prototypes map but was not declared in the module");
         return ctx().getVoidTy();
@@ -663,7 +662,7 @@ Type CallExprAST::Typecheck_() const {
         }
         
         // currently no overloading, so one candidate available
-        BestOverload = ctx().TheModule->getFunction(Callee);
+        BestOverload = ctx().TheModule()->getFunction(Callee);
         return match.match.return_type;
     }
 }
@@ -720,15 +719,15 @@ Type PrototypeAST::Typecheck_() const {
 
 Type FunctionAST::Typecheck_() const {
     for(auto& p : Proto->Args) {
-        ctx().VarsInScope[p.first] = std::make_pair(nullptr, p.second);
+        ctx().SetVarInfo(p.first, {nullptr, p.second});
     }
     
-    //ctx().CurrentFunc = TheFunction;
-    ctx().CurrentFuncReturnType = Proto->ReturnType;
+    //ctx().CurrentFunc() = TheFunction;
+    ctx().SetCurrentFuncReturnType(Proto->ReturnType);
     /*auto BodyType =*/ Body->Typecheck();
     // can we ignore BodyType? 
     auto res = Proto->Typecheck();
-    ctx().VarsInScope.clear();
+    ctx().ClearVarsInfo();
     return res;
 }
 
@@ -737,14 +736,8 @@ Type ConvertAST::Typecheck_() const {
 }
 
 BlockAST::ScopeManager::~ScopeManager() {
-    for (auto& var : parent->Vars) {
-        auto it = std::find_if(ctx.VarsInScope.begin(),
-                               ctx.VarsInScope.end(),
-                               [&var](auto& p) {
-                                   return p.first == var.first;
-                               });
-        ctx.VarsInScope.erase(it);
-    }
+    for (auto& var : parent->Vars)
+        ctx.RemoveVarInfo(var.first);
 }
 
 }
