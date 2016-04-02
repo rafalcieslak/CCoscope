@@ -347,7 +347,7 @@ inline std::ostream& operator<<(std::ostream& s, const std::list<Expr>& l){
     s << "A list of " << l.size() << " statements." << std::endl;
     return s;
 }
-inline std::ostream& operator<<(std::ostream& s, const std::vector<std::pair<std::string,Type>>& l){
+inline std::ostream& operator<<(std::ostream& s, const std::list<std::pair<std::string,Type>>& l){
     s << "A list of " << l.size() << " function arguments." << std::endl;
     return s;
 }

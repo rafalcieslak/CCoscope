@@ -57,14 +57,14 @@ public:
     ComplexValue makeComplex(Expr re, Expr im);
     BinaryExpr makeBinary(std::string Op, Expr LHS, Expr RHS);
     ReturnExpr makeReturn(Expr expr);
-    Block makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
+    Block makeBlock(const std::vector<std::pair<std::string, Type>>& vars,
                     const std::list<Expr>& s);
-    CallExpr makeCall(const std::string &Callee, std::vector<Expr> Args);
+    CallExpr makeCall(const std::string& Callee, std::vector<Expr> Args);
     IfExpr makeIf(Expr Cond, Expr Then, Expr Else);
     WhileExpr makeWhile(Expr Cond, Expr Body);
     ForExpr makeFor(Expr Init, Expr Cond, std::list<Expr> Step, Expr Body);
     LoopControlStmt makeLoopControlStmt(loopControl which);
-    Prototype makePrototype(const std::string &Name,
+    Prototype makePrototype(const std::string& Name,
         std::vector<std::pair<std::string, Type>> Args, Type ReturnType);
     Function makeFunction(Prototype Proto, Expr Body);
     Convert makeConvert(Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter);

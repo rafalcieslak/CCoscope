@@ -1,0 +1,37 @@
+
+
+fun main() : int {
+    var i : int;
+    var d : double;
+    var f : double;
+    
+    i := 1;
+    d := 3.14;
+    print(f);
+    {
+      var j : int;
+      j := 2;
+      d := 3.42;
+      print(d);
+      var d : double;
+      d := 77.42;
+      print(i);
+      print(j);
+      print(d);
+      {
+        var i : double;
+        i := 0.07;
+        f := 987.123;
+        print(i);
+      }
+      print(i);
+      print(f);
+    }
+    print(i);
+    var c : int;
+    print(c);
+    c := 666;
+    print(c);
+    print(d);
+    print(f);
+}

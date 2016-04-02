@@ -17,7 +17,8 @@
 %token Module Command
 %token Start FuncDecl FuncDef ReturnType ProtoArgList
 %token Block Statement StatementList
-%token VarList VarDef
+//%token VarList VarDef
+%token VarDef
 %token If While For
 %token Return
 %token Expression Expr10 Expr20 Expr30 Expr40 Expr50 Expr100
@@ -32,7 +33,7 @@
  /* This is an aux used by StatementList and Block */
 %attribute statement_list std::list<ccoscope::Expr>
  /* This is an aux used by ProtoArgList and ProtoArgListL */
-%attribute protoarglist std::vector<std::pair<std::string,ccoscope::Type>>
+%attribute protoarglist std::list<std::pair<std::string,ccoscope::Type>>
 %attribute arglist std::vector<ccoscope::Expr>
  /* This is an aux used by TypedIdentifier */
 %attribute typedident std::pair<std::string, ccoscope::Type>
@@ -60,12 +61,13 @@
 %constraint For tree 1 2
 %constraint Statement tree 1 2
 %constraint StatementList statement_list 1 2
+%constraint StatementList protoarglist 1 2
 %constraint Block tree 1 2
 %constraint Assignment tree 1 2
 %constraint FuncCall tree 1 2
 %constraint ProtoArgList  protoarglist 1 2
 %constraint ProtoArgListL protoarglist 1 2
-%constraint VarList  protoarglist 1 2
+//%constraint VarList  protoarglist 1 2
 %constraint ArgList  arglist 1 2
 %constraint ArgListL arglist 1 2
 %constraint TypedIdentifier typedident 1 2
@@ -98,9 +100,11 @@
 // Function declaration
 % FuncDecl : KEYWORD_EXTERN KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType SEMICOLON
 {
+    std::vector<std::pair<std::string, ccoscope::Type>> v{ std::begin(ProtoArgList5->protoarglist.front()), std::end(ProtoArgList5->protoarglist.front()) };
     ctx.makePrototype(
          IDENTIFIER3->id.front(),
-         ProtoArgList5->protoarglist.front(),
+        // ProtoArgList5->protoarglist.front(),
+        v,
          ReturnType7->returntype.front()
          );
 
@@ -110,9 +114,11 @@
 // Function definition
 % FuncDef : KEYWORD_FUN IDENTIFIER LPAR ProtoArgList RPAR ReturnType Block
 {
+    std::vector<std::pair<std::string, ccoscope::Type>> v{ std::begin(ProtoArgList4->protoarglist.front()), std::end(ProtoArgList4->protoarglist.front()) };
     auto Prototype = ctx.makePrototype(
          IDENTIFIER2->id.front(),
-         ProtoArgList4->protoarglist.front(),
+        // ProtoArgList4->protoarglist.front(),
+        v,
          ReturnType6->returntype.front()
          );
      ctx.makeFunction(
@@ -146,34 +152,19 @@
 }
 %                 ;
 
-% Block : LBRACKET VarList StatementList RBRACKET
+% Block : LBRACKET StatementList RBRACKET
+//% Block : LBRACKET VarList StatementList RBRACKET
 {   token t(tkn_Block);
+    std::vector<std::pair<std::string, ccoscope::Type>> v{ std::begin(StatementList2->protoarglist.front()), std::end(StatementList2->protoarglist.front()) };
     t.tree.push_back( ctx.makeBlock(
-       VarList2->protoarglist.front(),
-       StatementList3->statement_list.front())
+      // VarList2->protoarglist.front(),
+       //StatementList2->protoarglist.front(),
+       v,
+       StatementList2->statement_list.front())
     );
     return t;
 }
 %           ;
-
-// List of variable definitions (at the start of a function body)
-% VarList : VarList VarDef
-{   VarList1->protoarglist.front().push_back( VarDef2->typedident.front() );
-    return VarList1;
-}
-%         |
-{   token t(tkn_VarList);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,ccoscope::Type>>() );
-    return t;
-}
-%         ;
-
-% VarDef : KEYWORD_VAR TypedIdentifier SEMICOLON
-{   TypedIdentifier2->type = tkn_VarDef;
-    return TypedIdentifier2;
-}
-%        ;
-
 
 // A list of statements, like in a function body.
 % StatementList : Statement StatementList
@@ -181,13 +172,24 @@
     StatementList2->statement_list.front().push_front( Statement1->tree.front() );
     return StatementList2;
 }
+%               | VarDef StatementList
+{
+    StatementList2->protoarglist.front().push_front(VarDef1->typedident.front());
+    return StatementList2;
+}
 %               |
 {   token t(tkn_StatementList);
     t.statement_list.push_back( std::list<ccoscope::Expr>() );
+    t.protoarglist.push_back( std::list<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %               ;
 
+% VarDef : KEYWORD_VAR TypedIdentifier SEMICOLON
+{   TypedIdentifier2->type = tkn_VarDef;
+    return TypedIdentifier2;
+}
+%        ;
 
 // All kinds of statements
 % Statement : Assignment
@@ -281,9 +283,10 @@
 
 % For : KEYWORD_FOR LPAR VarList StatementList PIPE Expression PIPE StatementList RPAR Block
 {   token t(tkn_For);
+    std::vector<std::pair<std::string, ccoscope::Type>> v{ std::begin(VarList3->protoarglist.front()), std::end(VarList3->protoarglist.front()) };
     t.tree.push_back( ctx.makeFor(
       ctx.makeBlock(
-       VarList3->protoarglist.front(),
+       v,//VarList3->protoarglist.front(),
        StatementList4->statement_list.front()),
       Expression6->tree.front(),
       StatementList8->statement_list.front(),
@@ -478,7 +481,7 @@
 }
 %          |
 {   token t(tkn_ProtoArgList);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,ccoscope::Type>>() );
+    t.protoarglist.push_back( std::list<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %          ;
@@ -489,7 +492,7 @@
 }
 %              |
 {   token t(tkn_ProtoArgListL);
-    t.protoarglist.push_back( std::vector<std::pair<std::string,ccoscope::Type>>() );
+    t.protoarglist.push_back( std::list<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %              ;
