@@ -1,0 +1,32 @@
+
+
+fun main() : int {
+    var i : int;
+    var c : int;
+    var d : double;
+    var f : double;
+    
+    i := 1;
+    d := 3.14;
+    print(f);
+    {
+      var j : int;
+      var d : double;
+      j := 2;
+      d := 77.42;
+      print(i);
+      print(j);
+      print(d);
+      {
+        var i : double;
+        i := 0.07;
+        f := 987.123;
+        print(i);
+      }
+      print(i);
+      print(f);
+    }
+    print(i);
+    print(d);
+    print(f);
+}

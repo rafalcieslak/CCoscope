@@ -71,7 +71,7 @@ llvm::Value* ComplexValueAST::codegen() const {
 llvm::Value* VariableExprAST::codegen() const {
     using namespace llvm;
 
-    if(!ctx().IsVarInScope(Name)){
+    if(!ctx().IsVarInSomeEnclosingScope(Name)){
         ctx().AddError("Variable '" + Name + "' is not available in this scope.");
         return nullptr;
     }
@@ -119,15 +119,15 @@ llvm::Value* BlockAST::codegen() const {
     }else{
         // Create new stack vars.
         llvm::Function* parent = ctx().CurrentFunc();
-        ScopeManager SM {this, ctx()};
-
+       // ScopeManager SM {this, ctx()};
+        ctx().EnterScope();
         // TODO: make ScopeManager sensitive to how many variables were
         // successfully initialized
         for(auto& var : Vars){
-            if(ctx().IsVarInScope(var.first)){
+            /*if(ctx().IsVarInScope(var.first)){
                 ctx().AddError("Variable shadowing is not allowed");
                 return nullptr;
-            }
+            }*/
             AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, var.second->toLLVMs());
             // Initialize the var to 0.
             Value* zero = var.second->defaultLLVMsValue();
@@ -142,7 +142,9 @@ llvm::Value* BlockAST::codegen() const {
             last = stat->codegen();
             if(!last) errors = true;
         }
-
+        
+        ctx().CloseScope();
+        
         if(errors) return nullptr;
         return last;
     }
@@ -383,7 +385,6 @@ llvm::Function* FunctionAST::codegen() const {
     // Set current function
     ctx().SetCurrentFunc(TheFunction);
     ctx().SetCurrentFuncReturnType(Proto->ReturnType);
-    std::cerr << "seting currentfuncreturntype to " << Proto->ReturnType->name() << std::endl;
 
     // Create a new basic block to start insertion into.
     BasicBlock *BB = BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
@@ -394,6 +395,7 @@ llvm::Function* FunctionAST::codegen() const {
 
     size_t i = 0;
     // Record the function arguments in the VarsInScope map.
+    ctx().EnterScope();
     for (auto &Arg : TheFunction->args()){
         AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), Arg.getType());
         ctx().Builder().CreateStore(&Arg,Alloca);
@@ -403,7 +405,9 @@ llvm::Function* FunctionAST::codegen() const {
 
     // Insert function body into the function insertion point.
     Value* val = Body->codegen();
-
+    
+    ctx().CloseScope();
+    
     // Before terminating the function, create a default return value, in case the function body does not contain one.
     // TODO: Default return type.
     ctx().Builder().CreateRet(Proto->ReturnType->defaultLLVMsValue());
@@ -549,13 +553,14 @@ Type ReturnExprAST::Typecheck_() const {
 }
 
 Type BlockAST::Typecheck_() const {
-    ScopeManager SM {this, ctx()};
+    //ScopeManager SM {this, ctx()};
 
     // TODO: make ScopeManager sensitive to how many variables were
     // successfully initialized
+    ctx().EnterScope();
     for(auto& var : Vars){
-        if(ctx().IsVarInScope(var.first)){
-            ctx().AddError("Variable shadowing is not allowed");
+        if(ctx().IsVarInCurrentScope(var.first)){
+            ctx().AddError("Variable " + var.first + " declared more than once!");
             return ctx().getVoidTy();
         }
         ctx().SetVarInfo(var.first, {nullptr, var.second});
@@ -564,6 +569,7 @@ Type BlockAST::Typecheck_() const {
     for(const auto& stat : Statements){
         stat->Typecheck();
     }
+    ctx().CloseScope();
     
     return ctx().getVoidTy();
 }
@@ -718,6 +724,8 @@ Type PrototypeAST::Typecheck_() const {
 }
 
 Type FunctionAST::Typecheck_() const {
+    ctx().EnterScope();
+    
     for(auto& p : Proto->Args) {
         ctx().SetVarInfo(p.first, {nullptr, p.second});
     }
@@ -726,6 +734,8 @@ Type FunctionAST::Typecheck_() const {
     ctx().SetCurrentFuncReturnType(Proto->ReturnType);
     /*auto BodyType =*/ Body->Typecheck();
     // can we ignore BodyType? 
+    ctx().CloseScope();
+    
     auto res = Proto->Typecheck();
     ctx().ClearVarsInfo();
     return res;
@@ -734,10 +744,10 @@ Type FunctionAST::Typecheck_() const {
 Type ConvertAST::Typecheck_() const {
     return ResultingType;
 }
-
+/*
 BlockAST::ScopeManager::~ScopeManager() {
     for (auto& var : parent->Vars)
         ctx.RemoveVarInfo(var.first);
-}
+}*/
 
 }

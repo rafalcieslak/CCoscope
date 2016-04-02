@@ -54,7 +54,8 @@ const TypeMatcher::Result TypeMatcher::Match(std::list<MatchCandidateEntry> cand
         }
     );
     // If no combinations remain, fail.
-    if(combinations.size() == 0) return Result(Result::NONE);
+    if(combinations.size() == 0)
+        return Result(Result::NONE);
 
     // Summarize conversion costs for each combination
     std::list<std::pair<ConversionCost, std::vector<Conversion>>> combinations_with_total_costs;

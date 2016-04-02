@@ -156,6 +156,20 @@ CodegenContext::~CodegenContext() {
         delete it;
 }
 
+bool CodegenContext::IsVarInSomeEnclosingScope (std::string s) const {
+    for(auto it = varsInScope_.rbegin(); it != varsInScope_.rend(); it++)
+        if(it->find(s) != it->end())
+            return true;
+    return false;
+}
+
+std::pair<llvm::AllocaInst*, Type> CodegenContext::GetVarInfo (std::string s) {
+    for(auto it = varsInScope_.rbegin(); it != varsInScope_.rend(); it++)
+        if(it->find(s) != it->end())
+            return (*it)[s];
+    AddError("Asked for variable " + s + " that is not in scope");
+    return {nullptr, getVoidTy()};
+}
 
 // ==---------------------------------------------------------------
 // Factory methods for AST nodes

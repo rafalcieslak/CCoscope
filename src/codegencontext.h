@@ -9,7 +9,7 @@
 #include <memory>
 #include <unordered_set>
 #include <list>
-
+#include <deque>
 #include "tree.h"
 #include "types.h"
 #include "typematcher.h"
@@ -87,10 +87,13 @@ public:
     llvm::Function* CurrentFunc () const { return currentFunc_; }
     Type CurrentFuncReturnType () const { return currentFuncReturnType_; }
     
-    bool IsVarInScope (std::string s) const { return varsInScope_.find(s) != varsInScope_.end(); }
-    std::pair<llvm::AllocaInst*, Type> GetVarInfo (std::string s) const { return varsInScope_[s]; }
-    void SetVarInfo (std::string s, std::pair<llvm::AllocaInst*, Type> info) const { varsInScope_[s] = info; }
-    bool RemoveVarInfo (std::string s) const { auto it = varsInScope_.find(s); if(it != varsInScope_.end()) { varsInScope_.erase(it); return true; } return false; } 
+    void EnterScope () const { varsInScope_.push_back({}); }
+    void CloseScope () const { varsInScope_.pop_back(); }
+    bool IsVarInCurrentScope (std::string s) const { return varsInScope_.rbegin()->find(s) != varsInScope_.rbegin()->end(); }
+    bool IsVarInSomeEnclosingScope (std::string s) const;
+    std::pair<llvm::AllocaInst*, Type> GetVarInfo (std::string s); // { return varsInScope_.top()[s]; }
+    void SetVarInfo (std::string s, std::pair<llvm::AllocaInst*, Type> info) const { (*varsInScope_.rbegin())[s] = info; }
+    //bool RemoveVarInfo (std::string s) const { auto it = varsInScope_.rbegin()->find(s); if(it != varsInScope_.rbegin()->end()) { varsInScope_.rbegin()->erase(it); return true; } return false; } 
     void ClearVarsInfo () const { varsInScope_.clear(); }
     
     void PutLoopInfo (llvm::BasicBlock* headerBB, llvm::BasicBlock* postBB) const { loopsBBHeaderPost_.push_back({headerBB, postBB}); }
@@ -129,7 +132,7 @@ protected:
     mutable llvm::IRBuilder<> builder_;
     mutable llvm::Function* currentFunc_;
     mutable Type currentFuncReturnType_;
-    mutable std::map<std::string, std::pair<llvm::AllocaInst*, Type>> varsInScope_;
+    mutable std::deque<std::map<std::string, std::pair<llvm::AllocaInst*, Type>>> varsInScope_;
 
     std::map<std::string, std::list<MatchCandidateEntry>> availableBinOps_;
     std::map<std::pair<std::string, MatchCandidateEntry>, std::function<llvm::Value*(std::vector<llvm::Value*>)>> binOpCreator_;
