@@ -119,15 +119,8 @@ llvm::Value* BlockAST::codegen() const {
     }else{
         // Create new stack vars.
         llvm::Function* parent = ctx().CurrentFunc();
-       // ScopeManager SM {this, ctx()};
         ctx().EnterScope();
-        // TODO: make ScopeManager sensitive to how many variables were
-        // successfully initialized
         for(auto& var : Vars){
-            /*if(ctx().IsVarInScope(var.first)){
-                ctx().AddError("Variable shadowing is not allowed");
-                return nullptr;
-            }*/
             AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, var.second->toLLVMs());
             // Initialize the var to 0.
             Value* zero = var.second->defaultLLVMsValue();
@@ -553,10 +546,6 @@ Type ReturnExprAST::Typecheck_() const {
 }
 
 Type BlockAST::Typecheck_() const {
-    //ScopeManager SM {this, ctx()};
-
-    // TODO: make ScopeManager sensitive to how many variables were
-    // successfully initialized
     ctx().EnterScope();
     for(auto& var : Vars){
         if(ctx().IsVarInCurrentScope(var.first)){
@@ -730,7 +719,6 @@ Type FunctionAST::Typecheck_() const {
         ctx().SetVarInfo(p.first, {nullptr, p.second});
     }
     
-    //ctx().CurrentFunc() = TheFunction;
     ctx().SetCurrentFuncReturnType(Proto->ReturnType);
     /*auto BodyType =*/ Body->Typecheck();
     // can we ignore BodyType? 
@@ -744,10 +732,5 @@ Type FunctionAST::Typecheck_() const {
 Type ConvertAST::Typecheck_() const {
     return ResultingType;
 }
-/*
-BlockAST::ScopeManager::~ScopeManager() {
-    for (auto& var : parent->Vars)
-        ctx.RemoveVarInfo(var.first);
-}*/
 
 }

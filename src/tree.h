@@ -170,20 +170,6 @@ protected:
 /// BlockAST - Represents a list of variable definitions and a list of
 /// statements executed in a particular order
 class BlockAST : public ExprAST {
-/*protected:
-    class ScopeManager {
-    public:
-        ScopeManager(const BlockAST* parent, CodegenContext& ctx)
-            : parent(parent)
-            , ctx(ctx)
-        {}
-        ~ScopeManager();
-
-    protected:
-        const BlockAST* parent;
-        CodegenContext& ctx;
-    };
-*/
 public:
     BlockAST(CodegenContext& ctx, size_t gid,
              const std::vector<std::pair<std::string, Type>> &vars,
