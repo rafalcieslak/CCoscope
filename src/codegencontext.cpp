@@ -174,8 +174,12 @@ std::pair<llvm::AllocaInst*, Type> CodegenContext::GetVarInfo (std::string s) {
 // ==---------------------------------------------------------------
 // Factory methods for AST nodes
 
-VariableExpr CodegenContext::makeVariable(std::string name) {
-    return IntroduceE_(new VariableExprAST(*this, gid_++, name));
+VariableOccExpr CodegenContext::makeVariableOcc(std::string name) {
+    return IntroduceE_(new VariableOccExprAST(*this, gid_++, name));
+}
+
+VariableDeclExpr CodegenContext::makeVariableDecl(std::string name, Type type) {
+    return IntroduceE_(new VariableDeclExprAST(*this, gid_++, name, type));
 }
 
 PrimitiveExpr<int> CodegenContext::makeInt(int value) {
@@ -202,9 +206,8 @@ ReturnExpr CodegenContext::makeReturn(Expr expr) {
     return IntroduceE_(new ReturnExprAST(*this, gid_++, expr));
 }
 
-Block CodegenContext::makeBlock(const std::vector<std::pair<std::string, Type>> &vars,
-                                const std::list<Expr>& s) {
-    return IntroduceE_(new BlockAST(*this, gid_++, vars, s));
+Block CodegenContext::makeBlock(const std::list<Expr>& s) {
+    return IntroduceE_(new BlockAST(*this, gid_++, s));
 }
 
 CallExpr CodegenContext::makeCall(const std::string &Callee, std::vector<Expr> Args) {
@@ -371,8 +374,8 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
 
     auto complexproto = makePrototype(
         "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
-    makeFunction(complexproto, makeBlock({{"Cmplx", getComplexTy()}},
-        {makeReturn(makeComplex(makeVariable("Re"), makeVariable("Im")))})
+    makeFunction(complexproto, makeBlock({makeVariableDecl("Cmplx", getComplexTy()),
+        makeReturn(makeComplex(makeVariableOcc("Re"), makeVariableOcc("Im")))})
         );
 }
 

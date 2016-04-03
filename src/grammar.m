@@ -61,7 +61,7 @@
 %constraint For tree 1 2
 %constraint Statement tree 1 2
 %constraint StatementList statement_list 1 2
-%constraint StatementList protoarglist 1 2
+//%constraint StatementList protoarglist 1 2
 %constraint Block tree 1 2
 %constraint Assignment tree 1 2
 %constraint FuncCall tree 1 2
@@ -71,7 +71,8 @@
 %constraint ArgList  arglist 1 2
 %constraint ArgListL arglist 1 2
 %constraint TypedIdentifier typedident 1 2
-%constraint VarDef typedident 1 2
+//%constraint VarDef typedident 1 2
+%constraint VarDef tree 1 2
 %constraint ReturnType returntype 1 2
 
 %intokenheader #include <memory>
@@ -155,11 +156,7 @@
 % Block : LBRACKET StatementList RBRACKET
 //% Block : LBRACKET VarList StatementList RBRACKET
 {   token t(tkn_Block);
-    std::vector<std::pair<std::string, ccoscope::Type>> v{ std::begin(StatementList2->protoarglist.front()), std::end(StatementList2->protoarglist.front()) };
     t.tree.push_back( ctx.makeBlock(
-      // VarList2->protoarglist.front(),
-       //StatementList2->protoarglist.front(),
-       v,
        StatementList2->statement_list.front())
     );
     return t;
@@ -174,20 +171,25 @@
 }
 %               | VarDef StatementList
 {
-    StatementList2->protoarglist.front().push_front(VarDef1->typedident.front());
+    StatementList2->statement_list.front().push_front(VarDef1->tree.front());
     return StatementList2;
 }
 %               |
 {   token t(tkn_StatementList);
     t.statement_list.push_back( std::list<ccoscope::Expr>() );
-    t.protoarglist.push_back( std::list<std::pair<std::string,ccoscope::Type>>() );
     return t;
 }
 %               ;
 
-% VarDef : KEYWORD_VAR TypedIdentifier SEMICOLON
-{   TypedIdentifier2->type = tkn_VarDef;
-    return TypedIdentifier2;
+% VarDef : KEYWORD_VAR IDENTIFIER COLON TYPE SEMICOLON
+{   token t(tkn_VarDef);
+    t.tree.push_back( ctx.makeVariableDecl(
+      IDENTIFIER2->id.front(),
+      ccoscope::str2type(ctx, TYPE4->id.front())
+    ));
+    return t;
+//TypedIdentifier2->type = tkn_VarDef;
+//   return TypedIdentifier2;
 }
 %        ;
 
@@ -283,10 +285,8 @@
 
 % For : KEYWORD_FOR LPAR VarList StatementList PIPE Expression PIPE StatementList RPAR Block
 {   token t(tkn_For);
-    std::vector<std::pair<std::string, ccoscope::Type>> v{ std::begin(VarList3->protoarglist.front()), std::end(VarList3->protoarglist.front()) };
     t.tree.push_back( ctx.makeFor(
       ctx.makeBlock(
-       v,//VarList3->protoarglist.front(),
        StatementList4->statement_list.front()),
       Expression6->tree.front(),
       StatementList8->statement_list.front(),
@@ -451,7 +451,7 @@
 }
 %            | IDENTIFIER
 {   token t(tkn_Expr100);
-    t.tree.push_back(ctx.makeVariable(IDENTIFIER1->id.front()));
+    t.tree.push_back(ctx.makeVariableOcc(IDENTIFIER1->id.front()));
     return t;
 }
 %            | LPAR Expression RPAR

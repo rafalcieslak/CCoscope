@@ -28,7 +28,8 @@ class ExprAST;             using Expr                = Proxy<ExprAST>;
 template<typename T> class PrimitiveExprAST;
 template<typename T>       using PrimitiveExpr       = Proxy<PrimitiveExprAST<T>>;
 class ComplexValueAST;     using ComplexValue        = Proxy<ComplexValueAST>;
-class VariableExprAST;     using VariableExpr        = Proxy<VariableExprAST>;
+class VariableOccExprAST;  using VariableOccExpr     = Proxy<VariableOccExprAST>;
+class VariableDeclExprAST; using VariableDeclExpr    = Proxy<VariableDeclExprAST>;
 class BinaryExprAST;       using BinaryExpr          = Proxy<BinaryExprAST>;
 class ReturnExprAST;       using ReturnExpr          = Proxy<ReturnExprAST>;
 class BlockAST;            using Block               = Proxy<BlockAST>;
@@ -116,10 +117,10 @@ protected:
     Expr Re, Im;
 };
 
-/// VariableExprAST - Expression class for referencing a variable, like "a".
-class VariableExprAST : public ExprAST {
+/// VariableOccExprAST - Expression class for referencing a variable occurence, like "a".
+class VariableOccExprAST : public ExprAST {
 public:
-    VariableExprAST(CodegenContext& ctx, size_t gid, const std::string &Name)
+    VariableOccExprAST(CodegenContext& ctx, size_t gid, const std::string &Name)
         : ExprAST(ctx, gid)
         , Name(Name)
     {}
@@ -130,6 +131,24 @@ protected:
     virtual Type Typecheck_() const override;
 
     std::string Name;
+};
+
+/// VariableDeclAST - Expression clas for variable declaration, like `x : int`
+class VariableDeclExprAST : public ExprAST {
+public:
+    VariableDeclExprAST(CodegenContext& ctx, size_t gid, const std::string& Name, Type type)
+        : ExprAST(ctx, gid)
+        , Name(Name)
+        , type(type)
+    {}
+    
+    llvm::Value* codegen() const override;
+
+protected:
+    virtual Type Typecheck_() const override;
+    
+    std::string Name;
+    Type type;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -171,11 +190,9 @@ protected:
 /// statements executed in a particular order
 class BlockAST : public ExprAST {
 public:
-    BlockAST(CodegenContext& ctx, size_t gid,
-             const std::vector<std::pair<std::string, Type>> &vars,
-             const std::list<Expr>& s)
+    BlockAST(CodegenContext& ctx, size_t gid, const std::list<Expr>& s)
         : ExprAST(ctx, gid)
-        , Vars(vars), Statements(s)
+        , Statements(s)
     {}
 
     llvm::Value* codegen() const override;
@@ -183,7 +200,6 @@ public:
 protected:
     virtual Type Typecheck_() const override;
     
-    std::vector<std::pair<std::string, Type>> Vars;
     std::list<Expr> Statements;
 
     friend ForExprAST;

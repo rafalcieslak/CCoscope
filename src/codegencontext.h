@@ -50,15 +50,15 @@ public:
     // ==---------------------------------------------------------------
     // Factory methods for AST nodes
 
-    VariableExpr makeVariable(std::string name);
+    VariableOccExpr makeVariableOcc(std::string name);
+    VariableDeclExpr makeVariableDecl(std::string name, Type type);
     PrimitiveExpr<int> makeInt(int value);
     PrimitiveExpr<double> makeDouble(double value);
     PrimitiveExpr<bool> makeBool(bool value);
     ComplexValue makeComplex(Expr re, Expr im);
     BinaryExpr makeBinary(std::string Op, Expr LHS, Expr RHS);
     ReturnExpr makeReturn(Expr expr);
-    Block makeBlock(const std::vector<std::pair<std::string, Type>>& vars,
-                    const std::list<Expr>& s);
+    Block makeBlock(const std::list<Expr>& s);
     CallExpr makeCall(const std::string& Callee, std::vector<Expr> Args);
     IfExpr makeIf(Expr Cond, Expr Then, Expr Else);
     WhileExpr makeWhile(Expr Cond, Expr Body);
@@ -91,9 +91,8 @@ public:
     void CloseScope () const { varsInScope_.pop_back(); }
     bool IsVarInCurrentScope (std::string s) const { return varsInScope_.rbegin()->find(s) != varsInScope_.rbegin()->end(); }
     bool IsVarInSomeEnclosingScope (std::string s) const;
-    std::pair<llvm::AllocaInst*, Type> GetVarInfo (std::string s); // { return varsInScope_.top()[s]; }
+    std::pair<llvm::AllocaInst*, Type> GetVarInfo (std::string s);
     void SetVarInfo (std::string s, std::pair<llvm::AllocaInst*, Type> info) const { (*varsInScope_.rbegin())[s] = info; }
-    //bool RemoveVarInfo (std::string s) const { auto it = varsInScope_.rbegin()->find(s); if(it != varsInScope_.rbegin()->end()) { varsInScope_.rbegin()->erase(it); return true; } return false; } 
     void ClearVarsInfo () const { varsInScope_.clear(); }
     
     void PutLoopInfo (llvm::BasicBlock* headerBB, llvm::BasicBlock* postBB) const { loopsBBHeaderPost_.push_back({headerBB, postBB}); }

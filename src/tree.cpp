@@ -12,7 +12,8 @@ template class Proxy<PrimitiveExprAST<int>>;
 template class Proxy<PrimitiveExprAST<double>>;
 template class Proxy<PrimitiveExprAST<bool>>;
 template class Proxy<ComplexValueAST>;
-template class Proxy<VariableExprAST>;
+template class Proxy<VariableOccExprAST>;
+template class Proxy<VariableDeclExprAST>;
 template class Proxy<BinaryExprAST>;
 template class Proxy<ReturnExprAST>;
 template class Proxy<BlockAST>;
@@ -68,7 +69,7 @@ llvm::Value* ComplexValueAST::codegen() const {
     return retsload;
 }
 
-llvm::Value* VariableExprAST::codegen() const {
+llvm::Value* VariableOccExprAST::codegen() const {
     using namespace llvm;
 
     if(!ctx().IsVarInSomeEnclosingScope(Name)){
@@ -76,6 +77,17 @@ llvm::Value* VariableExprAST::codegen() const {
         return nullptr;
     }
     return ctx().GetVarInfo(Name).first;
+}
+
+llvm::Value* VariableDeclExprAST::codegen() const {
+    using namespace llvm;
+    llvm::Function* parent = ctx().CurrentFunc();
+    AllocaInst* Alloca = CreateEntryBlockAlloca(parent, Name, type->toLLVMs());
+    // Initialize the var to 0.
+    Value* zero = type->defaultLLVMsValue();
+    ctx().Builder().CreateStore(zero, Alloca);
+    ctx().SetVarInfo(Name, {Alloca, type});
+    return Alloca;
 }
 
 llvm::Value* BinaryExprAST::codegen() const {
@@ -117,16 +129,7 @@ llvm::Value* BlockAST::codegen() const {
         // value and return it.
         return ConstantInt::get(llvm::getGlobalContext(), APInt(32, 0, 1));
     }else{
-        // Create new stack vars.
-        llvm::Function* parent = ctx().CurrentFunc();
         ctx().EnterScope();
-        for(auto& var : Vars){
-            AllocaInst* Alloca = CreateEntryBlockAlloca(parent, var.first, var.second->toLLVMs());
-            // Initialize the var to 0.
-            Value* zero = var.second->defaultLLVMsValue();
-            ctx().Builder().CreateStore(zero, Alloca);
-            ctx().SetVarInfo(var.first, {Alloca, var.second});
-        }
 
         // Generate statements inside the block
         Value* last = nullptr;
@@ -280,17 +283,16 @@ llvm::Value* ForExprAST::codegen() const {
      */
 
     auto body = Body->as<BlockAST>();
-    auto innerVars = body->Vars;
     auto innerStatements = body->Statements;
     innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
     auto whileAST = ctx().makeWhile(Cond,
-        ctx().makeBlock(innerVars, innerStatements));
+        ctx().makeBlock(innerStatements));
 
     auto init = Init->as<BlockAST>();
     auto outerStatements = init->Statements;
     outerStatements.push_back(whileAST);
 
-    auto block = ctx().makeBlock(init->Vars, outerStatements);
+    auto block = ctx().makeBlock(outerStatements);
 
     return block->codegen();
 }
@@ -484,8 +486,17 @@ Type ComplexValueAST::Typecheck_() const {
     }
 }
 
-Type VariableExprAST::Typecheck_() const {
+Type VariableOccExprAST::Typecheck_() const {
     return ctx().getReferenceTy( ctx().GetVarInfo(Name).second );
+}
+
+Type VariableDeclExprAST::Typecheck_() const {
+    if(ctx().IsVarInCurrentScope(Name)){
+        ctx().AddError("Variable " + Name + " declared more than once!");
+    } else {
+        ctx().SetVarInfo(Name, {nullptr, type});
+    }
+    return ctx().getVoidTy();
 }
 
 Type BinaryExprAST::Typecheck_() const {
@@ -547,13 +558,6 @@ Type ReturnExprAST::Typecheck_() const {
 
 Type BlockAST::Typecheck_() const {
     ctx().EnterScope();
-    for(auto& var : Vars){
-        if(ctx().IsVarInCurrentScope(var.first)){
-            ctx().AddError("Variable " + var.first + " declared more than once!");
-            return ctx().getVoidTy();
-        }
-        ctx().SetVarInfo(var.first, {nullptr, var.second});
-    }
 
     for(const auto& stat : Statements){
         stat->Typecheck();
