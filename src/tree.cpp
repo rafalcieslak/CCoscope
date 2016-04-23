@@ -59,7 +59,7 @@ llvm::Value* ComplexValueAST::codegen() const {
     llvm::Value* rev = Re->codegen();
     llvm::Value* imv = Im->codegen();
     if(!rev || !imv) return nullptr;
-    
+
     auto rets = ctx().GetVarInfo("Cmplx").first;
     auto idx1 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
     ctx().Builder().CreateStore(rev, idx1);
@@ -73,7 +73,7 @@ llvm::Value* VariableOccExprAST::codegen() const {
     using namespace llvm;
 
     if(!ctx().IsVarInSomeEnclosingScope(Name)){
-        ctx().AddError("Variable '" + Name + "' is not available in this scope.");
+        ctx().AddError("Variable '" + Name + "' is not available in this scope.", pos());
         return nullptr;
     }
     return ctx().GetVarInfo(Name).first;
@@ -95,7 +95,7 @@ llvm::Value* BinaryExprAST::codegen() const {
     llvm::Value* valL = LHS->codegen();
     llvm::Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
-    
+
     auto binfun = ctx().binOpCreator_[{opcode, BestOverload}];
     return binfun({valL, valR});
 }
@@ -103,7 +103,7 @@ llvm::Value* BinaryExprAST::codegen() const {
 llvm::Value* ReturnExprAST::codegen() const {
     llvm::Value* Val = Expression->codegen();
     if(!Val) return nullptr;
-    
+
     llvm::Function* parent = ctx().CurrentFunc();
     llvm::BasicBlock* returnBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
     llvm::BasicBlock* discardBB  = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnDiscard");
@@ -138,9 +138,9 @@ llvm::Value* BlockAST::codegen() const {
             last = stat->codegen();
             if(!last) errors = true;
         }
-        
+
         ctx().CloseScope();
-        
+
         if(errors) return nullptr;
         return last;
     }
@@ -152,7 +152,7 @@ llvm::Value* CallExprAST::codegen() const {
         // Codegen arguments
         auto Val = Args[0]->codegen();
         if(!Val) return nullptr;
-        
+
         if(Args[0]->GetType() == ctx().getComplexTy()) {
             auto rev = ctx().Builder().CreateExtractValue(Val, {0});
             auto imv = ctx().Builder().CreateExtractValue(Val, {1});
@@ -169,7 +169,7 @@ llvm::Value* CallExprAST::codegen() const {
             if (!ArgsV.back())
                 return nullptr;
         }
-        
+
         return ctx().Builder().CreateCall(BestOverload, ArgsV, "calltmp");
     }
 }
@@ -286,13 +286,13 @@ llvm::Value* ForExprAST::codegen() const {
     auto innerStatements = body->Statements;
     innerStatements.insert(innerStatements.end(), Step.begin(), Step.end());
     auto whileAST = ctx().makeWhile(Cond,
-        ctx().makeBlock(innerStatements));
+         ctx().makeBlock(innerStatements, pos_), pos_);
 
     auto init = Init->as<BlockAST>();
     auto outerStatements = init->Statements;
     outerStatements.push_back(whileAST);
 
-    auto block = ctx().makeBlock(outerStatements);
+    auto block = ctx().makeBlock(outerStatements, pos_);
 
     return block->codegen();
 }
@@ -306,7 +306,7 @@ llvm::Value* LoopControlStmtAST::codegen() const {
             if (!ctx().IsInsideLoop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `break;` outside any loop
-                ctx().AddError("'break' keyword outside any loop");
+                ctx().AddError("'break' keyword outside any loop", pos());
                 return nullptr;
             } else {
                   auto postBB = ctx().GetCurrentLoopInfo().second;
@@ -327,7 +327,7 @@ llvm::Value* LoopControlStmtAST::codegen() const {
             if (!ctx().IsInsideLoop()) {
                 // TODO: inform the user at which line (and column)
                 // they wrote `continue;` outside any loop
-                ctx().AddError("'continue' keyword outside any loop");
+                ctx().AddError("'continue' keyword outside any loop", pos());
                 return nullptr;
             } else {
                 auto headerBB = ctx().GetCurrentLoopInfo().first;
@@ -400,9 +400,9 @@ llvm::Function* FunctionAST::codegen() const {
 
     // Insert function body into the function insertion point.
     Value* val = Body->codegen();
-    
+
     ctx().CloseScope();
-    
+
     // Before terminating the function, create a default return value, in case the function body does not contain one.
     // TODO: Default return type.
     ctx().Builder().CreateRet(Proto->ReturnType->defaultLLVMsValue());
@@ -422,7 +422,7 @@ llvm::Function* FunctionAST::codegen() const {
 llvm::Value* ConvertAST::codegen() const {
     auto ev = Expression->codegen();
     if(!ev) return nullptr;
-    
+
     return Converter(ev);
 }
 
@@ -463,7 +463,7 @@ Type PrimitiveExprAST<double>::Typecheck_() const {
 Type ComplexValueAST::Typecheck_() const {
     auto Retype = Re->Typecheck();
     auto Imtype = Im->Typecheck();
-    
+
     auto rett = MatchCandidateEntry{
         {ctx().getDoubleTy(), ctx().getDoubleTy()},
         ctx().getComplexTy()
@@ -473,15 +473,15 @@ Type ComplexValueAST::Typecheck_() const {
 
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching complex constructor found to call with types: " +
-                     Retype->name() + ", " + Imtype->name() + ".");
+                       Retype->name() + ", " + Imtype->name() + ".", pos());
         return ctx().getVoidTy();
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Multiple candidates for complex constructor and types: " +
-                     Retype->name() + ", " + Imtype->name() + ".");
+                       Retype->name() + ", " + Imtype->name() + ".", pos());
         return ctx().getVoidTy();
     }else{
-        Re = ctx().makeConvert(Re, ctx().getDoubleTy(), match.converter_functions[0]);
-        Im = ctx().makeConvert(Im, ctx().getDoubleTy(), match.converter_functions[1]);
+        Re = ctx().makeConvert(Re, ctx().getDoubleTy(), match.converter_functions[0], Re->pos());
+        Im = ctx().makeConvert(Im, ctx().getDoubleTy(), match.converter_functions[1], Im->pos());
         return ctx().getComplexTy();
     }
 }
@@ -492,7 +492,7 @@ Type VariableOccExprAST::Typecheck_() const {
 
 Type VariableDeclExprAST::Typecheck_() const {
     if(ctx().IsVarInCurrentScope(Name)){
-        ctx().AddError("Variable " + Name + " declared more than once!");
+        ctx().AddError("Variable " + Name + " declared more than once!", pos());
     } else {
         ctx().SetVarInfo(Name, {nullptr, type});
     }
@@ -501,27 +501,27 @@ Type VariableDeclExprAST::Typecheck_() const {
 
 Type BinaryExprAST::Typecheck_() const {
     if(!ctx().IsBinOpAvailable(opcode)) {
-        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!");
+        ctx().AddError("Operator's '" + opcode + "' codegen is not implemented!", pos());
         return ctx().getVoidTy();
     }
     const std::list<MatchCandidateEntry>& operator_variants = ctx().VariantsForBinOp(opcode);
 
     Type Ltype = LHS->Typecheck();
     Type Rtype = RHS->Typecheck();
-    
+
     auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
-    
+
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
-                     Ltype->name() + ", " + Rtype->name() + ".");
+                       Ltype->name() + ", " + Rtype->name() + ".", pos());
         return ctx().getVoidTy();
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Multiple candidates for operator '" + opcode + "' and types: " +
-                     Ltype->name() + ", " + Rtype->name() + ".");
+                       Ltype->name() + ", " + Rtype->name() + ".", pos());
         return ctx().getVoidTy();
     }else{
-        LHS = ctx().makeConvert(LHS, match.match.input_types[0], match.converter_functions[0]);
-        RHS = ctx().makeConvert(RHS, match.match.input_types[1], match.converter_functions[1]);
+        LHS = ctx().makeConvert(LHS, match.match.input_types[0], match.converter_functions[0], LHS->pos());
+        RHS = ctx().makeConvert(RHS, match.match.input_types[1], match.converter_functions[1], RHS->pos());
         BestOverload = match.match;
         return match.match.return_type;
     }
@@ -530,28 +530,28 @@ Type BinaryExprAST::Typecheck_() const {
 Type ReturnExprAST::Typecheck_() const {
     Type target_type = ctx().CurrentFuncReturnType();
     Type expr_type = Expression->Typecheck();
-    
+
     auto return_m = MatchCandidateEntry{
         {target_type},
         ctx().getVoidTy()
     };
-    
+
     auto match = ctx().typematcher.Match({return_m}, {expr_type});
 
     if(match.type == TypeMatcher::Result::NONE){
         ctx().AddError("Return statement failed, type mismatch: Cannot implicitly convert a " +
-                       expr_type->name() + " to " + target_type->name());
+                       expr_type->name() + " to " + target_type->name(), pos());
         return ctx().getVoidTy();
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
         ctx().AddError("Return statement failed, type mismatch: Multiple equally viable implicit conversions from " +
-                       expr_type->name() + " to " + target_type->name() + " are available");
+                       expr_type->name() + " to " + target_type->name() + " are available", pos());
         return ctx().getVoidTy();
     }else{
         if(match.match.input_types[0] != target_type) {
             ctx().AddError("ReturnExprAST::Typecheck_() error: target type (" + target_type->name() + ") != match type (" +
-                match.match.input_types[0]->name() + ").");
+                           match.match.input_types[0]->name() + ").", pos());
         }
-        Expression = ctx().makeConvert(Expression, match.match.input_types[0], match.converter_functions[0]);
+        Expression = ctx().makeConvert(Expression, match.match.input_types[0], match.converter_functions[0], Expression->pos());
         return target_type;
     }
 }
@@ -563,7 +563,7 @@ Type BlockAST::Typecheck_() const {
         stat->Typecheck();
     }
     ctx().CloseScope();
-    
+
     return ctx().getVoidTy();
 }
 
@@ -572,7 +572,7 @@ Type CallExprAST::Typecheck_() const {
     if(Callee == "print"){
         // Translate the call into a call to stdlibs function.
         if(Args.size() != 1){
-            ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
+            ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.", pos());
             return ctx().getVoidTy();
         }
 
@@ -602,13 +602,13 @@ Type CallExprAST::Typecheck_() const {
             );
 
         if(match.type == TypeMatcher::Result::NONE){
-            ctx().AddError("Unable to print a variable of type " + expr_type->name());
+            ctx().AddError("Unable to print a variable of type " + expr_type->name(), pos());
             ctx().getVoidTy();
         }else if(match.type == TypeMatcher::Result::MULTIPLE){
-            ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name());
+            ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name(), pos());
             ctx().getVoidTy();
         }else{
-            Args[0] = ctx().makeConvert(Args[0], match.match.input_types[0], match.converter_functions[0]);
+            Args[0] = ctx().makeConvert(Args[0], match.match.input_types[0], match.converter_functions[0], Args[0]->pos());
             BestOverload = ctx().GetStdFunction(ctx().GetPrintFunctionName(match.match.input_types[0]));
             return match.match.return_type;
         }
@@ -617,7 +617,7 @@ Type CallExprAST::Typecheck_() const {
 
     // Find a a corresponding candidate.
     if(!ctx().HasPrototype(Callee)){
-        ctx().AddError("Function " + Callee + " was not declared");
+        ctx().AddError("Function " + Callee + " was not declared", pos());
         return ctx().getVoidTy();
     }
     Prototype proto = ctx().GetPrototype(Callee);
@@ -626,14 +626,14 @@ Type CallExprAST::Typecheck_() const {
     // Look up the name in the global module table.
     llvm::Function *CalleeF = ctx().TheModule()->getFunction(Callee);
     if (!CalleeF){
-        ctx().AddError("Internal error: Function " + Callee + " is present in prototypes map but was not declared in the module");
+        ctx().AddError("Internal error: Function " + Callee + " is present in prototypes map but was not declared in the module", pos());
         return ctx().getVoidTy();
     }
 
     // If argument mismatch error.
     if (signature.size() != Args.size()){
         ctx().AddError("Function " + Callee + " takes " + std::to_string(signature.size()) + " arguments, " +
-                       std::to_string(Args.size()) + " given.");
+                       std::to_string(Args.size()) + " given.", pos());
         return ctx().getVoidTy();
     }
 
@@ -650,16 +650,16 @@ Type CallExprAST::Typecheck_() const {
     auto match = ctx().typematcher.Match({call_variant}, argtypes);
 
     if(match.type == TypeMatcher::Result::NONE){
-        ctx().AddError("Unable to call `" + Callee + "`: argument type mismatch");
+        ctx().AddError("Unable to call `" + Callee + "`: argument type mismatch", pos());
         return ctx().getVoidTy();
     }else if(match.type == TypeMatcher::Result::MULTIPLE){
-        ctx().AddError("Multiple viable implicit conversions available for calling " + Callee);
+        ctx().AddError("Multiple viable implicit conversions available for calling " + Callee, pos());
         return ctx().getVoidTy();
     }else{
         for(size_t i = 0; i < Args.size(); i++) {
-            Args[i] = ctx().makeConvert(Args[i], match.match.input_types[i], match.converter_functions[i]);
+            Args[i] = ctx().makeConvert(Args[i], match.match.input_types[i], match.converter_functions[i], Args[i]->pos());
         }
-        
+
         // currently no overloading, so one candidate available
         BestOverload = ctx().TheModule()->getFunction(Callee);
         return match.match.return_type;
@@ -669,10 +669,10 @@ Type CallExprAST::Typecheck_() const {
 Type IfExprAST::Typecheck_() const {
     auto CondType = Cond->Typecheck();
     if(CondType != ctx().getBooleanTy()) {
-        ctx().AddError("Cond in If statement has type " + CondType->name());
+        ctx().AddError("Cond in If statement has type " + CondType->name(), pos());
         return ctx().getVoidTy();
     }
-    
+
     Then->Typecheck();
     Else->Typecheck();
     return ctx().getVoidTy();
@@ -681,10 +681,10 @@ Type IfExprAST::Typecheck_() const {
 Type WhileExprAST::Typecheck_() const {
     auto CondType = Cond->Typecheck();
     if(CondType != ctx().getBooleanTy()) {
-        ctx().AddError("Cond in While statement has type " + CondType->name());
+        ctx().AddError("Cond in While statement has type " + CondType->name(), pos());
         return ctx().getVoidTy();
     }
-    
+
     Body->Typecheck();
     return ctx().getVoidTy();
 }
@@ -692,10 +692,10 @@ Type WhileExprAST::Typecheck_() const {
 Type ForExprAST::Typecheck_() const {
     auto CondType = Cond->Typecheck();
     if(CondType != ctx().getBooleanTy()) {
-        ctx().AddError("Cond in For statement has type " + CondType->name());
+        ctx().AddError("Cond in For statement has type " + CondType->name(), pos());
         return ctx().getVoidTy();
     }
-    
+
     for(auto& E : Step) {
         E->Typecheck();
     }
@@ -718,16 +718,17 @@ Type PrototypeAST::Typecheck_() const {
 
 Type FunctionAST::Typecheck_() const {
     ctx().EnterScope();
-    
+
     for(auto& p : Proto->Args) {
         ctx().SetVarInfo(p.first, {nullptr, p.second});
     }
-    
+
+    ctx().SetCurrentFuncName(Proto->getName());
     ctx().SetCurrentFuncReturnType(Proto->ReturnType);
     /*auto BodyType =*/ Body->Typecheck();
-    // can we ignore BodyType? 
+    // can we ignore BodyType?
     ctx().CloseScope();
-    
+
     auto res = Proto->Typecheck();
     ctx().ClearVarsInfo();
     return res;

@@ -7,12 +7,7 @@
 #include <algorithm>
 
 #include "token.h"
-
-struct fileloc{
-fileloc(int l, int c) : line(l), column(c) {}
-    int line;
-    int column;
-};
+#include "utils.h"
 
 struct tokenizer
 {

@@ -100,12 +100,14 @@ int Compile(std::string infile, std::string outfile, unsigned int optlevel){
 
     for(const auto& protoAST : ctx.prototypes_){
         protoAST->Typecheck();
+        if(!ctx.IsErrorFree()) {errors = true; continue;} // Do not proceed to codegenning if typechecking failed.
         llvm::Function* func = protoAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // func->dump();
     }
     for(const auto& functionAST : ctx.definitions_){
         functionAST->Typecheck();
+        if(!ctx.IsErrorFree()) {errors = true; continue;} // Do not proceed to codegenning if typechecking failed.
         llvm::Function* func = functionAST->codegen();
         if(!func) {errors = true; continue;} // In case of an error, continue compiling other functions.
         // Optimize the function

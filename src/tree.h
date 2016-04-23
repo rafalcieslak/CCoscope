@@ -45,9 +45,10 @@ class ConvertAST;          using Convert             = Proxy<ConvertAST>;
 /// ExprAST - Base class for all expression nodes.
 class ExprAST : public MagicCast<ExprAST> {
 public:
-    ExprAST(CodegenContext& ctx, size_t gid)
+    ExprAST(CodegenContext& ctx, size_t gid, fileloc pos)
         : ctx_(ctx)
         , gid_(gid)
+        , pos_(pos)
         , representative_(this)
     {}
 
@@ -57,18 +58,20 @@ public:
     Type Typecheck() const;
     Type GetType() const;
     bool operator < (const ExprAST& other) const { return gid() < other.gid(); }
-    
+
     size_t gid () const { return gid_; }
+    fileloc pos () const { return pos_; }
     CodegenContext& ctx () const { return ctx_; }
     bool equal(const ExprAST& other) const;
     bool is_proxy () const { return representative_ != this; }
     bool was_typechecked () const { return type_cache_.is_empty(); }
-    
+
 protected:
     virtual Type Typecheck_() const;
 
     CodegenContext& ctx_;
     size_t gid_;
+    fileloc pos_;
     mutable const ExprAST* representative_;
     mutable Type type_cache_;
 
@@ -80,8 +83,8 @@ protected:
 template<typename T>
 class PrimitiveExprAST : public ExprAST {
 public:
-    PrimitiveExprAST(CodegenContext& ctx, size_t gid, T v)
-        : ExprAST(ctx, gid)
+    PrimitiveExprAST(CodegenContext& ctx, size_t gid, T v, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Val(v)
     {}
 
@@ -103,8 +106,8 @@ Type PrimitiveExprAST<T>::maintype() const {
 
 class ComplexValueAST : public ExprAST {
 public:
-    ComplexValueAST(CodegenContext& ctx, size_t gid, Expr re, Expr im)
-        : ExprAST(ctx, gid)
+    ComplexValueAST(CodegenContext& ctx, size_t gid, Expr re, Expr im, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Re(re)
         , Im(im)
     {}
@@ -113,15 +116,15 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     Expr Re, Im;
 };
 
 /// VariableOccExprAST - Expression class for referencing a variable occurence, like "a".
 class VariableOccExprAST : public ExprAST {
 public:
-    VariableOccExprAST(CodegenContext& ctx, size_t gid, const std::string &Name)
-        : ExprAST(ctx, gid)
+    VariableOccExprAST(CodegenContext& ctx, size_t gid, const std::string &Name, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Name(Name)
     {}
 
@@ -136,17 +139,17 @@ protected:
 /// VariableDeclAST - Expression clas for variable declaration, like `x : int`
 class VariableDeclExprAST : public ExprAST {
 public:
-    VariableDeclExprAST(CodegenContext& ctx, size_t gid, const std::string& Name, Type type)
-        : ExprAST(ctx, gid)
+    VariableDeclExprAST(CodegenContext& ctx, size_t gid, const std::string& Name, Type type, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Name(Name)
         , type(type)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     std::string Name;
     Type type;
 };
@@ -154,8 +157,8 @@ protected:
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
 public:
-    BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS)
-        : ExprAST(ctx, gid)
+    BinaryExprAST(CodegenContext& ctx, size_t gid, std::string Op, Expr LHS, Expr RHS, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , opcode(Op), LHS(LHS), RHS(RHS)
     {}
 
@@ -163,7 +166,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     std::string opcode;
     Expr LHS, RHS;
     mutable MatchCandidateEntry BestOverload;
@@ -173,8 +176,8 @@ protected:
 /// ReturnExprAST - Represents a value return expression
 class ReturnExprAST : public ExprAST {
 public:
-    ReturnExprAST(CodegenContext& ctx, size_t gid, Expr expr)
-        : ExprAST(ctx, gid)
+    ReturnExprAST(CodegenContext& ctx, size_t gid, Expr expr, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Expression(expr)
     {}
 
@@ -182,7 +185,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     Expr Expression;
 };
 
@@ -190,8 +193,8 @@ protected:
 /// statements executed in a particular order
 class BlockAST : public ExprAST {
 public:
-    BlockAST(CodegenContext& ctx, size_t gid, const std::list<Expr>& s)
-        : ExprAST(ctx, gid)
+    BlockAST(CodegenContext& ctx, size_t gid, const std::list<Expr>& s, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Statements(s)
     {}
 
@@ -199,7 +202,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     std::list<Expr> Statements;
 
     friend ForExprAST;
@@ -209,8 +212,8 @@ protected:
 class CallExprAST : public ExprAST {
 public:
     CallExprAST(CodegenContext& ctx, size_t gid, const std::string &Callee,
-                std::vector<Expr> Args)
-        : ExprAST(ctx, gid)
+                std::vector<Expr> Args, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Callee(Callee), Args(std::move(Args))
     {}
 
@@ -219,7 +222,7 @@ public:
 protected:
     virtual Type Typecheck_() const override;
     mutable llvm::Function* BestOverload;
-    
+
     std::string Callee;
     std::vector<Expr> Args;
 };
@@ -227,8 +230,8 @@ protected:
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
 public:
-    IfExprAST(CodegenContext& ctx, size_t gid, Expr Cond, Expr Then, Expr Else)
-        : ExprAST(ctx, gid)
+    IfExprAST(CodegenContext& ctx, size_t gid, Expr Cond, Expr Then, Expr Else, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Cond(Cond), Then(Then), Else(Else)
     {}
 
@@ -236,15 +239,15 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     Expr Cond, Then, Else;
 };
 
 /// WhileExprAST - Expression class for while.
 class WhileExprAST : public ExprAST {
 public:
-    WhileExprAST(CodegenContext& ctx, size_t gid, Expr Cond, Expr Body)
-        : ExprAST(ctx, gid)
+    WhileExprAST(CodegenContext& ctx, size_t gid, Expr Cond, Expr Body, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Cond(Cond), Body(Body)
     {}
 
@@ -252,7 +255,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     Expr Cond, Body;
 };
 
@@ -260,8 +263,8 @@ protected:
 class ForExprAST : public ExprAST {
 public:
     ForExprAST(CodegenContext& ctx, size_t gid, Expr Init,
-                 Expr Cond, std::list<Expr> Step, Expr Body)
-        : ExprAST(ctx, gid)
+               Expr Cond, std::list<Expr> Step, Expr Body, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Init(Init), Cond(Cond),
           Step(Step), Body(Body)
     {}
@@ -270,7 +273,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     Expr Init, Cond;
     std::list<Expr> Step;
     Expr Body;
@@ -278,8 +281,8 @@ protected:
 
 class LoopControlStmtAST : public ExprAST {
 public:
-    LoopControlStmtAST(CodegenContext& ctx, size_t gid, loopControl which)
-        : ExprAST(ctx, gid)
+    LoopControlStmtAST(CodegenContext& ctx, size_t gid, loopControl which, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , which(which)
     {}
 
@@ -287,7 +290,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     loopControl which;
 };
 
@@ -299,8 +302,8 @@ protected:
 class PrototypeAST : public ExprAST {
 public:
     PrototypeAST(CodegenContext& ctx, size_t gid, const std::string &Name,
-                 std::vector<std::pair<std::string, Type>> Args, Type ReturnType)
-        : ExprAST(ctx, gid)
+                 std::vector<std::pair<std::string, Type>> Args, Type ReturnType, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Name(Name), Args(std::move(Args)), ReturnType(ReturnType)
     {}
 
@@ -313,7 +316,7 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     std::string Name;
     std::vector<std::pair<std::string, Type>> Args;
     Type ReturnType;
@@ -324,8 +327,8 @@ protected:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST : public ExprAST {
 public:
-    FunctionAST(CodegenContext& ctx, size_t gid, Prototype Proto, Expr Body)
-        : ExprAST(ctx, gid)
+    FunctionAST(CodegenContext& ctx, size_t gid, Prototype Proto, Expr Body, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Proto(Proto), Body(Body)
     {}
 
@@ -333,20 +336,20 @@ public:
 
 protected:
     virtual Type Typecheck_() const override;
-    
+
     Prototype Proto;
     Expr Body;
 };
 
 class ConvertAST : public ExprAST {
 public:
-    ConvertAST(CodegenContext& ctx, size_t gid, Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter)
-        : ExprAST(ctx, gid)
+    ConvertAST(CodegenContext& ctx, size_t gid, Expr Expression, Type ResultingType, std::function<llvm::Value*(llvm::Value*)> Converter, fileloc pos)
+        : ExprAST(ctx, gid, pos)
         , Expression(Expression)
         , ResultingType(ResultingType)
         , Converter(Converter)
     {}
-    
+
     llvm::Value* codegen() const override;
 
 protected:
@@ -387,6 +390,6 @@ inline std::ostream& operator<<(std::ostream& s, const Type& l){
     return s;
 }
 
-}
+} // namespace ccoscope
 
 #endif // __TREE_H__
