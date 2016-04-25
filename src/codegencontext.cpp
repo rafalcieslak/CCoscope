@@ -374,12 +374,7 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
     ADD_STDPROTO("print_cstr", void(char*));
     ADD_STDPROTO("print_complex", void(__cco_complex));
-
-    auto complexproto = makePrototype(
-        "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
-    makeFunction(complexproto, makeBlock({makeVariableDecl("Cmplx", getComplexTy()),
-        makeReturn(makeComplex(makeVariableOcc("Re"), makeVariableOcc("Im")))})
-        );
+    ADD_STDPROTO("complex_new", __cco_complex(double, double));
 }
 
 }

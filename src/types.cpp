@@ -178,7 +178,7 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
             ctx_.getComplexTy(),   // Conversion to complex
             15,                   // -- costs 15
             [this](llvm::Value* v)->llvm::Value*{
-                llvm::Function *CalleeF = this->ctx().TheModule()->getFunction("newComplex");
+                llvm::Function *CalleeF = this->ctx().GetStdFunction("complex_new");
                 if(CalleeF) {
                     return this->ctx().Builder().CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
                 } else {

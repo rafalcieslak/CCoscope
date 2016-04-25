@@ -562,8 +562,9 @@ Type BlockAST::Typecheck_() const {
 }
 
 Type CallExprAST::Typecheck_() const {
-    // Special case for print
+
     if(Callee == "print"){
+        // Special case for print
         // Translate the call into a call to stdlibs function.
         if(Args.size() != 1){
             ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.");
@@ -597,17 +598,54 @@ Type CallExprAST::Typecheck_() const {
 
         if(match.type == TypeMatcher::Result::NONE){
             ctx().AddError("Unable to print a variable of type " + expr_type->name());
-            ctx().getVoidTy();
+            return ctx().getVoidTy();
         }else if(match.type == TypeMatcher::Result::MULTIPLE){
             ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name());
-            ctx().getVoidTy();
+            return ctx().getVoidTy();
         }else{
             Args[0] = ctx().makeConvert(Args[0], match.match.input_types[0], match.converter_functions[0]);
             BestOverload = ctx().GetStdFunction(ctx().GetPrintFunctionName(match.match.input_types[0]));
             return match.match.return_type;
         }
 
-    } // if callee == print
+    }else if(Callee == "newComplex"){
+        // Special case for complex constructor.
+        // This might be a different AST node? Or maybe a more generic solution for such constructors?
+
+
+        if(Args.size() != 2){
+            ctx().AddError("Function newComplex takes 2 argument, " + std::to_string(Args.size()) + " given.");
+            return ctx().getVoidTy();
+        }
+
+        auto newComplex_doubles = MatchCandidateEntry{
+            {ctx().getDoubleTy(), ctx().getDoubleTy()},
+            ctx().getComplexTy()
+        };
+
+        auto arg0_type = Args[0]->Typecheck();
+        auto arg1_type = Args[1]->Typecheck();
+        auto match = ctx().typematcher.Match({newComplex_doubles},
+                                             {arg0_type, arg1_type}
+            );
+
+        if(match.type == TypeMatcher::Result::NONE){
+            ctx().AddError("Unable to create a Complex value from types " + arg0_type->name() + " and " + arg1_type->name());
+            return ctx().getVoidTy();
+        }else if(match.type == TypeMatcher::Result::MULTIPLE){
+            ctx().AddError("Multiple viable implicit conversions for creating a Complex value from types " + arg0_type->name() + " and " + arg1_type->name());
+            return ctx().getVoidTy();
+        }else{
+            Args[0] = ctx().makeConvert(Args[0], match.match.input_types[0], match.converter_functions[0]);
+            Args[1] = ctx().makeConvert(Args[1], match.match.input_types[1], match.converter_functions[1]);
+            BestOverload = ctx().GetStdFunction("complex_new");
+            return match.match.return_type;
+        }
+
+
+
+
+    }// if callee == print
 
     // Find a a corresponding candidate.
     if(!ctx().HasPrototype(Callee)){

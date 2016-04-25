@@ -12,4 +12,5 @@ void __cco_print_bool(int);
 void __cco_print_cstr(char*);
 void __cco_print_complex(struct __cco_complex);
 
+
 #endif // __CCO_PRINT_H__
