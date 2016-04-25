@@ -1,7 +1,4 @@
-
-
 fun main() : int {
     var c : complex;
     c := newComplex(5.0, 9.0);
-
 }

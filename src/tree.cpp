@@ -2,6 +2,7 @@
 #include "codegencontext.h"
 
 #include "llvm/IR/Verifier.h"
+#include "llvm/IR/Value.h"
 
 #define DEBUG 0
 

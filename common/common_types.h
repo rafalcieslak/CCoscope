@@ -16,7 +16,6 @@ struct __cco_complex{
 } // extern "C"
 
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/TypeBuilder.h"
 
 using namespace llvm;
 // LLVM Type definitions. Used to describe structures to LLVM.
@@ -27,14 +26,18 @@ template<typename T> inline llvm::StructType* __cco_type_to_LLVM();
 template<>
 inline llvm::StructType* __cco_type_to_LLVM<__cco_complex>(){
     auto double_type = llvm::Type::getDoubleTy(llvm::getGlobalContext());
-    auto t = llvm::StructType::get(
+    // NOTE: The following variable is static, because each call to
+    // ...::create introduces a new copy of the same type, which
+    // results in duplicate types (they are not uniqued).
+    static auto t = llvm::StructType::create(
        llvm::getGlobalContext(),
        {double_type, double_type},
-       "__cco_complex" // The name must be matching, too
+       "__cco_complex" // Let's keep the names matching the libcco type names
        );
     return t;
 }
 
+#include "llvm/IR/TypeBuilder.h"
 // LLVM TypeBuilder template specifications. Used to create LLVM structure types on compile-time (see http://llvm.org/docs/doxygen/html/classllvm_1_1TypeBuilder.html).
 
 namespace llvm {
@@ -46,6 +49,6 @@ namespace llvm {
     };
 }  // namespace llvm
 
-#endif
+#endif // ifdef __cplusplus
 
 #endif // __COMMON_TYPES_H__

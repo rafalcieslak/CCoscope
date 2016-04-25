@@ -28,6 +28,13 @@ struct __cco_complex __cco_complex_mult(struct __cco_complex a,
     c.im = a.im*b.re + a.re*b.im;
     return c;
 }
+struct __cco_complex __cco_complex_mult_double(struct __cco_complex a,
+                                               double b){
+    struct __cco_complex c;
+    c.re = a.re*b;
+    c.im = a.im*b;
+    return c;
+}
 struct __cco_complex __cco_complex_div(struct __cco_complex a,
                                        struct __cco_complex b){
     struct __cco_complex c;

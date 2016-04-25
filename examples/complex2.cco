@@ -16,11 +16,11 @@ fun main() : int {
     var i : int;
     var c : complex;
     var d : complex;
-    
+
     c := newComplex(3, -2);
     d := foo(-2, c);
     print(d);
     d := bar(3, 0.14);
     print(d);
-    print(bar(3, 0.14));
+    print(bar(3, 0.14) * 3.0);
 }
