@@ -16,6 +16,6 @@ void __cco_print_cstr(char* v) {
     printf("%s\n", v);
 }
 
-void __cco_print_complex(double re, double im) {
-    printf("Complex[Re = %f; Im = %f]\n", re, im);
+void __cco_print_complex(struct __cco_complex c){
+    printf("Complex[Re = %f; Im = %f]\n", c.re, c.im);
 }

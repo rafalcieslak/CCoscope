@@ -59,7 +59,7 @@ llvm::Value* ComplexValueAST::codegen() const {
     llvm::Value* rev = Re->codegen();
     llvm::Value* imv = Im->codegen();
     if(!rev || !imv) return nullptr;
-    
+
     auto rets = ctx().GetVarInfo("Cmplx").first;
     auto idx1 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
     ctx().Builder().CreateStore(rev, idx1);
@@ -95,7 +95,7 @@ llvm::Value* BinaryExprAST::codegen() const {
     llvm::Value* valL = LHS->codegen();
     llvm::Value* valR = RHS->codegen();
     if(!valL || !valR) return nullptr;
-    
+
     auto binfun = ctx().binOpCreator_[{opcode, BestOverload}];
     return binfun({valL, valR});
 }
@@ -103,7 +103,7 @@ llvm::Value* BinaryExprAST::codegen() const {
 llvm::Value* ReturnExprAST::codegen() const {
     llvm::Value* Val = Expression->codegen();
     if(!Val) return nullptr;
-    
+
     llvm::Function* parent = ctx().CurrentFunc();
     llvm::BasicBlock* returnBB   = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnBB");
     llvm::BasicBlock* discardBB  = llvm::BasicBlock::Create(llvm::getGlobalContext(), "returnDiscard");
@@ -138,9 +138,9 @@ llvm::Value* BlockAST::codegen() const {
             last = stat->codegen();
             if(!last) errors = true;
         }
-        
+
         ctx().CloseScope();
-        
+
         if(errors) return nullptr;
         return last;
     }
@@ -152,14 +152,8 @@ llvm::Value* CallExprAST::codegen() const {
         // Codegen arguments
         auto Val = Args[0]->codegen();
         if(!Val) return nullptr;
-        
-        if(Args[0]->GetType() == ctx().getComplexTy()) {
-            auto rev = ctx().Builder().CreateExtractValue(Val, {0});
-            auto imv = ctx().Builder().CreateExtractValue(Val, {1});
-            return ctx().Builder().CreateCall(BestOverload, {rev, imv});
-        } else {
-            return ctx().Builder().CreateCall(BestOverload, Val);
-        }
+
+        return ctx().Builder().CreateCall(BestOverload, Val);
 
     }else{
         // Codegen arguments
@@ -169,7 +163,7 @@ llvm::Value* CallExprAST::codegen() const {
             if (!ArgsV.back())
                 return nullptr;
         }
-        
+
         return ctx().Builder().CreateCall(BestOverload, ArgsV, "calltmp");
     }
 }
@@ -400,9 +394,9 @@ llvm::Function* FunctionAST::codegen() const {
 
     // Insert function body into the function insertion point.
     Value* val = Body->codegen();
-    
+
     ctx().CloseScope();
-    
+
     // Before terminating the function, create a default return value, in case the function body does not contain one.
     // TODO: Default return type.
     ctx().Builder().CreateRet(Proto->ReturnType->defaultLLVMsValue());
@@ -422,7 +416,7 @@ llvm::Function* FunctionAST::codegen() const {
 llvm::Value* ConvertAST::codegen() const {
     auto ev = Expression->codegen();
     if(!ev) return nullptr;
-    
+
     return Converter(ev);
 }
 
@@ -463,7 +457,7 @@ Type PrimitiveExprAST<double>::Typecheck_() const {
 Type ComplexValueAST::Typecheck_() const {
     auto Retype = Re->Typecheck();
     auto Imtype = Im->Typecheck();
-    
+
     auto rett = MatchCandidateEntry{
         {ctx().getDoubleTy(), ctx().getDoubleTy()},
         ctx().getComplexTy()
@@ -508,9 +502,9 @@ Type BinaryExprAST::Typecheck_() const {
 
     Type Ltype = LHS->Typecheck();
     Type Rtype = RHS->Typecheck();
-    
+
     auto match = ctx().typematcher.Match(operator_variants, {Ltype,Rtype});
-    
+
     if(match.type == TypeMatcher::Result::NONE) {
         ctx().AddError("No matching operator '" + opcode + "' found to call with types: " +
                      Ltype->name() + ", " + Rtype->name() + ".");
@@ -530,12 +524,12 @@ Type BinaryExprAST::Typecheck_() const {
 Type ReturnExprAST::Typecheck_() const {
     Type target_type = ctx().CurrentFuncReturnType();
     Type expr_type = Expression->Typecheck();
-    
+
     auto return_m = MatchCandidateEntry{
         {target_type},
         ctx().getVoidTy()
     };
-    
+
     auto match = ctx().typematcher.Match({return_m}, {expr_type});
 
     if(match.type == TypeMatcher::Result::NONE){
@@ -563,7 +557,7 @@ Type BlockAST::Typecheck_() const {
         stat->Typecheck();
     }
     ctx().CloseScope();
-    
+
     return ctx().getVoidTy();
 }
 
@@ -659,7 +653,7 @@ Type CallExprAST::Typecheck_() const {
         for(size_t i = 0; i < Args.size(); i++) {
             Args[i] = ctx().makeConvert(Args[i], match.match.input_types[i], match.converter_functions[i]);
         }
-        
+
         // currently no overloading, so one candidate available
         BestOverload = ctx().TheModule()->getFunction(Callee);
         return match.match.return_type;
@@ -672,7 +666,7 @@ Type IfExprAST::Typecheck_() const {
         ctx().AddError("Cond in If statement has type " + CondType->name());
         return ctx().getVoidTy();
     }
-    
+
     Then->Typecheck();
     Else->Typecheck();
     return ctx().getVoidTy();
@@ -684,7 +678,7 @@ Type WhileExprAST::Typecheck_() const {
         ctx().AddError("Cond in While statement has type " + CondType->name());
         return ctx().getVoidTy();
     }
-    
+
     Body->Typecheck();
     return ctx().getVoidTy();
 }
@@ -695,7 +689,7 @@ Type ForExprAST::Typecheck_() const {
         ctx().AddError("Cond in For statement has type " + CondType->name());
         return ctx().getVoidTy();
     }
-    
+
     for(auto& E : Step) {
         E->Typecheck();
     }
@@ -718,16 +712,16 @@ Type PrototypeAST::Typecheck_() const {
 
 Type FunctionAST::Typecheck_() const {
     ctx().EnterScope();
-    
+
     for(auto& p : Proto->Args) {
         ctx().SetVarInfo(p.first, {nullptr, p.second});
     }
-    
+
     ctx().SetCurrentFuncReturnType(Proto->ReturnType);
     /*auto BodyType =*/ Body->Typecheck();
-    // can we ignore BodyType? 
+    // can we ignore BodyType?
     ctx().CloseScope();
-    
+
     auto res = Proto->Typecheck();
     ctx().ClearVarsInfo();
     return res;

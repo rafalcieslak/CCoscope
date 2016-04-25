@@ -2,6 +2,9 @@
 #include "utils.h"
 #include <iostream>
 
+#include "../common/common_types.h"
+
+
 namespace ccoscope {
 
 using namespace std;
@@ -22,7 +25,7 @@ CodegenContext::CodegenContext()
         [this] (std::vector<Value*> v) { \
             return this->builder_.builderfunc(v[0], v[1], retname);\
        }
-       
+
 #define ADD_ASSIGN_OP(t) \
     availableBinOps_["ASSIGN"].push_back(MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}); \
     binOpCreator_[{"ASSIGN", MatchCandidateEntry{{getReferenceTy(t), t}, getVoidTy()}}] = \
@@ -45,25 +48,25 @@ CodegenContext::CodegenContext()
     INIT_OP("LOGICAL_AND");
     INIT_OP("LOGICAL_OR");
     INIT_OP("ASSIGN");
-    
+
     ADD_ASSIGN_OP(getIntegerTy());
     ADD_ASSIGN_OP(getBooleanTy());
     ADD_ASSIGN_OP(getDoubleTy());
     ADD_ASSIGN_OP(getComplexTy());
-    
+
     ADD_BASIC_OP("ADD",    getIntegerTy(), getIntegerTy(), CreateAdd,  getIntegerTy(), "addtmp");
     ADD_BASIC_OP("SUB",    getIntegerTy(), getIntegerTy(), CreateSub,  getIntegerTy(), "subtmp");
     ADD_BASIC_OP("MULT",   getIntegerTy(), getIntegerTy(), CreateMul,  getIntegerTy(), "multmp");
     ADD_BASIC_OP("DIV",    getIntegerTy(), getIntegerTy(), CreateSDiv, getIntegerTy(), "divtmp");
     ADD_BASIC_OP("MOD",    getIntegerTy(), getIntegerTy(), CreateSRem, getIntegerTy(), "modtmp");
-    
+
     ADD_BASIC_OP("EQUAL",    getIntegerTy(), getIntegerTy(), CreateICmpEQ,  getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("NEQUAL",   getIntegerTy(), getIntegerTy(), CreateICmpNE,  getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("GREATER",  getIntegerTy(), getIntegerTy(), CreateICmpSGT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("GREATEREQ",getIntegerTy(), getIntegerTy(), CreateICmpSGE, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESS",     getIntegerTy(), getIntegerTy(), CreateICmpSLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getIntegerTy(), getIntegerTy(), CreateICmpSLE, getBooleanTy(), "cmptmp");
-    
+
     ADD_BASIC_OP("LOGICAL_AND", getBooleanTy(), getBooleanTy(), CreateAnd,  getBooleanTy(), "andtmp");
     ADD_BASIC_OP("LOGICAL_OR" , getBooleanTy(), getBooleanTy(), CreateOr,   getBooleanTy(), "ortmp" );
 
@@ -79,7 +82,7 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("GREATEREQ",getDoubleTy(), getDoubleTy(), CreateFCmpOGE, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
-    
+
 #define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
     availableBinOps_[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
     binOpCreator_[{name, MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}}] = \
@@ -131,7 +134,7 @@ CodegenContext::CodegenContext()
             auto reres = this->builder_.CreateFDiv(left, squares, "cmplxdivtmp");
             auto imres = this->builder_.CreateFDiv(right, squares, "cmplxdivtmp");
      , getComplexTy(), "divtmp");
-    
+
     availableBinOps_["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
     binOpCreator_[{"EQUAL", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}}] =
        [this] (std::vector<Value*> v){
@@ -370,7 +373,7 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("print_double",void(double));
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
     ADD_STDPROTO("print_cstr", void(char*));
-    ADD_STDPROTO("print_complex", void(double, double));
+    ADD_STDPROTO("print_complex", void(__cco_complex));
 
     auto complexproto = makePrototype(
         "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy());
