@@ -67,7 +67,7 @@ std::string JoinString(std::vector<std::string> str, std::string c){
 
 
 std::string FindLLVMExecutable(std::string name){
-    std::vector<std::string> suffixes = {"-3.7", "-3.6", "-3.5", ""};
+    std::vector<std::string> suffixes = {"-3.8", "-3.7", "-3.6", "-3.5", ""};
     const char* c = getenv("PATH");
     if(!c) return "";
     std::string path(c);
