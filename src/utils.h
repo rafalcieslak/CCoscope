@@ -3,20 +3,21 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 
 template<typename T>
 class Maybe {
 public:
     Maybe() : val(nullptr) {}
     Maybe(T v) : val(&v) {}
-    
+
     bool is_empty () const { return !val; }
     T get () const { return *val; }
-    
+
     void operator = (const Maybe<T>& other) const {
         val = other.val;
     }
-    
+
 protected:
     mutable T* val;
 };
@@ -58,5 +59,17 @@ public:
     static std::string Reset();
     static std::string Color(Color c, bool bold = false);
 };
+
+struct fileloc{
+fileloc(int l, int c) : line(l), column(c) {}
+    int line;
+    int column;
+};
+
+inline std::ostream& operator<<(std::ostream& s, const fileloc& l){
+    s << (l.line   < 0 ? "?" : std::to_string(l.line  )) << ":"
+      << (l.column < 0 ? "?" : std::to_string(l.column));
+    return s;
+}
 
 #endif // __UTILS_H__

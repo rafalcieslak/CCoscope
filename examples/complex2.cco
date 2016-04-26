@@ -16,7 +16,7 @@ fun main() : int {
     var i : int;
     var c : complex;
     var d : complex;
-    
+
     c := newComplex(3, -2);
     d := foo(-2, c);
     print(d);

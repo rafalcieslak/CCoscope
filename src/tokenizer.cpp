@@ -7,6 +7,7 @@ int lexer(FILE* input, std::list<std::pair<token,fileloc>> &);
 void tokenizer::scan(){
     if(tokenlist.size() >= 1){
         lookahead.push_back( tokenlist.front().first );
+        lookahead.back().loc.push_back( tokenlist.front().second );
         previous.push_front( tokenlist.front().second ); // Store token location
         tokenlist.pop_front();
     }else{
