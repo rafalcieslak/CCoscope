@@ -11,13 +11,8 @@ struct __cco_complex __cco_complex_sub(struct __cco_complex,
                                        struct __cco_complex);
 struct __cco_complex __cco_complex_mult(struct __cco_complex,
                                         struct __cco_complex);
-struct __cco_complex __cco_complex_mult_double(struct __cco_complex,
-                                               double);
 struct __cco_complex __cco_complex_div(struct __cco_complex,
                                        struct __cco_complex);
-struct __cco_complex __cco_complex_div_double(struct __cco_complex,
-                                              double);
-
 int __cco_complex_equal(struct __cco_complex,
                         struct __cco_complex);
 
