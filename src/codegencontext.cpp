@@ -99,7 +99,9 @@ CodegenContext::CodegenContext()
     ADD_STD_OP("ADD" , getComplexTy(), getComplexTy(), "complex_add" , getComplexTy(), "complexadd" );
     ADD_STD_OP("SUB" , getComplexTy(), getComplexTy(), "complex_sub" , getComplexTy(), "complexsub" );
     ADD_STD_OP("MULT", getComplexTy(), getComplexTy(), "complex_mult", getComplexTy(), "complexmult");
+    ADD_STD_OP("MULT", getComplexTy(), getDoubleTy(), "complex_mult_double", getComplexTy(), "complexmult");
     ADD_STD_OP("DIV" , getComplexTy(), getComplexTy(), "complex_div" , getComplexTy(), "complexdiv" );
+    ADD_STD_OP("DIV" , getComplexTy(), getDoubleTy(), "complex_div_double" , getComplexTy(), "complexdiv" );
     ADD_STD_OP("EQUAL" , getComplexTy(), getComplexTy(), "complex_equal" , getBooleanTy(), "complexeq" );
 
 }
@@ -335,7 +337,9 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("complex_add" , __cco_complex(__cco_complex,__cco_complex));
     ADD_STDPROTO("complex_sub" , __cco_complex(__cco_complex,__cco_complex));
     ADD_STDPROTO("complex_mult", __cco_complex(__cco_complex,__cco_complex));
+    ADD_STDPROTO("complex_mult_double", __cco_complex(__cco_complex,double));
     ADD_STDPROTO("complex_div" , __cco_complex(__cco_complex,__cco_complex));
+    ADD_STDPROTO("complex_div_double" , __cco_complex(__cco_complex,double));
     ADD_STDPROTO("complex_equal" , llvm::types::i<1>(__cco_complex,__cco_complex));
 }
 
