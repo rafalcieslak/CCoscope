@@ -22,5 +22,5 @@ fun main() : int {
     print(d);
     d := bar(3, 0.14);
     print(d);
-    print(bar(3, 0.14));
+    print(bar(3, 0.14) * 3.0);
 }

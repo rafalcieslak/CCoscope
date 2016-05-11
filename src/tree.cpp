@@ -2,6 +2,7 @@
 #include "codegencontext.h"
 
 #include "llvm/IR/Verifier.h"
+#include "llvm/IR/Value.h"
 
 #define DEBUG 0
 
@@ -153,14 +154,7 @@ llvm::Value* CallExprAST::codegen() const {
         auto Val = Args[0]->codegen();
         if(!Val) return nullptr;
 
-        if(Args[0]->GetType() == ctx().getComplexTy()) {
-            auto rev = ctx().Builder().CreateExtractValue(Val, {0});
-            auto imv = ctx().Builder().CreateExtractValue(Val, {1});
-            return ctx().Builder().CreateCall(BestOverload, {rev, imv});
-        } else {
-            return ctx().Builder().CreateCall(BestOverload, Val);
-        }
-
+        return ctx().Builder().CreateCall(BestOverload, Val);
     }else{
         // Codegen arguments
         std::vector<llvm::Value *> ArgsV;
@@ -568,8 +562,9 @@ Type BlockAST::Typecheck_() const {
 }
 
 Type CallExprAST::Typecheck_() const {
-    // Special case for print
+
     if(Callee == "print"){
+        // Special case for print
         // Translate the call into a call to stdlibs function.
         if(Args.size() != 1){
             ctx().AddError("Function print takes 1 argument, " + std::to_string(Args.size()) + " given.", pos());
@@ -603,17 +598,16 @@ Type CallExprAST::Typecheck_() const {
 
         if(match.type == TypeMatcher::Result::NONE){
             ctx().AddError("Unable to print a variable of type " + expr_type->name(), pos());
-            ctx().getVoidTy();
+            return ctx().getVoidTy();
         }else if(match.type == TypeMatcher::Result::MULTIPLE){
             ctx().AddError("Multiple viable implicit conversions for printing a variable of type " + expr_type->name(), pos());
-            ctx().getVoidTy();
+            return ctx().getVoidTy();
         }else{
             Args[0] = ctx().makeConvert(Args[0], match.match.input_types[0], match.converter_functions[0], Args[0]->pos());
             BestOverload = ctx().GetStdFunction(ctx().GetPrintFunctionName(match.match.input_types[0]));
             return match.match.return_type;
         }
-
-    } // if callee == print
+    }// if callee == print
 
     // Find a a corresponding candidate.
     if(!ctx().HasPrototype(Callee)){

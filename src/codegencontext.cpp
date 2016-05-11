@@ -2,6 +2,8 @@
 #include "utils.h"
 #include <iostream>
 
+#include "../common/common_types.h"
+
 namespace ccoscope {
 
 using namespace std;
@@ -80,69 +82,28 @@ CodegenContext::CodegenContext()
     ADD_BASIC_OP("LESS",     getDoubleTy(), getDoubleTy(), CreateFCmpOLT, getBooleanTy(), "cmptmp");
     ADD_BASIC_OP("LESSEQ",   getDoubleTy(), getDoubleTy(), CreateFCmpOLE, getBooleanTy(), "cmptmp");
 
-#define ADD_COMPLEX_OP(name, variadiccode, rettype, retname) \
-    availableBinOps_[name].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}); \
-    binOpCreator_[{name, MatchCandidateEntry{{getComplexTy(), getComplexTy()}, rettype}}] = \
-       [this] (std::vector<Value*> v){   \
-            auto c1re = this->builder_.CreateExtractValue(v[0], {0}); \
-            auto c1im = this->builder_.CreateExtractValue(v[0], {1}); \
-            auto c2re = this->builder_.CreateExtractValue(v[1], {0}); \
-            auto c2im = this->builder_.CreateExtractValue(v[1], {1}); \
-            variadiccode \
-            auto cmplx_t = getComplexTy()->toLLVMs(); \
-            AllocaInst* alloca = CreateEntryBlockAlloca(CurrentFunc(), "cmplxtmp", cmplx_t); \
-            auto idx1 = this->builder_.CreateStructGEP(cmplx_t, alloca, 0); \
-            this->builder_.CreateStore(reres, idx1); \
-            auto idx2 = this->builder_.CreateStructGEP(cmplx_t, alloca, 1); \
-            this->builder_.CreateStore(imres, idx2); \
-            auto retsload = this->builder_.CreateLoad(alloca, "Cmplxloadret"); \
-            return retsload; \
-       }
+    // This macro is useful for creating operators that use a libcco
+    // function. NOTE: There are no checks whether the requested
+    // stdfunction has a registered prototype, or whether the
+    // arguments are of correct type. As long as the prototypes and
+    // match types are correctly implemented, there will be no runtime
+    // errors.
+#define ADD_STD_OP(name, t1, t2, opfunc, rettype, retname)              \
+    availableBinOps_[name].push_back(MatchCandidateEntry{{t1, t2}, rettype}); \
+    binOpCreator_[{name, MatchCandidateEntry{{t1, t2}, rettype}}] =    \
+        [this] (std::vector<Value*> v) -> Value*{                       \
+        llvm::Function* f = this->GetStdFunction(opfunc);        \
+        return this->Builder().CreateCall(f, v, retname);          \
+    };
 
-    ADD_COMPLEX_OP("ADD",
-            auto reres = this->builder_.CreateFAdd(c1re, c2re, "cmplxaddtmp");
-            auto imres = this->builder_.CreateFAdd(c1im, c2im, "cmplxaddtmp");
-     , getComplexTy(), "addtmp");
+    ADD_STD_OP("ADD" , getComplexTy(), getComplexTy(), "complex_add" , getComplexTy(), "complexadd" );
+    ADD_STD_OP("SUB" , getComplexTy(), getComplexTy(), "complex_sub" , getComplexTy(), "complexsub" );
+    ADD_STD_OP("MULT", getComplexTy(), getComplexTy(), "complex_mult", getComplexTy(), "complexmult");
+    ADD_STD_OP("MULT", getComplexTy(), getDoubleTy(), "complex_mult_double", getComplexTy(), "complexmult");
+    ADD_STD_OP("DIV" , getComplexTy(), getComplexTy(), "complex_div" , getComplexTy(), "complexdiv" );
+    ADD_STD_OP("DIV" , getComplexTy(), getDoubleTy(), "complex_div_double" , getComplexTy(), "complexdiv" );
+    ADD_STD_OP("EQUAL" , getComplexTy(), getComplexTy(), "complex_equal" , getBooleanTy(), "complexeq" );
 
-    ADD_COMPLEX_OP("SUB",
-            auto reres = this->builder_.CreateFSub(c1re, c2re, "cmplxsubtmp");
-            auto imres = this->builder_.CreateFSub(c1im, c2im, "cmplxsubtmp");
-     , getComplexTy(), "subtmp");
-
-    ADD_COMPLEX_OP("MULT",
-            auto c1c2re = this->builder_.CreateFMul(c1re, c2re, "cmplxmultmp");
-            auto c1c2im = this->builder_.CreateFMul(c1im, c2im, "cmplxmultmp");
-            auto c1imc2re = this->builder_.CreateFMul(c1im, c2re, "cmplxmultmp");
-            auto c1rec2im = this->builder_.CreateFMul(c1re, c2im, "cmplxmultmp");
-            auto reres = this->builder_.CreateFSub(c1c2re, c1c2im, "cmplxsubtmp");
-            auto imres = this->builder_.CreateFAdd(c1imc2re, c1rec2im, "cmplxaddtmp");
-     , getComplexTy(), "multmp");
-
-    ADD_COMPLEX_OP("DIV",
-            auto c1c2re = this->builder_.CreateFMul(c1re, c2re, "cmplxmultmp");
-            auto c1c2im = this->builder_.CreateFMul(c1im, c2im, "cmplxmultmp");
-            auto c1imc2re = this->builder_.CreateFMul(c1im, c2re, "cmplxmultmp");
-            auto c1rec2im = this->builder_.CreateFMul(c1re, c2im, "cmplxmultmp");
-            auto c2rere = this->builder_.CreateFMul(c2re, c2re, "cmplxmultmp");
-            auto c2imim = this->builder_.CreateFMul(c2im, c2im, "cmplxmultmp");
-            auto squares = this->builder_.CreateFAdd(c2rere, c2imim, "cmplxaddtmp");
-            auto left = this->builder_.CreateFAdd(c1c2re, c1c2im, "cmplxsubtmp");
-            auto right = this->builder_.CreateFSub(c1imc2re, c1rec2im, "cmplxaddtmp");
-            auto reres = this->builder_.CreateFDiv(left, squares, "cmplxdivtmp");
-            auto imres = this->builder_.CreateFDiv(right, squares, "cmplxdivtmp");
-     , getComplexTy(), "divtmp");
-
-    availableBinOps_["EQUAL"].push_back(MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()});
-    binOpCreator_[{"EQUAL", MatchCandidateEntry{{getComplexTy(), getComplexTy()}, getBooleanTy()}}] =
-       [this] (std::vector<Value*> v){
-            auto c1re = this->builder_.CreateExtractValue(v[0], {0});
-            auto c1im = this->builder_.CreateExtractValue(v[0], {1});
-            auto c2re = this->builder_.CreateExtractValue(v[1], {0});
-            auto c2im = this->builder_.CreateExtractValue(v[1], {1});
-            auto c1c2re = this->builder_.CreateFCmpOEQ(c1re, c2re, "cmplxcmptmp");
-            auto c1c2im = this->builder_.CreateFCmpOEQ(c1im, c2im, "cmplxcmptmp");
-            return this->builder_.CreateAnd(c1c2re, c1c2im, "cmplxcmptmp");
-       };
 }
 
 CodegenContext::~CodegenContext() {
@@ -370,13 +331,16 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("print_double",void(double));
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
     ADD_STDPROTO("print_cstr", void(char*));
-    ADD_STDPROTO("print_complex", void(double, double));
+    ADD_STDPROTO("print_complex", void(__cco_complex));
 
-    auto complexproto = makePrototype(
-        "newComplex", {{"Re", getDoubleTy()}, {"Im", getDoubleTy()}}, getComplexTy(), fileloc(-1,-1));
-    makeFunction(complexproto, makeBlock({makeVariableDecl("Cmplx", getComplexTy(), fileloc(-1,-1)),
-                    makeReturn(makeComplex(makeVariableOcc("Re", fileloc(-1,-1)), makeVariableOcc("Im", fileloc(-1,-1)), fileloc(-1,-1)), fileloc(-1,-1))}, fileloc(-1,-1)), fileloc(-1,-1)
-        );
+    ADD_STDPROTO("complex_new" , __cco_complex(double, double));
+    ADD_STDPROTO("complex_add" , __cco_complex(__cco_complex,__cco_complex));
+    ADD_STDPROTO("complex_sub" , __cco_complex(__cco_complex,__cco_complex));
+    ADD_STDPROTO("complex_mult", __cco_complex(__cco_complex,__cco_complex));
+    ADD_STDPROTO("complex_mult_double", __cco_complex(__cco_complex,double));
+    ADD_STDPROTO("complex_div" , __cco_complex(__cco_complex,__cco_complex));
+    ADD_STDPROTO("complex_div_double" , __cco_complex(__cco_complex,double));
+    ADD_STDPROTO("complex_equal" , llvm::types::i<1>(__cco_complex,__cco_complex));
 }
 
 }

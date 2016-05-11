@@ -4,6 +4,7 @@
 
 #include "types.h"
 #include "codegencontext.h"
+#include "../common/common_types.h"
 
 namespace ccoscope {
 
@@ -116,13 +117,7 @@ llvm::Type* BooleanTypeAST::toLLVMs_ () const {
 }
 
 llvm::StructType* ComplexTypeAST::toLLVMs_ () const {
-    auto dblt = ctx_.getDoubleTy()->toLLVMs();
-    auto t = llvm::StructType::create(
-       getGlobalContext(),
-       {dblt, dblt},
-       name()
-    );
-    return llvm::cast<llvm::StructType>(t);
+    return __cco_type_to_LLVM<__cco_complex>();
 }
 
 llvm::FunctionType* FunctionTypeAST::toLLVMs_ () const {
@@ -183,7 +178,7 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
             ctx_.getComplexTy(),   // Conversion to complex
             15,                   // -- costs 15
             [this](llvm::Value* v)->llvm::Value*{
-                llvm::Function *CalleeF = this->ctx().TheModule()->getFunction("newComplex");
+                llvm::Function *CalleeF = this->ctx().GetStdFunction("complex_new");
                 if(CalleeF) {
                     return this->ctx().Builder().CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
                 } else {
