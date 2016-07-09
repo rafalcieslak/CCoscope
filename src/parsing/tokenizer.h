@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "token.h"
-#include "utils.h"
+#include "../misc/utils.h"
 
 struct tokenizer
 {

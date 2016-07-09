@@ -10,9 +10,9 @@
 #include <unordered_set>
 #include <list>
 #include <deque>
-#include "tree.h"
-#include "types.h"
-#include "typematcher.h"
+#include "ast/tree.h"
+#include "types/types.h"
+#include "types/typematcher.h"
 
 namespace ccoscope {
 

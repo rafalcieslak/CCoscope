@@ -2,11 +2,11 @@
 #ifndef __TREE_H__
 #define __TREE_H__
 
-#include "cast.h"
-#include "types.h"
-#include "proxy.h"
-#include "typematcher.h"
-#include "utils.h"
+#include "../misc/cast.h"
+#include "../types/types.h"
+#include "../misc/proxy.h"
+#include "../types/typematcher.h"
+#include "../misc/utils.h"
 
 #include <string>
 #include <memory>
@@ -62,7 +62,7 @@ public:
     size_t gid () const { return gid_; }
     fileloc pos () const { return pos_; }
     CodegenContext& ctx () const { return ctx_; }
-    bool equal(const ExprAST& other) const;
+    bool equal(const ExprAST& other) const { return gid() == other.gid(); }
     bool is_proxy () const { return representative_ != this; }
     bool was_typechecked () const { return type_cache_.is_empty(); }
 

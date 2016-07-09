@@ -8,8 +8,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 
-#include "proxy.h"
-#include "conversions.h"
+#include "../misc/proxy.h"
+#include "conversion.h"
 
 #include <typeinfo>
 #include <vector>

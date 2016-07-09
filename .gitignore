@@ -33,3 +33,11 @@
 
 # Build directory
 build
+
+# QtCreator project files
+*.config
+*.creator
+*.creator.user
+*.files
+*.includes
+*.autosave
