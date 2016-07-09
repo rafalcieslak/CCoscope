@@ -1,7 +1,7 @@
 #include "compiler.h"
 #include "misc/utils.h"
 #include "world/codegencontext.h"
-#include "ast/tree.h"
+#include "ast/ast.h"
 #include "token.h"
 #include "parsing/tokenizer.h"
 #include "parser.h"

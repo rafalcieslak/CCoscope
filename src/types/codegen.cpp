@@ -20,86 +20,86 @@ template class Proxy<ReferenceTypeAST>;
 
 using namespace llvm;
 
-llvm::Type* TypeAST::toLLVMs () const {
+llvm::Type* TypeAST::codegen () const {
     if(!cache_) {
-        cache_ = toLLVMs_();
+        cache_ = codegen_();
     }
     return cache_;
 }
 
-llvm::StructType* ComplexTypeAST::toLLVMs () const {
+llvm::StructType* ComplexTypeAST::codegen () const {
     if(!cache_) {
-        cache_ = toLLVMs_();
+        cache_ = codegen_();
     }
     return llvm::cast<llvm::StructType>(cache_);
 }
 
-llvm::FunctionType* FunctionTypeAST::toLLVMs () const {
+llvm::FunctionType* FunctionTypeAST::codegen () const {
     if(!cache_) {
-        cache_ = toLLVMs_();
+        cache_ = codegen_();
     }
     return llvm::cast<llvm::FunctionType>(cache_);
 }
 
-llvm::Type* TypeAST::toLLVMs_ () const {
+llvm::Type* TypeAST::codegen_ () const {
     return nullptr;
 }
 
-llvm::Type* VoidTypeAST::toLLVMs_ () const {
+llvm::Type* VoidTypeAST::codegen_ () const {
     return llvm::Type::getVoidTy(getGlobalContext());
 }
 
-llvm::Type* IntegerTypeAST::toLLVMs_ () const {
+llvm::Type* IntegerTypeAST::codegen_ () const {
     return llvm::Type::getInt32Ty(getGlobalContext());
 }
 
-llvm::Type* DoubleTypeAST::toLLVMs_ () const {
+llvm::Type* DoubleTypeAST::codegen_ () const {
     return llvm::Type::getDoubleTy(getGlobalContext());
 }
 
-llvm::Type* BooleanTypeAST::toLLVMs_ () const {
+llvm::Type* BooleanTypeAST::codegen_ () const {
     return llvm::Type::getInt1Ty(getGlobalContext());
 }
 
-llvm::StructType* ComplexTypeAST::toLLVMs_ () const {
+llvm::StructType* ComplexTypeAST::codegen_ () const {
     return __cco_type_to_LLVM<__cco_complex>();
 }
 
-llvm::FunctionType* FunctionTypeAST::toLLVMs_ () const {
+llvm::FunctionType* FunctionTypeAST::codegen_ () const {
     std::vector<llvm::Type*> argsTypes;
     for (size_t i = 1; i < size(); i++)
-        argsTypes.push_back(operands_[i]->toLLVMs());
+        argsTypes.push_back(operands_[i]->codegen());
 
-    auto t = llvm::FunctionType::get(returnType()->toLLVMs(), argsTypes, false);
+    auto t = llvm::FunctionType::get(returnType()->codegen(), argsTypes, false);
     return llvm::cast<llvm::FunctionType>(t);
 }
 
-llvm::Type* ReferenceTypeAST::toLLVMs_ () const {
+llvm::Type* ReferenceTypeAST::codegen_ () const {
     unsigned addressSpace = 0; // just a gues...
-    return llvm::PointerType::get(of()->toLLVMs(), addressSpace);
+    return llvm::PointerType::get(of()->codegen(), addressSpace);
 }
 
 // ---------------------------------------------------------
 
-llvm::Value* TypeAST::defaultLLVMsValue () const {
-    return llvm::UndefValue::get(toLLVMs());
+llvm::Value* TypeAST::codegenDefaultValue () const {
+    return llvm::UndefValue::get(codegen());
 }
-llvm::Value* IntegerTypeAST::defaultLLVMsValue () const {
+llvm::Value* IntegerTypeAST::codegenDefaultValue () const {
     return llvm::ConstantInt::get(getGlobalContext(), APInt(32, 0, 1));
 }
-llvm::Value* DoubleTypeAST::defaultLLVMsValue () const {
+llvm::Value* DoubleTypeAST::codegenDefaultValue () const {
     return llvm::ConstantFP::get(getGlobalContext(), APFloat(0.0));
 }
-llvm::Value* BooleanTypeAST::defaultLLVMsValue () const {
+llvm::Value* BooleanTypeAST::codegenDefaultValue () const {
     return llvm::ConstantInt::getFalse(getGlobalContext());
 }
-llvm::Value* ComplexTypeAST::defaultLLVMsValue () const {
-    auto v = dynamic_cast<llvm::Constant*>(ctx_.getDoubleTy()->defaultLLVMsValue());
+llvm::Value* ComplexTypeAST::codegenDefaultValue () const {
+    auto v = dynamic_cast<llvm::Constant*>(ctx_.getDoubleTy()->codegenDefaultValue());
     std::vector<llvm::Constant*> vek{v, v};
-    return llvm::ConstantStruct::get(toLLVMs(), vek);
+    return llvm::ConstantStruct::get(codegen(), vek);
 }
-llvm::Value* ReferenceTypeAST::defaultLLVMsValue () const {
-    return of()->defaultLLVMsValue();
+llvm::Value* ReferenceTypeAST::codegenDefaultValue () const {
+    return of()->codegenDefaultValue();
 }
 
 }

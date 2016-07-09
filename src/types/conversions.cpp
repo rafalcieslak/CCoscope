@@ -40,7 +40,7 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
             [this](llvm::Value* v)->llvm::Value*{
                 llvm::Function *CalleeF = this->ctx().GetStdFunction("complex_new");
                 if(CalleeF) {
-                    return this->ctx().Builder().CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->defaultLLVMsValue()}, "callcmplxtmp");
+                    return this->ctx().Builder().CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->codegenDefaultValue()}, "callcmplxtmp");
                 } else {
                     this->ctx().AddError("newComplex constructor not found!");
                     return nullptr;

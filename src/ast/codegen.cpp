@@ -1,4 +1,4 @@
-#include "tree.h"
+#include "ast.h"
 #include "../world/codegencontext.h"
 
 #include "llvm/IR/Verifier.h"
@@ -7,7 +7,7 @@
 #define DEBUG 0
 
 namespace ccoscope {
-
+/*
 template class Proxy<ExprAST>;
 template class Proxy<PrimitiveExprAST<int>>;
 template class Proxy<PrimitiveExprAST<double>>;
@@ -25,7 +25,7 @@ template class Proxy<ForExprAST>;
 template class Proxy<LoopControlStmtAST>;
 template class Proxy<PrototypeAST>;
 template class Proxy<FunctionAST>;
-
+*/
 template<>
 llvm::Value* PrimitiveExprAST<int>::codegen() const {
     return llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(32, Val, 1));
@@ -56,9 +56,9 @@ llvm::Value* ComplexValueAST::codegen() const {
     if(!rev || !imv) return nullptr;
 
     auto rets = ctx().GetVarInfo("Cmplx").first;
-    auto idx1 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 0);
+    auto idx1 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->codegen(), rets, 0);
     ctx().Builder().CreateStore(rev, idx1);
-    auto idx2 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->toLLVMs(), rets, 1);
+    auto idx2 = ctx().Builder().CreateStructGEP(ctx().getComplexTy()->codegen(), rets, 1);
     ctx().Builder().CreateStore(imv, idx2);
     auto retsload = ctx().Builder().CreateLoad(rets, "Cmplxloadret");
     return retsload;
@@ -77,9 +77,9 @@ llvm::Value* VariableOccExprAST::codegen() const {
 llvm::Value* VariableDeclExprAST::codegen() const {
     using namespace llvm;
     llvm::Function* parent = ctx().CurrentFunc();
-    AllocaInst* Alloca = CreateEntryBlockAlloca(parent, Name, type->toLLVMs());
+    AllocaInst* Alloca = CreateEntryBlockAlloca(parent, Name, type->codegen());
     // Initialize the var to 0.
-    Value* zero = type->defaultLLVMsValue();
+    Value* zero = type->codegenDefaultValue();
     ctx().Builder().CreateStore(zero, Alloca);
     ctx().SetVarInfo(Name, {Alloca, type});
     return Alloca;
@@ -335,7 +335,7 @@ llvm::Value* LoopControlStmtAST::codegen() const {
 
 llvm::Function* PrototypeAST::codegen() const {
     auto F =
-      llvm::Function::Create(this->GetType().as<FunctionType>()->toLLVMs(),
+      llvm::Function::Create(this->GetType().as<FunctionType>()->codegen(),
         llvm::Function::ExternalLinkage, Name, ctx().TheModule()
     );
 
@@ -393,7 +393,7 @@ llvm::Function* FunctionAST::codegen() const {
 
     // Before terminating the function, create a default return value, in case the function body does not contain one.
     // TODO: Default return type.
-    ctx().Builder().CreateRet(Proto->ReturnType->defaultLLVMsValue());
+    ctx().Builder().CreateRet(Proto->ReturnType->codegenDefaultValue());
 
     if(val){
     // Validate the generated code, checking for consistency.

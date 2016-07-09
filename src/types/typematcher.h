@@ -8,6 +8,7 @@
 #include <list>
 #include <vector>
 #include <iostream>
+
 namespace ccoscope{
 
 // We probably should think about how to refine the interface here

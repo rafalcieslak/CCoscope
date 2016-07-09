@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <list>
 #include <deque>
-#include "ast/tree.h"
+#include "ast/ast.h"
 #include "types/types.h"
 #include "types/typematcher.h"
 
@@ -100,10 +100,7 @@ public:
     bool IsInsideLoop () const { return !loopsBBHeaderPost_.empty(); }
     std::pair<llvm::BasicBlock*, llvm::BasicBlock*> GetCurrentLoopInfo () const { return loopsBBHeaderPost_.back(); }
 
-    void SetCurrentFunc (llvm::Function* f) const {\
-        currentFunc_ = f;
-        currentFuncName_ = f->getName();
-    }
+    void SetCurrentFunc (llvm::Function* f) const { currentFunc_ = f; currentFuncName_ = f->getName(); }
     void SetCurrentFuncName (std::string name) const { currentFuncName_ = name; }
     void SetCurrentFuncReturnType (Type t) const { currentFuncReturnType_ = t; }
 

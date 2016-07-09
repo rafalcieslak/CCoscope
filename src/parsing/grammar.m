@@ -139,7 +139,7 @@
 
 
 %intokenheader #include <memory>
-%intokenheader #include "../ast/tree.h"
+%intokenheader #include "../ast/ast.h"
 %intokenheader #include "../types/types.h"
 
 %global ctx ccoscope::CodegenContext
@@ -147,7 +147,7 @@
 #include <cassert>
 #define ASSERT( X ) { assert( ( X ) ); }
 #include <cstdio>
-#include "../ast/tree.h"
+#include "../ast/ast.h"
 #include "../types/types.h"
 #include "../world/codegencontext.h"
 #include <memory>
