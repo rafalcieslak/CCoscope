@@ -1,5 +1,6 @@
 #include "print.h"
 #include <stdio.h>
+#include <cstddef>
 
 void __cco_print_int(int v){
     printf("%d\n",v);
@@ -18,4 +19,12 @@ void __cco_print_cstr(char* v) {
 
 void __cco_print_complex(struct __cco_complex c){
     printf("Complex[Re = %f; Im = %f]\n", c.re, c.im);
+}
+
+void __cco_print_string(struct __cco_string s) {
+    size_t i = 0;
+    while(i < s.length) {
+        printf("%c", *(s.s+i));
+    }
+    printf("\n");
 }
