@@ -16,6 +16,7 @@ struct __cco_complex{
 } // extern "C"
 
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/DerivedTypes.h"
 
 using namespace llvm;
 // LLVM Type definitions. Used to describe structures to LLVM.
