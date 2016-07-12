@@ -18,7 +18,7 @@ struct __cco_string {
 
 using namespace llvm;
 // LLVM Type definitions. Used to describe structures to LLVM.
-// These must perfectly match corresponding C types.
+// These must perfectly match corresponding C++ types.
 
 template<typename T> inline llvm::StructType* __cco_type_to_LLVM();
 

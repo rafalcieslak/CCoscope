@@ -1,5 +1,5 @@
 file(GLOB SOURCES
-  ./*.c
+  ./*.cpp
   )
 
 add_library(libcco STATIC

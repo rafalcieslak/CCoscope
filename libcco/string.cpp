@@ -22,10 +22,8 @@ struct __cco_string __cco_string_concat(struct __cco_string a,
                                        struct __cco_string b){
     struct __cco_string s;
     s.length = a.length + b.length;
-    char* nspace = static_cast<char*>(malloc(sizeof(char) * (s.length)));
-    if(nspace == NULL) {
-        return a;
-    }
+    char* nspace = new char [s.length];
+    // TODO: do sth when std::bad_alloc appears
     char* i = nspace;
     char* j = a.s;
     while(*j != '\0') {
