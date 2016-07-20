@@ -1,3 +1,7 @@
+add_definitions(
+  -std=c++14
+  )
+
 file(GLOB SOURCES
   ./*.cpp
   )
@@ -10,6 +14,10 @@ set_target_properties(libcco PROPERTIES OUTPUT_NAME libcco)
 
 # Disables the addition of one more "lib" prefix on libcco
 SET_TARGET_PROPERTIES(libcco PROPERTIES PREFIX "")
+
+include_directories(
+  ${LLVM_INCLUDE_DIRS}
+  )
 
 # Copy the final lib to outside libcco dir
 add_custom_command(
