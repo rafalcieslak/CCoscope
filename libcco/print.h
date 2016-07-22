@@ -6,6 +6,8 @@
 // that they can either define these functions, or unwrap into a C++
 // code that inserts their prototypes to the llvm::Module.
 
+extern "C" {
+
 void __cco_print_int(int);
 void __cco_print_double(double);
 void __cco_print_bool(int);
@@ -13,5 +15,6 @@ void __cco_print_cstr(char*);
 void __cco_print_complex(struct __cco_complex);
 void __cco_print_string(struct __cco_string);
 
+}
 
 #endif // __CCO_PRINT_H__

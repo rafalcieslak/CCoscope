@@ -6,7 +6,7 @@ struct __cco_string __cco_string_new(){
     return s;
 }
 
-struct __cco_string __cco_string_new(char* source){
+struct __cco_string __cco_string_new_from_source(char* source){
     struct __cco_string s;
     size_t len = 0;
     while(*source != '\0') {

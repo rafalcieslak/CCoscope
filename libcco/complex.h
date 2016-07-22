@@ -3,6 +3,8 @@
 
 #include "../common/common_types.h"
 
+extern "C" {
+
 struct __cco_complex __cco_complex_new(double, double);
 
 struct __cco_complex __cco_complex_add(struct __cco_complex,
@@ -20,5 +22,7 @@ struct __cco_complex __cco_complex_div_double(struct __cco_complex,
 
 int __cco_complex_equal(struct __cco_complex,
                         struct __cco_complex);
+
+}
 
 #endif // __COMPLEX_H__

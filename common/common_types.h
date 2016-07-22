@@ -3,6 +3,8 @@
 
 #include <cstddef>
 
+extern "C" {
+
 struct __cco_complex{
     double re;
     double im;
@@ -12,6 +14,8 @@ struct __cco_string {
     char* s;
     size_t length;
 };
+
+}
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/DerivedTypes.h"
