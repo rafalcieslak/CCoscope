@@ -10,7 +10,7 @@
 %token ASSIGN
 %token ADD SUB MULT DIV MOD
 %token EQUAL NEQUAL LESS LESSEQ GREATER GREATEREQ
-%token LITERAL_INT LITERAL_DOUBLE LITERAL_BOOL
+%token LITERAL_INT LITERAL_DOUBLE LITERAL_BOOL LITERAL_STRING
 
 // Non-terminal symbols:
 %token E F G H LISTARGS
@@ -28,6 +28,7 @@
 %attribute value_bool     bool
 %attribute value_double   double
 %attribute value_int      int
+%attribute value_string   std::string
 %attribute id             std::string
 %attribute reason         std::string
  /* This is an aux used by StatementList and Block */
@@ -94,6 +95,7 @@
 %constraint LITERAL_INT      loc 1 2
 %constraint LITERAL_DOUBLE   loc 1 2
 %constraint LITERAL_BOOL     loc 1 2
+%constraint LITERAL_STRING   loc 1 2
 %constraint COLON     loc 1 2
 %constraint EQUAL     loc 1 2
 %constraint NEQUAL    loc 1 2
@@ -126,6 +128,7 @@
 %constraint LITERAL_INT value_int 1 2
 %constraint LITERAL_DOUBLE value_double 1 2
 %constraint LITERAL_BOOL value_bool 1 2
+%constraint LITERAL_STRING value_string 1 2
 
      /* Constraints for other attributes */
 %constraint StatementList statement_list 1 2
@@ -565,6 +568,12 @@
 {   token t(tkn_Expr100);
     t.tree.push_back(ctx.makeBool(LITERAL_BOOL1->value_bool.front(), LITERAL_BOOL1->loc.front()));
     t.loc.push_back( LITERAL_BOOL1->loc.front() );
+    return t;
+}
+%            | LITERAL_STRING
+{   token t(tkn_Expr100);
+    t.tree.push_back(ctx.makeString(LITERAL_STRING1->value_string.front(), LITERAL_STRING1->loc.front()));
+    t.loc.push_back( LITERAL_STRING1->loc.front() );
     return t;
 }
 %            | IDENTIFIER

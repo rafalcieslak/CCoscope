@@ -168,6 +168,8 @@ std::string CodegenContext::GetPrintFunctionName(Type type)  {
         return "print_bool";
     if(type == getComplexTy())
         return "print_complex";
+    if(type == getStringTy())
+        return "print_string";
     AddError("Asked to print non-printable value of type " + type->name());
     return "";
 }
@@ -188,6 +190,7 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
     ADD_STDPROTO("print_cstr", void(char*));
     ADD_STDPROTO("print_complex", void(__cco_complex));
+    ADD_STDPROTO("print_string", void(__cco_string));
 
     ADD_STDPROTO("complex_new" , __cco_complex(double, double));
     ADD_STDPROTO("complex_add" , __cco_complex(__cco_complex,__cco_complex));

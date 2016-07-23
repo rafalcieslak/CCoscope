@@ -36,6 +36,10 @@ ComplexValue CodegenContext::makeComplex(Expr re, Expr im, fileloc pos) {
     return IntroduceE_(new ComplexValueAST(*this, gid_++, re, im, pos));
 }
 
+StringValue CodegenContext::makeString(std::string s, fileloc pos) {
+    return IntroduceE_(new StringValueAST(*this, gid_++, s, pos));
+}
+
 BinaryExpr CodegenContext::makeBinary(std::string Op, Expr LHS, Expr RHS, fileloc pos) {
     return IntroduceE_(new BinaryExprAST(*this, gid_++, Op, LHS, RHS, pos));
 }
@@ -105,6 +109,10 @@ BooleanType CodegenContext::getBooleanTy() {
 
 ComplexType CodegenContext::getComplexTy() {
     return IntroduceT_(new ComplexTypeAST(*this, gid_++));
+}
+
+StringType CodegenContext::getStringTy() {
+    return IntroduceT_(new StringTypeAST(*this, gid_++));
 }
 
 FunctionType CodegenContext::getFunctionTy(Type ret, std::vector<Type> args) {

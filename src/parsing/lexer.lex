@@ -26,7 +26,7 @@ digit    [0-9]
 alpha    [a-zA-z]
 alphanum {digit}|{alpha}
 
-basetype int|bool|double|complex
+basetype int|bool|double|complex|string
 
 /* Floats */
 exponent	[eE]-?{digit}+
@@ -38,6 +38,9 @@ int	    -?{digit}+
 
 /* Booleans */
 bool    true|false
+
+/* Strings */
+literal_string  \"(\\.|[^"])*\"
 
 literalend  [^0-9.]
 
@@ -95,6 +98,7 @@ continue        PUTTOK(tkn_KEYWORD_CONTINUE);
 \]              PUTTOK(tkn_RSQUAREBRACKET);
 \|              PUTTOK(tkn_PIPE);
 
+{literal_string}  PUTTOK(tkn_LITERAL_STRING); TOKADD(value_string, std::string(yytext).substr(1, std::string(yytext).size()-2));
 {identifier}    PUTTOK(tkn_IDENTIFIER); TOKADD(id, yytext);
 {whitespace}    {}
 %%

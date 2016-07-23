@@ -34,6 +34,13 @@ llvm::StructType* ComplexTypeAST::codegen () const {
     return llvm::cast<llvm::StructType>(cache_);
 }
 
+llvm::StructType* StringTypeAST::codegen () const {
+    if(!cache_) {
+        cache_ = codegen_();
+    }
+    return llvm::cast<llvm::StructType>(cache_);
+}
+
 llvm::FunctionType* FunctionTypeAST::codegen () const {
     if(!cache_) {
         cache_ = codegen_();
@@ -63,6 +70,10 @@ llvm::Type* BooleanTypeAST::codegen_ () const {
 
 llvm::StructType* ComplexTypeAST::codegen_ () const {
     return __cco_type_to_LLVM<__cco_complex>();
+}
+
+llvm::StructType* StringTypeAST::codegen_ () const {
+    return __cco_type_to_LLVM<__cco_string>();
 }
 
 llvm::FunctionType* FunctionTypeAST::codegen_ () const {
@@ -97,6 +108,12 @@ llvm::Value* ComplexTypeAST::codegenDefaultValue () const {
     auto v = dynamic_cast<llvm::Constant*>(ctx_.getDoubleTy()->codegenDefaultValue());
     std::vector<llvm::Constant*> vek{v, v};
     return llvm::ConstantStruct::get(codegen(), vek);
+}
+llvm::Value* StringTypeAST::codegenDefaultValue () const {
+    auto ps = ctx().Builder().CreateGlobalStringPtr("");
+    return llvm::ConstantStruct::get(llvm::cast<llvm::StructType>(codegen()),
+        ps,
+        llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, 0, 1)), nullptr);
 }
 llvm::Value* ReferenceTypeAST::codegenDefaultValue () const {
     return of()->codegenDefaultValue();

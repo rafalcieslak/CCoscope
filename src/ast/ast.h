@@ -28,6 +28,7 @@ class ExprAST;             using Expr                = Proxy<ExprAST>;
 template<typename T> class PrimitiveExprAST;
 template<typename T>       using PrimitiveExpr       = Proxy<PrimitiveExprAST<T>>;
 class ComplexValueAST;     using ComplexValue        = Proxy<ComplexValueAST>;
+class StringValueAST;      using StringValue         = Proxy<StringValueAST>;
 class VariableOccExprAST;  using VariableOccExpr     = Proxy<VariableOccExprAST>;
 class VariableDeclExprAST; using VariableDeclExpr    = Proxy<VariableDeclExprAST>;
 class BinaryExprAST;       using BinaryExpr          = Proxy<BinaryExprAST>;
@@ -118,6 +119,21 @@ protected:
     virtual Type Typecheck_() const override;
 
     Expr Re, Im;
+};
+
+class StringValueAST : public ExprAST {
+public:
+    StringValueAST(CodegenContext& ctx, size_t gid, std::string s, fileloc pos)
+        : ExprAST(ctx, gid, pos)
+        , S(s)
+    {}
+
+    llvm::Value* codegen() const override;
+
+protected:
+    virtual Type Typecheck_() const override;
+
+    std::string S;
 };
 
 /// VariableOccExprAST - Expression class for referencing a variable occurence, like "a".

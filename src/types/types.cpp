@@ -30,6 +30,8 @@ Type str2type (CodegenContext& ctx, std::string s) {
         return ctx.getBooleanTy();
     else if (s == "complex")
         return ctx.getComplexTy();
+    else if (s == "string")
+        return ctx.getStringTy();
     else
         return ctx.getVoidTy();
 }

@@ -29,6 +29,7 @@ class IntegerTypeAST;     using IntegerType     = Proxy<IntegerTypeAST>;
 class DoubleTypeAST;      using DoubleType      = Proxy<DoubleTypeAST>;
 class BooleanTypeAST;     using BooleanType     = Proxy<BooleanTypeAST>;
 class ComplexTypeAST;     using ComplexType     = Proxy<ComplexTypeAST>;
+class StringTypeAST;      using StringType      = Proxy<StringTypeAST>;
 class FunctionTypeAST;    using FunctionType    = Proxy<FunctionTypeAST>;
 class ReferenceTypeAST;   using ReferenceType   = Proxy<ReferenceTypeAST>;
 
@@ -153,6 +154,20 @@ public:
     {}
 
     virtual std::string name() const {return "Complex";}
+    llvm::StructType* codegen () const override;
+    llvm::Value* codegenDefaultValue () const;
+
+protected:
+    llvm::StructType* codegen_ () const override;
+};
+
+class StringTypeAST : public PrimitiveTypeAST {
+public:
+    StringTypeAST(CodegenContext& ctx, size_t gid)
+        : PrimitiveTypeAST(ctx, gid)
+    {}
+
+    virtual std::string name() const {return "String";}
     llvm::StructType* codegen () const override;
     llvm::Value* codegenDefaultValue () const;
 

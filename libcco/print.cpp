@@ -25,6 +25,7 @@ void __cco_print_string(struct __cco_string s) {
     size_t i = 0;
     while(i < s.length) {
         printf("%c", *(s.s+i));
+        i++;
     }
     printf("\n");
 }

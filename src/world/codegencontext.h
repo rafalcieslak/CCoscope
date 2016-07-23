@@ -56,6 +56,7 @@ public:
     PrimitiveExpr<double> makeDouble(double value, fileloc pos);
     PrimitiveExpr<bool> makeBool(bool value, fileloc pos);
     ComplexValue makeComplex(Expr re, Expr im, fileloc pos);
+    StringValue makeString(std::string s, fileloc pos);
     BinaryExpr makeBinary(std::string Op, Expr LHS, Expr RHS, fileloc pos);
     ReturnExpr makeReturn(Expr expr, fileloc pos);
     Block makeBlock(const std::list<Expr>& s, fileloc pos);
@@ -78,6 +79,7 @@ public:
     DoubleType getDoubleTy();
     BooleanType getBooleanTy();
     ComplexType getComplexTy();
+    StringType getStringTy();
     FunctionType getFunctionTy(Type ret, std::vector<Type> args);
     ReferenceType getReferenceTy(Type of);
     // ==---------------------------------------------------------------

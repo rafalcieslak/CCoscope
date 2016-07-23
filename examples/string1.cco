@@ -1,0 +1,8 @@
+
+fun main() : int {
+    var i : int;
+    var s : string;
+
+    print("first");
+    print(s);
+}

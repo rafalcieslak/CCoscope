@@ -13,6 +13,7 @@ template class Proxy<PrimitiveExprAST<int>>;
 template class Proxy<PrimitiveExprAST<double>>;
 template class Proxy<PrimitiveExprAST<bool>>;
 template class Proxy<ComplexValueAST>;
+template class Proxy<StringValueAST>;
 template class Proxy<VariableOccExprAST>;
 template class Proxy<VariableDeclExprAST>;
 template class Proxy<BinaryExprAST>;
@@ -80,6 +81,10 @@ Type ComplexValueAST::Typecheck_() const {
         Im = ctx().makeConvert(Im, ctx().getDoubleTy(), match.converter_functions[1], Im->pos());
         return ctx().getComplexTy();
     }
+}
+
+Type StringValueAST::Typecheck_() const {
+    return ctx().getStringTy();
 }
 
 Type VariableOccExprAST::Typecheck_() const {
@@ -189,12 +194,17 @@ Type CallExprAST::Typecheck_() const {
             {ctx().getComplexTy()},
             ctx().getVoidTy()
         };
+        auto print_variant_string = MatchCandidateEntry{
+            {ctx().getStringTy()},
+            ctx().getVoidTy()
+        };
 
         auto expr_type = Args[0]->Typecheck();
         auto match = ctx().typematcher.Match({print_variant_int,
                                               print_variant_double,
                                               print_variant_boolean,
-                                              print_variant_complex},
+                                              print_variant_complex,
+                                              print_variant_string},
                                              {expr_type}
             );
 
