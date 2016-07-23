@@ -22,10 +22,6 @@ void __cco_print_complex(struct __cco_complex c){
 }
 
 void __cco_print_string(struct __cco_string s) {
-    size_t i = 0;
-    while(i < s.length) {
-        printf("%c", *(s.s+i));
-        i++;
-    }
-    printf("\n");
+    std::fwrite(s.s, sizeof(char), s.length, stdout);
+    printf("%c", '\n');
 }
