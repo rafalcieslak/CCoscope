@@ -52,6 +52,7 @@ CodegenContext::CodegenContext()
     ADD_ASSIGN_OP(getBooleanTy());
     ADD_ASSIGN_OP(getDoubleTy());
     ADD_ASSIGN_OP(getComplexTy());
+    ADD_ASSIGN_OP(getStringTy());
 
     ADD_BASIC_OP("ADD",    getIntegerTy(), getIntegerTy(), CreateAdd,  getIntegerTy(), "addtmp");
     ADD_BASIC_OP("SUB",    getIntegerTy(), getIntegerTy(), CreateSub,  getIntegerTy(), "subtmp");
@@ -103,6 +104,9 @@ CodegenContext::CodegenContext()
     ADD_STD_OP("DIV" , getComplexTy(), getComplexTy(), "complex_div" , getComplexTy(), "complexdiv" );
     ADD_STD_OP("DIV" , getComplexTy(), getDoubleTy(), "complex_div_double" , getComplexTy(), "complexdiv" );
     ADD_STD_OP("EQUAL" , getComplexTy(), getComplexTy(), "complex_equal" , getBooleanTy(), "complexeq" );
+
+    ADD_STD_OP("ADD" , getStringTy(), getStringTy(), "string_concat" , getStringTy(), "stringadd" );
+    ADD_STD_OP("EQUAL" , getStringTy(), getStringTy(), "string_equal" , getBooleanTy(), "stringeq" );
 
 }
 
@@ -200,6 +204,9 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("complex_div" , __cco_complex(__cco_complex,__cco_complex));
     ADD_STDPROTO("complex_div_double" , __cco_complex(__cco_complex,double));
     ADD_STDPROTO("complex_equal" , llvm::types::i<1>(__cco_complex,__cco_complex));
+
+    ADD_STDPROTO("string_concat" , __cco_string(__cco_string, __cco_string));
+    ADD_STDPROTO("string_equal" , llvm::types::i<1>(__cco_string,__cco_string));
 }
 
 }

@@ -2,7 +2,19 @@
 fun main() : int {
     var i : int;
     var s : string;
+    var z : string;    
 
     print("first");
     print(s);
+
+    s := "foo";
+    print(s);
+
+    z := "bar";
+
+    s := s + z;
+    print(s);
+
+    z := "baz" + s;
+    print(z);
 }
