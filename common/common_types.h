@@ -72,4 +72,19 @@ namespace llvm {
     };
 }  // namespace llvm
 
+// Default values
+
+#include "llvm/IR/IRBuilder.h"
+
+template<typename T> inline llvm::Value* __cco_type_default_value_to_LLVM(llvm::IRBuilder<>& Builder);
+
+template<>
+inline llvm::Value* __cco_type_default_value_to_LLVM<__cco_string>(llvm::IRBuilder<>& Builder){
+    static auto empty = Builder.CreateGlobalStringPtr("");
+    auto type = __cco_type_to_LLVM<__cco_string>();
+    static auto i64zero = llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, 0, 1));
+
+    return llvm::ConstantStruct::get(type, empty, i64zero, nullptr);
+}
+
 #endif // __COMMON_TYPES_H__

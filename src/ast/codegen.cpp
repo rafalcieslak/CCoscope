@@ -65,11 +65,12 @@ llvm::Value* ComplexValueAST::codegen() const {
 }
 
 llvm::Value* StringValueAST::codegen() const {
-    auto t= Typecheck()->codegen();
+    auto t = GetType()->codegen();
     auto ps = ctx().Builder().CreateGlobalStringPtr(S.c_str());
-    return llvm::ConstantStruct::get(llvm::cast<llvm::StructType>(t),
+    auto res = llvm::ConstantStruct::get(llvm::cast<llvm::StructType>(t),
         ps,
         llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, S.size(), 1)), nullptr);
+    return res;
 }
 
 llvm::Value* VariableOccExprAST::codegen() const {

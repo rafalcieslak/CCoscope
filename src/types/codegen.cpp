@@ -110,10 +110,7 @@ llvm::Value* ComplexTypeAST::codegenDefaultValue () const {
     return llvm::ConstantStruct::get(codegen(), vek);
 }
 llvm::Value* StringTypeAST::codegenDefaultValue () const {
-    auto ps = ctx().Builder().CreateGlobalStringPtr("");
-    return llvm::ConstantStruct::get(llvm::cast<llvm::StructType>(codegen()),
-        ps,
-        llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(64, 0, 1)), nullptr);
+    return __cco_type_default_value_to_LLVM<__cco_string>(ctx().Builder());
 }
 llvm::Value* ReferenceTypeAST::codegenDefaultValue () const {
     return of()->codegenDefaultValue();

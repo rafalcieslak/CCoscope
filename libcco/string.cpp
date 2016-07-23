@@ -1,23 +1,5 @@
 #include "string.h"
 
-struct __cco_string __cco_string_new(){
-    struct __cco_string s;
-    s.length = 0;
-    return s;
-}
-
-struct __cco_string __cco_string_new_from_source(char* source){
-    struct __cco_string s;
-    size_t len = 0;
-    while(*source != '\0') {
-        len++;
-        source++;
-    }
-    s.length = len;
-    s.s = source;
-    return s;
-}
-
 struct __cco_string __cco_string_concat(struct __cco_string a,
                                        struct __cco_string b){
     struct __cco_string s;
