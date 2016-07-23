@@ -192,7 +192,6 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
     ADD_STDPROTO("print_int",void(int));
     ADD_STDPROTO("print_double",void(double));
     ADD_STDPROTO("print_bool",void(llvm::types::i<1>));
-    ADD_STDPROTO("print_cstr", void(char*));
     ADD_STDPROTO("print_complex", void(__cco_complex));
     ADD_STDPROTO("print_string", void(__cco_string));
 
@@ -207,6 +206,12 @@ void CodegenContext::PrepareStdFunctionPrototypes_(){
 
     ADD_STDPROTO("string_concat" , __cco_string(__cco_string, __cco_string));
     ADD_STDPROTO("string_equal" , llvm::types::i<1>(__cco_string,__cco_string));
+
+    ADD_STDPROTO("int_to_string", __cco_string(int));
+    ADD_STDPROTO("double_to_string", __cco_string(double));
+    ADD_STDPROTO("bool_to_string", __cco_string(llvm::types::i<1>));
+    ADD_STDPROTO("complex_to_string", __cco_string(__cco_complex));
+
 }
 
 }

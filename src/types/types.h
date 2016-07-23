@@ -143,6 +143,8 @@ public:
     virtual std::string name() const {return "Boolean";}
     llvm::Value* codegenDefaultValue () const;
 
+    virtual std::list<Conversion> ListConversions() const override;
+
 protected:
     llvm::Type* codegen_ () const override;
 };
@@ -156,6 +158,8 @@ public:
     virtual std::string name() const {return "Complex";}
     llvm::StructType* codegen () const override;
     llvm::Value* codegenDefaultValue () const;
+
+    virtual std::list<Conversion> ListConversions() const override;
 
 protected:
     llvm::StructType* codegen_ () const override;

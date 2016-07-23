@@ -1,0 +1,30 @@
+
+fun concatfour(a : string, 
+    b : int, 
+    c : double, 
+    d : complex, 
+    sep : string) : string {
+    var x : string;
+    x := a + b + c;
+    return x + sep + d;
+}
+
+fun foo(a : int) : string {
+    a := a + 12;
+    return a;
+}
+
+fun main() : int {
+    var s : string;
+    var res : string;    
+    var b : int;
+    
+    b := 4;
+    s := foo(b);
+    s := s + "bar";
+    print(s);
+
+    res := concatfour(s, b, 3.14, newComplex(-1, 1), " ate ");
+    
+    print(res);
+}

@@ -28,6 +28,19 @@ std::list<Conversion> IntegerTypeAST::ListConversions() const{
             [this](llvm::Value* v)->llvm::Value*{
                 return this->ctx().Builder().CreateSIToFP(v, llvm::Type::getDoubleTy(llvm::getGlobalContext()), "convtmp");
             }
+        },
+        Conversion{
+            ctx_.getStringTy(),
+            50,
+            [this](llvm::Value* v)->llvm::Value* {
+                llvm::Function *CalleeF = this->ctx().GetStdFunction("int_to_string");
+                if (CalleeF)
+                    return this->ctx().Builder().CreateCall(CalleeF, {v}, "callint2str");
+                else {
+                    this->ctx().AddError("int_to_string conversion not possible!");
+                    return nullptr;
+                }
+            }
         }
     };
 }
@@ -43,6 +56,55 @@ std::list<Conversion> DoubleTypeAST::ListConversions() const{
                     return this->ctx().Builder().CreateCall(CalleeF, {v, this->ctx().getDoubleTy()->codegenDefaultValue()}, "callcmplxtmp");
                 } else {
                     this->ctx().AddError("newComplex constructor not found!");
+                    return nullptr;
+                }
+            }
+        },
+        Conversion{
+            ctx_.getStringTy(),
+            50,
+            [this](llvm::Value* v)->llvm::Value* {
+                llvm::Function *CalleeF = this->ctx().GetStdFunction("double_to_string");
+                if (CalleeF)
+                    return this->ctx().Builder().CreateCall(CalleeF, {v}, "calldouble2str");
+                else {
+                    this->ctx().AddError("double_to_string conversion not possible!");
+                    return nullptr;
+                }
+            }
+        }
+    };
+}
+
+std::list<Conversion> BooleanTypeAST::ListConversions() const{
+    return {
+        Conversion{
+            ctx_.getStringTy(),
+            50,
+            [this](llvm::Value* v)->llvm::Value* {
+                llvm::Function *CalleeF = this->ctx().GetStdFunction("bool_to_string");
+                if (CalleeF)
+                    return this->ctx().Builder().CreateCall(CalleeF, {v}, "callbool2str");
+                else {
+                    this->ctx().AddError("bool_to_string conversion not possible!");
+                    return nullptr;
+                }
+            }
+        }
+    };
+}
+
+std::list<Conversion> ComplexTypeAST::ListConversions() const{
+    return {
+        Conversion{
+            ctx_.getStringTy(),
+            50,
+            [this](llvm::Value* v)->llvm::Value* {
+                llvm::Function *CalleeF = this->ctx().GetStdFunction("complex_to_string");
+                if (CalleeF)
+                    return this->ctx().Builder().CreateCall(CalleeF, {v}, "callcomplex2str");
+                else {
+                    this->ctx().AddError("complex_to_string conversion not possible!");
                     return nullptr;
                 }
             }
