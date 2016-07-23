@@ -24,18 +24,22 @@ struct __cco_string __cco_string_concat(struct __cco_string a,
     s.length = a.length + b.length;
     char* nspace = new char [s.length];
     // TODO: do sth when std::bad_alloc appears
-    char* i = nspace;
-    char* j = a.s;
-    while(*j != '\0') {
-        *i = *j;
+    char* ip = nspace;
+    size_t i = 0;
+    char* jp = a.s;
+    while(i < a.length) {
+        *ip = *jp;
+        ip++;
+        jp++;
         i++;
-        j++;
     }
-    j = b.s;
-    while(*j != '\0') {
-        *i = *j;
+    jp = b.s;
+    i = 0;
+    while(i < b.length) {
+        *ip = *jp;
+        ip++;
+        jp++;
         i++;
-        j++;
     }
     s.s = nspace;
     return s;

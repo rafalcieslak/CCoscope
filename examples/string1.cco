@@ -17,4 +17,10 @@ fun main() : int {
 
     z := "baz" + s;
     print(z);
+
+    if(s == "foobar") {
+        print("s == \"foobar\"");
+    } else {
+        print("s != \"foobar\"");
+    }
 }
