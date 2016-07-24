@@ -1,0 +1,60 @@
+
+fun fooi1(x : int) : int {
+    var y : int;
+    y := 3;
+    x := y;
+    return x;
+}
+
+fun fooi2(x : int) : int {
+    var y : int;
+    y := 3;
+    x := y;
+    return y;
+}
+
+fun foos1(x : string) : string {
+    var y : string;
+    y := "3";
+    x := y;
+    return x;
+}
+
+fun foos2(x : string) : string {
+    var y : string;
+    y := "3";
+    x := y;
+    return y;
+}
+
+fun main() : int {
+    var a : int;
+    var b : int;
+    var c : int;
+    var d : string;
+    var e : string;
+    var f : string;
+
+    a := 1;
+    b := fooi1(a);
+    
+    print(a);
+    print(b);
+    
+    c := fooi2(a);
+    print(a);
+    print(c);
+
+    d := "foo";
+    e := foos1(d);
+    
+    print(d);
+    print(e);
+    
+    d := "foo";
+    f := foos2(d);
+    
+    print(d);
+    print(f);
+
+}
